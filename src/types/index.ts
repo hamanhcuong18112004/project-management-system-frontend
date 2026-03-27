@@ -23,3 +23,31 @@ export interface Module {
     color: string;
     columns: Column[];
 }
+
+// ─────────────────────────────────────────────
+// API response envelope
+// ─────────────────────────────────────────────
+
+export type ApiError = {
+    code: string;
+    details: unknown;
+};
+
+export type ApiSuccess<T> = {
+    status: "success";
+    code: number;
+    message: string;
+    data: T;
+    error: null;
+};
+
+export type ApiFailure = {
+    status: "error";
+    code: number;
+    message: string;
+    data: null;
+    error: ApiError;
+};
+
+export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+

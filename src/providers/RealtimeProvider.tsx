@@ -50,7 +50,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
   const [guestId] = useState(() => "guest-" + Math.random().toString(36).slice(2, 9));
 
   const CURRENT_USER_ID = user?.id || guestId;
-  const CURRENT_USER_NAME = user?.name || "Guest";
+  const CURRENT_USER_NAME = user?.username || "Guest";
   const checkIsLocked = useCallback((id: string) => {
     if (isConnected && remoteDrags.has(id)) {
       return true;
@@ -59,6 +59,9 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
     }
   }, [remoteDrags, isConnected]);
   useEffect(() => {
+    // Tạm thời tắt WebSocket khi backend chưa sẵn sàng
+    if (process.env.NEXT_PUBLIC_REALTIME_ENABLED !== "true") return;
+
     const newSocket = io(WS_URL, {
       path: "/ws",
       transports: ["websocket"]
@@ -117,6 +120,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
       socketRef.current = null;
     };
   }, [CURRENT_USER_ID])
+
 
   const emitDragStart = useCallback((id: string, type: DragItemType) => {
     socketRef.current?.emit("drag_start", {

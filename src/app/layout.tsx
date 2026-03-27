@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import AuthProvider from "@/providers/AuthProvider";
 import RealtimeProvider from "@/providers/RealtimeProvider";
@@ -35,6 +36,14 @@ export default function RootLayout({
             {children}
           </RealtimeProvider>
         </AuthProvider>
+        <Toaster
+          position="top-right"
+          richColors
+          theme="light"
+          toastOptions={{
+            duration: 3500,
+          }}
+        />
       </body>
     </html>
   );
