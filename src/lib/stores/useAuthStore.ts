@@ -74,6 +74,8 @@ export const useAuthStore = create<AuthState>()(
                 // Persist user and refreshToken; accessToken is intentionally ephemeral
                 user: state.user,
                 refreshToken: state.refreshToken,
+                accessToken: state.accessToken,
+                isAuthenticated: state.isAuthenticated,
             }),
         },
     ),
