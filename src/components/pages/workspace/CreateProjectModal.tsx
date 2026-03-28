@@ -46,7 +46,7 @@ export function CreateProjectModal({
 
     const newErrors: { name?: string } = {};
     if (!name.trim()) {
-      newErrors.name = "Tên dự án không được để trống";
+      newErrors.name = "Tên workspace không được để trống";
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -76,7 +76,7 @@ export function CreateProjectModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Tạo dự án mới</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Tạo workspace mới</h2>
           <button
             onClick={handleClose}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
@@ -90,7 +90,7 @@ export function CreateProjectModal({
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Tên dự án <span className="text-red-500">*</span>
+              Tên workspace <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -119,7 +119,7 @@ export function CreateProjectModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Mục tiêu và phạm vi của dự án này là gì?"
+              placeholder="Mục tiêu và phạm vi của workspace này là gì?"
               rows={3}
               className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all resize-none"
             />
@@ -169,7 +169,7 @@ export function CreateProjectModal({
                 <div>
                   <p className="text-sm font-medium text-gray-900">Công khai</p>
                   <p className="text-xs text-gray-500">
-                    Mọi người trong không gian làm việc đều có thể tìm thấy và truy cập dự án này.
+                    Mọi người trong không gian làm việc đều có thể tìm thấy và truy cập workspace này.
                   </p>
                 </div>
               </label>
@@ -191,7 +191,7 @@ export function CreateProjectModal({
                 <div>
                   <p className="text-sm font-medium text-gray-900">Riêng tư</p>
                   <p className="text-xs text-gray-500">
-                    Chỉ những thành viên được mời mới có thể xem và truy cập dự án này.
+                    Chỉ những thành viên được mời mới có thể xem và truy cập workspace này.
                   </p>
                 </div>
               </label>
@@ -221,7 +221,7 @@ export function CreateProjectModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             )}
-            Tạo dự án
+            Tạo workspace
           </button>
         </div>
       </div>

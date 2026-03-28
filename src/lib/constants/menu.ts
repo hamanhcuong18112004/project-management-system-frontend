@@ -33,7 +33,7 @@ export const MAIN_MENU: MenuItem[] = [
     icon: CheckSquare,
   },
   {
-    label: "Dự án",
+    label: "Workspace",
     href: ROUTES.projects,
     icon: FolderKanban,
   },

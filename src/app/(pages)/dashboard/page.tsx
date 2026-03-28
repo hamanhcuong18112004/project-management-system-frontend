@@ -48,7 +48,7 @@ const STATS = [
 
 const QUICK_ACTIONS = [
   { label: "Tạo công việc", icon: Plus },
-  { label: "Tạo dự án", icon: FolderKanban },
+  { label: "Tạo workspace", icon: FolderKanban },
   { label: "Mời thành viên", icon: Users },
 ];
 
