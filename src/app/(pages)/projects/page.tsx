@@ -1,41 +1,46 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Plus, FolderKanban, Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getAllWorkspaces,
-  createWorkspace,
+  getMyWorkspaces,
   deleteWorkspace,
+  createWorkspace,
+  // updateWorkspace, 
+  // inviteUser, 
+  // removeUser, 
+  // updateUserRole, 
   type Workspace,
-  type Visibility,
 } from "@/lib/api/workspace";
 import { getApiErrorMessage } from "@/lib/api/error";
-import { ProjectGrid } from "@/components/pages/workspace";
+import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
 import { CreateProjectModal } from "@/components/pages/workspace";
 
 export default function ProjectsPage() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [filtered, setFiltered] = useState<Workspace[]>([]);
-  const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Modals state (CHỈ CÒN CREATE MODAL Ở ĐÂY)
+  const [showCreateWsModal, setShowCreateWsModal] = useState(false);
+  const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
-  // Fetch workspaces
+  // Lấy danh sách Workspace
   const fetchWorkspaces = useCallback(async () => {
     try {
       setIsLoading(true);
-      setError(null);
-      const data = await getAllWorkspaces();
-      setWorkspaces(data);
-      setFiltered(data);
-      console.log("workspaces", data);
+      const data = await getMyWorkspaces();
+      
+      const safeData = data.map(ws => ({
+        ...ws,
+        boards: ws.boards || [],
+        members: ws.members || [],
+        role: ws.role || "MEMBER" 
+      }));
+
+      setWorkspaces(safeData);
     } catch (err) {
-      const message = getApiErrorMessage(err, "Không thể tải danh sách dự án");
-      setError(message);
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, "Không thể tải danh sách không gian làm việc"));
     } finally {
       setIsLoading(false);
     }
@@ -45,132 +50,114 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  // Search filter
-  useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(workspaces);
-      console.log("workspaces", workspaces);
-    } else {
-      const q = search.toLowerCase();
-      setFiltered(
-        workspaces.filter(
-          (w) =>
-            w.name.toLowerCase().includes(q) ||
-            (w.description && w.description.toLowerCase().includes(q))
-        )
-      );
-    }
-  }, [search, workspaces]);
-
-  // Create workspace
-  const handleCreate = async (data: {
-    name: string;
-    description: string;
-    color: string;
-    visibility: Visibility;
-  }) => {
+  // Tạo Workspace
+  const handleCreateWorkspace = async (data: any) => {
     try {
-      setIsCreating(true);
-      await createWorkspace({
-        name: data.name,
-        description: data.description || undefined,
-        visibility: data.visibility,
-      });
-      toast.success("Tạo dự án thành công!");
-      setShowModal(false);
+      setIsSubmittingCreate(true);
+      await createWorkspace(data);
+      toast.success("Tạo không gian làm việc thành công!");
+      setShowCreateWsModal(false);
       fetchWorkspaces();
     } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể tạo dự án"));
+      toast.error(getApiErrorMessage(err, "Không thể tạo không gian làm việc"));
     } finally {
-      setIsCreating(false);
+      setIsSubmittingCreate(false);
     }
   };
 
-  // Delete workspace
-  const handleMenuClick = async (workspace: Workspace) => {
-    if (!confirm(`Bạn có chắc muốn xóa dự án "${workspace.name}"?`)) return;
+  // Các Action Truyền xuống WorkspaceRow (Cần return Promise để Row biết khi nào xong mà đóng Modal)
+  const handleDeleteWorkspace = async (workspaceId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.")) return;
     try {
-      await deleteWorkspace(workspace.id);
-      toast.success("Đã xóa dự án");
+      await deleteWorkspace(workspaceId);
+      toast.success("Đã xóa không gian làm việc");
       fetchWorkspaces();
     } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể xóa dự án"));
+      toast.error(getApiErrorMessage(err, "Không thể xóa không gian làm việc"));
     }
+  };
+
+  const handleUpdateWorkspace = async (data: any) => {
+    try {
+      // await updateWorkspace(data.id, { name: data.name, description: data.description });
+      toast.info(`Tính năng Update cho workspace ${data.id} đang phát triển (Cần API)`);
+      fetchWorkspaces();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Không thể cập nhật không gian làm việc"));
+      throw err; // Ném lỗi để WorkspaceRow không đóng modal nếu lỗi
+    }
+  };
+
+  const handleInviteMember = async (workspaceId: string, email: string) => {
+    // await inviteUser(workspaceId, email);
+    toast.info(`Mời ${email} vào workspace ${workspaceId} (Cần API)`);
+    fetchWorkspaces();
+  };
+
+  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
+    if(!confirm("Xóa thành viên này khỏi không gian làm việc?")) return;
+    // await removeUser(workspaceId, memberId);
+    toast.info(`Xóa member ${memberId} khỏi workspace ${workspaceId} (Cần API)`);
+    fetchWorkspaces();
+  };
+
+  const handleUpdateMemberRole = async (workspaceId: string, memberId: string, role: string) => {
+    // await updateUserRole(workspaceId, memberId, role);
+    toast.info(`Cập nhật role member ${memberId} thành ${role} (Cần API)`);
+    fetchWorkspaces();
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-            <FolderKanban size={20} className="text-blue-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý Dự án</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm dự án..."
-              className="pl-9 pr-4 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all w-56"
-            />
-          </div>
-
-          {/* Filter */}
-          <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
-            <Filter size={16} />
-            <span>Lọc</span>
-          </button>
-
-          {/* Create */}
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm"
-          >
-            <Plus size={16} />
-            <span>Tạo dự án</span>
-          </button>
-        </div>
+    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 space-y-10 bg-gray-50 min-h-screen">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+        <h1 className="text-2xl font-bold text-gray-900">Các Không Gian Làm Việc Của Bạn</h1>
+        <button
+          onClick={() => setShowCreateWsModal(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm"
+        >
+          <Plus size={16} />
+          <span>Tạo Không gian làm việc</span>
+        </button>
       </div>
 
-      {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 size={32} className="animate-spin text-blue-500" />
         </div>
-      ) : error ? (
-        <div className="text-center py-20">
-          <p className="text-gray-500">{error}</p>
+      ) : workspaces.length === 0 ? (
+        <div className="text-center py-24 border-2 border-dashed rounded-2xl border-gray-200 bg-white shadow-sm">
+          <p className="text-gray-500 mb-5">Bạn chưa có không gian làm việc nào.</p>
           <button
-            onClick={fetchWorkspaces}
-            className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-all"
+            onClick={() => setShowCreateWsModal(true)}
+            className="px-5 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
           >
-            Thử lại
+            Bắt đầu tạo ngay
           </button>
         </div>
       ) : (
-        <ProjectGrid
-          workspaces={filtered}
-          onCreateClick={() => setShowModal(true)}
-          onMenuClick={handleMenuClick}
-        />
+        <div className="flex flex-col gap-10">
+          {workspaces.map((ws) => (
+            <WorkspaceRow
+              key={ws.id}
+              workspace={ws}
+              onNavigateBoard={(id) => console.log("Nav to board", id)}
+              onCreateBoard={(wsId) => console.log("Create board modal for", wsId)} // Sẽ cập nhật tạo board ở đây sau
+              onInviteMember={handleInviteMember}
+              onRemoveMember={handleRemoveMember}
+              onUpdateMemberRole={handleUpdateMemberRole}
+              onUpdateWorkspace={handleUpdateWorkspace}
+              onDeleteWorkspace={handleDeleteWorkspace}
+            />
+          ))}
+        </div>
       )}
 
-      {/* Create Modal */}
+      {/* CHỈ GIỮ LẠI MODAL NÀY Ở PAGE */}
       <CreateProjectModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onSubmit={handleCreate}
-        isLoading={isCreating}
+        open={showCreateWsModal}
+        onClose={() => setShowCreateWsModal(false)}
+        onSubmit={handleCreateWorkspace}
+        isLoading={isSubmittingCreate}
       />
     </div>
   );

@@ -3,8 +3,21 @@ import apiClient from "./client";
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-
 export type Visibility = "PUBLIC" | "PRIVATE";
+export type Role = "OWNER" | "MEMBER";
+
+export interface Board {
+  id: string;
+  name: string;
+  background?: string;
+}
+
+export interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+}
 
 export interface Workspace {
   id: string;
@@ -14,6 +27,9 @@ export interface Workspace {
   visibility: Visibility;
   createdAt: string;
   updatedAt: string;
+  role?: Role; // BE cần trả về để phân quyền
+  boards?: Board[]; // BE cần trả về danh sách bảng
+  members?: Member[]; // BE cần trả về danh sách thành viên
 }
 
 export interface CreateWorkspacePayload {
@@ -31,86 +47,61 @@ export interface UpdateWorkspacePayload {
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
+export interface ApiResponse<T> {
+  status: string;
+  message?: string;
+  data: T;
+}
 
-/**
- * workspace-service wraps responses in { success, message, data }
- * via GlobalResponseAdvice.
- */
-function unwrap<T>(res: { data: { status: string; message: string; data: T } }): T {
+function unwrap<T>(res: { data: ApiResponse<T> }): T {
   const payload = res.data;
-
   if (payload.status !== "success") {
     throw new Error(payload.message || "Đã có lỗi xảy ra.");
   }
-
   let data = payload.data;
-
   if (data == null) {
     data = ([] as unknown) as T;
   }
-
   return data as T;
 }
 
-const SERVICE = "workspace";
+const SERVICE = "workspace"; // Chú ý: Cấu hình proxy ở frontend để gọi localhost:8082
 
 // ─────────────────────────────────────────────
 // API Functions
 // ─────────────────────────────────────────────
 
-/** GET /api/workspaces - Lấy tất cả workspace */
 export async function getAllWorkspaces(): Promise<Workspace[]> {
-  const res = await apiClient.get<{ success: boolean; message: string; data: Workspace[] }>(
-    `${SERVICE}/api/workspaces`
-  );
-  const data = unwrap<Workspace[]>(res);
-  return data ?? [];
+  const res = await apiClient.get<ApiResponse<Workspace[]>>(`${SERVICE}/api/workspaces`);
+  return unwrap(res) ?? [];
 }
 
-/** GET /api/workspaces/{id} - Lấy workspace theo id */
 export async function getWorkspaceById(id: string): Promise<Workspace> {
-  const res = await apiClient.get<{ success: boolean; message: string; data: Workspace }>(
-    `${SERVICE}/api/workspaces/${id}`
-  );
+  const res = await apiClient.get<ApiResponse<Workspace>>(`${SERVICE}/api/workspaces/${id}`);
   return unwrap(res);
 }
 
-/** POST /api/workspaces - Tạo workspace */
 export async function createWorkspace(payload: CreateWorkspacePayload): Promise<Workspace> {
-  const res = await apiClient.post<{ success: boolean; message: string; data: Workspace }>(
-    `${SERVICE}/api/workspaces`,
-    payload
-  );
+  const res = await apiClient.post<ApiResponse<Workspace>>(`${SERVICE}/api/workspaces`, payload);
   return unwrap(res);
 }
 
-/** PUT /api/workspaces/{id} - Cập nhật workspace */
-export async function updateWorkspace(
-  id: string,
-  payload: UpdateWorkspacePayload
-): Promise<Workspace> {
-  const res = await apiClient.put<{ success: boolean; message: string; data: Workspace }>(
-    `${SERVICE}/api/workspaces/${id}`,
-    payload
-  );
+export async function updateWorkspace(id: string, payload: UpdateWorkspacePayload): Promise<Workspace> {
+  const res = await apiClient.put<ApiResponse<Workspace>>(`${SERVICE}/api/workspaces/${id}`, payload);
   return unwrap(res);
 }
 
-/** DELETE /api/workspaces/{id} - Xóa workspace */
 export async function deleteWorkspace(id: string): Promise<void> {
-  await apiClient.delete(`${SERVICE}/api/workspaces/${id}`);
+  const res = await apiClient.delete<ApiResponse<null>>(`${SERVICE}/api/workspaces/${id}`);
+  unwrap(res);
 }
 
-/** GET /api/workspaces/my-workspaces - Lấy workspace của user hiện tại */
 export async function getMyWorkspaces(): Promise<Workspace[]> {
-  const res = await apiClient.get<{ success: boolean; message: string; data: Workspace[] }>(
-    `${SERVICE}/api/workspaces/my-workspaces`
-  );
-  const data = unwrap<Workspace[]>(res);
-  return data ?? [];
+  const res = await apiClient.get<ApiResponse<Workspace[]>>(`${SERVICE}/api/workspaces/my-workspaces`);
+  return unwrap(res) ?? [];
 }
 
-/** POST /api/workspaces/{id}/invite - Mời user vào workspace */
 export async function inviteToWorkspace(workspaceId: string, email: string): Promise<void> {
-  await apiClient.post(`${SERVICE}/api/workspaces/${workspaceId}/invite`, { email });
+  const res = await apiClient.post<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/invite`, { email });
+  unwrap(res);
 }
