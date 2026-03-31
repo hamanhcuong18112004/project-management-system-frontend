@@ -15,12 +15,35 @@ const apiClient = axios.create({
     withCredentials: true, // Gửi httpOnly cookies (refresh token)
 });
 
+const ensureAuthStoreHydrated = async () => {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    const persistApi = useAuthStore.persist;
+    if (!persistApi?.hasHydrated || persistApi.hasHydrated()) {
+        return;
+    }
+
+    try {
+        await persistApi.rehydrate?.();
+    } catch {
+        // Let downstream auth logic handle token absence gracefully.
+    }
+};
+
 // ============================================
 // Request Interceptor: Gắn access token
 // ============================================
 apiClient.interceptors.request.use(
-    (config) => {
-        const accessToken = useAuthStore.getState().accessToken;
+    async (config) => {
+        let accessToken = useAuthStore.getState().accessToken;
+
+        if (!accessToken) {
+            await ensureAuthStoreHydrated();
+            accessToken = useAuthStore.getState().accessToken;
+        }
+
         if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;
         } else {
@@ -120,7 +143,7 @@ apiClient.interceptors.response.use(
         }
 
         const status = error.response?.status;
-        const isUnauthorized = status === 401;
+        const isUnauthorized = status === 401 || status === 403;
         const requestIsAuthEndpoint = shouldSkipRefresh(originalRequest.url);
 
         if (isUnauthorized && requestIsAuthEndpoint) {
@@ -133,7 +156,9 @@ apiClient.interceptors.response.use(
 
         // Nếu 401 và chưa retry
         if (isUnauthorized && !originalRequest._retry) {
-            console.log(`🔒 [401 UNAUTHORIZED] ${requestUrl}`);
+            console.log(
+                `🔒 [401 UNAUTHORIZED] ${requestUrl} ${status} ${isUnauthorized}`,
+            );
 
             // Nếu đang refresh thì queue lại
             if (isRefreshing) {
@@ -158,8 +183,14 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                await ensureAuthStoreHydrated();
                 const { refreshAccessToken } = useAuthStore.getState();
-                console.log(`🔑 [CALLING REFRESH API]...`);
+                const hasRefreshToken = Boolean(
+                    useAuthStore.getState().refreshToken,
+                );
+                console.log(
+                    `🔑 [CALLING REFRESH API] hasRefreshToken=${hasRefreshToken}`,
+                );
                 const newToken = await refreshAccessToken();
 
                 if (newToken) {
