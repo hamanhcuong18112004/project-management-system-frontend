@@ -57,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
                     set({
                         accessToken: tokens.accessToken,
                         refreshToken: tokens.refreshToken ?? storedRefreshToken,
+                        isAuthenticated: true,
                     });
                     console.log(
                         "✅ [AUTH] Access token refreshed successfully",
@@ -74,6 +75,8 @@ export const useAuthStore = create<AuthState>()(
                 // Persist user and refreshToken; accessToken is intentionally ephemeral
                 user: state.user,
                 refreshToken: state.refreshToken,
+                accessToken: state.accessToken, // Include accessToken for debugging, but it won't be used on app reload
+                isAuthenticated: state.isAuthenticated,
             }),
         },
     ),
