@@ -13,10 +13,11 @@ export interface Board {
 }
 
 export interface Member {
-  id: string;
-  name: string;
   email: string;
+  fullName: string;
+  joinedAt: string;
   role: Role;
+  userId: string;
 }
 
 export interface Workspace {

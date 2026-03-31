@@ -7,11 +7,10 @@ import {
   getMyWorkspaces,
   deleteWorkspace,
   createWorkspace,
-  // updateWorkspace, 
-  // inviteUser, 
-  // removeUser, 
-  // updateUserRole, 
+  updateWorkspace, 
+  inviteToWorkspace, 
   type Workspace,
+  type Role,
 } from "@/lib/api/workspace";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
@@ -25,26 +24,37 @@ export default function ProjectsPage() {
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
+  // Lấy userId hiện tại từ store
+  const userId = typeof window !== "undefined" ? (window.localStorage.getItem("auth-storage") ? JSON.parse(window.localStorage.getItem("auth-storage") || '{}').state?.user?.id : undefined) : undefined;
+
   // Lấy danh sách Workspace
   const fetchWorkspaces = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await getMyWorkspaces();
-      
-      const safeData = data.map(ws => ({
-        ...ws,
-        boards: ws.boards || [],
-        members: ws.members || [],
-        role: ws.role || "MEMBER" 
-      }));
 
+      const safeData = data.map(ws => {
+        // Tìm role của user hiện tại trong danh sách members
+        let role: Role = "MEMBER";
+        if (userId && Array.isArray(ws.members)) {
+          const found = ws.members.find(m => m.userId === userId);
+          if (found && found.role) role = found.role as Role;
+        }
+        return {
+          ...ws,
+          boards: ws.boards || [],
+          members: ws.members || [],
+          role
+        };
+      });
+      console.log("Fetched workspaces:", safeData);
       setWorkspaces(safeData);
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Không thể tải danh sách không gian làm việc"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -79,8 +89,8 @@ export default function ProjectsPage() {
 
   const handleUpdateWorkspace = async (data: any) => {
     try {
-      // await updateWorkspace(data.id, { name: data.name, description: data.description });
-      toast.info(`Tính năng Update cho workspace ${data.id} đang phát triển (Cần API)`);
+      await updateWorkspace(data.id, { name: data.name, description: data.description });
+      toast.info(`Đã Update cho workspace ${data.name} `);
       fetchWorkspaces();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Không thể cập nhật không gian làm việc"));
@@ -89,8 +99,8 @@ export default function ProjectsPage() {
   };
 
   const handleInviteMember = async (workspaceId: string, email: string) => {
-    // await inviteUser(workspaceId, email);
-    toast.info(`Mời ${email} vào workspace ${workspaceId} (Cần API)`);
+    await inviteToWorkspace(workspaceId, email);
+    toast.info(`Đã gửi lời mời tới email ${email} vào workspace ${workspaceId}`);
     fetchWorkspaces();
   };
 

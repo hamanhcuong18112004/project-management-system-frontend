@@ -82,13 +82,17 @@ export function MembersModal({
               <p className="text-sm text-gray-500 italic">Chưa có thành viên nào.</p>
             ) : (
               members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-50 border border-gray-100">
+                <div key={member.userId} className="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-50 border border-gray-100">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-gray-600 text-sm">
-                      {member.name ? member.name.charAt(0).toUpperCase() : "?"}
+                      {member.fullName ? member.fullName.charAt(0).toUpperCase() : "?"}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{member.name || "N/A"}</p>
+                      {member.fullName ? (
+                        <p className="text-sm font-medium text-gray-900">{member.fullName}</p>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900">N/A</p>
+                      )}
                       <p className="text-xs text-gray-500">{member.email}</p>
                     </div>
                   </div>
@@ -104,14 +108,14 @@ export function MembersModal({
                       <>
                         <select
                           value={member.role}
-                          onChange={(e) => onUpdateMemberRole(workspace.id, member.id, e.target.value)}
+                          onChange={(e) => onUpdateMemberRole(workspace.id, member.userId, e.target.value)}
                           className="text-xs border border-gray-200 rounded px-2 py-1"
                         >
                           <option value="MEMBER">Member</option>
                           <option value="OWNER">Owner</option>
                         </select>
                         <button 
-                          onClick={() => onRemoveMember(workspace.id, member.id)}
+                          onClick={() => onRemoveMember(workspace.id, member.userId)}
                           className="text-gray-400 hover:text-red-600 p-1"
                         >
                           <Trash2 size={16} />

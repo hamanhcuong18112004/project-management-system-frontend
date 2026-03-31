@@ -28,14 +28,14 @@ export const MAIN_MENU: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    label: "Công việc",
-    href: ROUTES.tasks,
-    icon: CheckSquare,
-  },
-  {
     label: "Workspace",
     href: ROUTES.projects,
     icon: FolderKanban,
+  },
+  {
+    label: "Công việc",
+    href: ROUTES.tasks,
+    icon: CheckSquare,
   },
   {
     label: "Nhóm",
