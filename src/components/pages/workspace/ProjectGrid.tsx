@@ -35,7 +35,7 @@ export function ProjectGrid({ workspaces, onCreateClick, onMenuClick }: ProjectG
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">
-            Tạo dự án mới
+            Tạo workspace mới
           </p>
           <p className="text-xs text-gray-400 mt-1">
             Thiết lập không gian làm việc mới

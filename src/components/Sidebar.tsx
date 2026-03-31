@@ -121,7 +121,7 @@ export function Sidebar() {
             onClick={() => setWorkspacesExpanded(!workspacesExpanded)}
             className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors"
           >
-            <span>Dự án</span>
+            <span>Workspace</span>
             <ChevronDown
               size={14}
               className={`transition-transform duration-200 ${
