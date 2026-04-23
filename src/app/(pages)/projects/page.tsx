@@ -1,56 +1,103 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, Plus } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Info, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getMyWorkspaces,
-  deleteWorkspace,
   createWorkspace,
-  updateWorkspace, 
-  inviteToWorkspace, 
-  type Workspace,
+  deleteWorkspace,
+  getMyWorkspaces,
+  inviteToWorkspace,
+  updateWorkspace,
+  type Board,
   type Role,
+  type Workspace,
 } from "@/lib/api/workspace";
 import { getApiErrorMessage } from "@/lib/api/error";
+import {
+  CreateBoardModal,
+  CreateProjectModal,
+  type CreateBoardFormData,
+} from "@/components/pages/workspace";
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
-import { CreateProjectModal } from "@/components/pages/workspace";
+
+type CreateWorkspaceFormData = {
+  name: string;
+  description: string;
+  color: string;
+  visibility: "PUBLIC" | "PRIVATE";
+};
+
+type WorkspaceSettingsFormData = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+function createLocalBoardId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `temp-board-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Modals state (CHỈ CÒN CREATE MODAL Ở ĐÂY)
+
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
-  // Lấy userId hiện tại từ store
-  const userId = typeof window !== "undefined" ? (window.localStorage.getItem("auth-storage") ? JSON.parse(window.localStorage.getItem("auth-storage") || '{}').state?.user?.id : undefined) : undefined;
+  const [showCreateBoardModal, setShowCreateBoardModal] = useState(false);
+  const [selectedWorkspaceForBoard, setSelectedWorkspaceForBoard] =
+    useState<Workspace | null>(null);
+  const [isSubmittingBoard, setIsSubmittingBoard] = useState(false);
 
-  // Lấy danh sách Workspace
+  const userId =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("auth-storage")
+        ? JSON.parse(window.localStorage.getItem("auth-storage") || "{}").state
+            ?.user?.id
+        : undefined
+      : undefined;
+
   const fetchWorkspaces = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await getMyWorkspaces();
 
-      const safeData = data.map(ws => {
-        // Tìm role của user hiện tại trong danh sách members
+      const safeData = data.map((workspace) => {
         let role: Role = "MEMBER";
-        if (userId && Array.isArray(ws.members)) {
-          const found = ws.members.find(m => m.userId === userId);
-          if (found && found.role) role = found.role as Role;
+
+        if (userId && Array.isArray(workspace.members)) {
+          const foundMember = workspace.members.find(
+            (member) => member.userId === userId,
+          );
+
+          if (foundMember?.role) {
+            role = foundMember.role as Role;
+          }
         }
+
         return {
-          ...ws,
-          boards: ws.boards || [],
-          members: ws.members || [],
-          role
+          ...workspace,
+          boards: workspace.boards || [],
+          members: workspace.members || [],
+          role,
         };
       });
-      console.log("Fetched workspaces:", safeData);
+
       setWorkspaces(safeData);
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể tải danh sách không gian làm việc"));
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Không thể tải danh sách không gian làm việc",
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -60,98 +107,187 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  // Tạo Workspace
-  const handleCreateWorkspace = async (data: any) => {
+  const ownedWorkspaces = useMemo(
+    () => workspaces.filter((workspace) => workspace.role === "OWNER"),
+    [workspaces],
+  );
+  const sharedWorkspaces = useMemo(
+    () => workspaces.filter((workspace) => workspace.role !== "OWNER"),
+    [workspaces],
+  );
+
+  const handleCreateWorkspace = async (data: CreateWorkspaceFormData) => {
     try {
       setIsSubmittingCreate(true);
       await createWorkspace(data);
       toast.success("Tạo không gian làm việc thành công!");
       setShowCreateWsModal(false);
       fetchWorkspaces();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể tạo không gian làm việc"));
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Không thể tạo không gian làm việc"),
+      );
     } finally {
       setIsSubmittingCreate(false);
     }
   };
 
-  // Các Action Truyền xuống WorkspaceRow (Cần return Promise để Row biết khi nào xong mà đóng Modal)
   const handleDeleteWorkspace = async (workspaceId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.")) return;
+    if (
+      !confirm(
+        "Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.",
+      )
+    ) {
+      return;
+    }
+
     try {
       await deleteWorkspace(workspaceId);
       toast.success("Đã xóa không gian làm việc");
       fetchWorkspaces();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể xóa không gian làm việc"));
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Không thể xóa không gian làm việc"),
+      );
     }
   };
 
-  const handleUpdateWorkspace = async (data: any) => {
+  const handleUpdateWorkspace = async (data: WorkspaceSettingsFormData) => {
     try {
-      await updateWorkspace(data.id, { name: data.name, description: data.description });
-      toast.info(`Đã Update cho workspace ${data.name} `);
+      await updateWorkspace(data.id, {
+        name: data.name,
+        description: data.description,
+      });
+      toast.info(`Đã cập nhật workspace ${data.name}`);
       fetchWorkspaces();
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, "Không thể cập nhật không gian làm việc"));
-      throw err; // Ném lỗi để WorkspaceRow không đóng modal nếu lỗi
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "Không thể cập nhật không gian làm việc"),
+      );
+      throw error;
     }
   };
 
   const handleInviteMember = async (workspaceId: string, email: string) => {
     await inviteToWorkspace(workspaceId, email);
-    toast.info(`Đã gửi lời mời tới email ${email} vào workspace ${workspaceId}`);
+    toast.info(`Đã gửi lời mời tới email ${email}`);
     fetchWorkspaces();
   };
 
   const handleRemoveMember = async (workspaceId: string, memberId: string) => {
-    if(!confirm("Xóa thành viên này khỏi không gian làm việc?")) return;
-    // await removeUser(workspaceId, memberId);
+    if (!confirm("Xóa thành viên này khỏi không gian làm việc?")) {
+      return;
+    }
+
     toast.info(`Xóa member ${memberId} khỏi workspace ${workspaceId} (Cần API)`);
     fetchWorkspaces();
   };
 
-  const handleUpdateMemberRole = async (workspaceId: string, memberId: string, role: string) => {
-    // await updateUserRole(workspaceId, memberId, role);
+  const handleUpdateMemberRole = async (
+    workspaceId: string,
+    memberId: string,
+    role: string,
+  ) => {
     toast.info(`Cập nhật role member ${memberId} thành ${role} (Cần API)`);
     fetchWorkspaces();
   };
 
-  return (
-    <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 space-y-10 bg-gray-50 min-h-screen">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-5">
-        <h1 className="text-2xl font-bold text-gray-900">Các Không Gian Làm Việc Của Bạn</h1>
-        <button
-          onClick={() => setShowCreateWsModal(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm"
-        >
-          <Plus size={16} />
-          <span>Tạo Không gian làm việc</span>
-        </button>
-      </div>
+  const handleOpenCreateBoard = (workspace: Workspace) => {
+    setSelectedWorkspaceForBoard(workspace);
+    setShowCreateBoardModal(true);
+  };
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 size={32} className="animate-spin text-blue-500" />
+  const handleCloseCreateBoard = () => {
+    if (isSubmittingBoard) {
+      return;
+    }
+
+    setShowCreateBoardModal(false);
+    setSelectedWorkspaceForBoard(null);
+  };
+
+  const handleCreateBoard = (data: CreateBoardFormData) => {
+    if (!selectedWorkspaceForBoard) {
+      return;
+    }
+
+    try {
+      setIsSubmittingBoard(true);
+
+      const localBoard: Board = {
+        id: createLocalBoardId(),
+        name: data.name,
+        description: null,
+        visibility: data.visibility,
+        backgroundType: data.backgroundType,
+        backgroundValue: data.backgroundValue,
+        workspaceId: selectedWorkspaceForBoard.id,
+      };
+
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === selectedWorkspaceForBoard.id
+            ? {
+                ...workspace,
+                boards: [...(workspace.boards || []), localBoard],
+                updatedAt: new Date().toISOString(),
+              }
+            : workspace,
+        ),
+      );
+
+      toast.success(`Đã tạo board "${data.name}" trên giao diện.`);
+      setShowCreateBoardModal(false);
+      setSelectedWorkspaceForBoard(null);
+    } finally {
+      setIsSubmittingBoard(false);
+    }
+  };
+
+  const handleNavigateBoard = (board: Board) => {
+    const searchParams = new URLSearchParams();
+
+    searchParams.set("name", board.name);
+    if (board.description) {
+      searchParams.set("description", board.description);
+    }
+    if (board.workspaceId) {
+      searchParams.set("workspaceId", board.workspaceId);
+    }
+    if (board.backgroundType) {
+      searchParams.set("bgType", board.backgroundType);
+    }
+    if (board.backgroundValue) {
+      searchParams.set("bgValue", board.backgroundValue);
+    } else if (board.background) {
+      searchParams.set("bgValue", board.background);
+    }
+
+    const query = searchParams.toString();
+    router.push(query ? `/boards/${board.id}?${query}` : `/boards/${board.id}`);
+  };
+
+  const renderWorkspaceSection = (title: string, items: Workspace[]) => {
+    if (items.length === 0) {
+      return null;
+    }
+
+    return (
+      <section className="space-y-5">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold uppercase tracking-wide text-slate-700">
+            {title}
+          </h2>
+          {title.includes("KHÁC") && <Info size={18} className="text-blue-500" />}
         </div>
-      ) : workspaces.length === 0 ? (
-        <div className="text-center py-24 border-2 border-dashed rounded-2xl border-gray-200 bg-white shadow-sm">
-          <p className="text-gray-500 mb-5">Bạn chưa có không gian làm việc nào.</p>
-          <button
-            onClick={() => setShowCreateWsModal(true)}
-            className="px-5 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-          >
-            Bắt đầu tạo ngay
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-10">
-          {workspaces.map((ws) => (
+
+        <div className="space-y-8">
+          {items.map((workspace) => (
             <WorkspaceRow
-              key={ws.id}
-              workspace={ws}
-              onNavigateBoard={(id) => console.log("Nav to board", id)}
-              onCreateBoard={(wsId) => console.log("Create board modal for", wsId)} // Sẽ cập nhật tạo board ở đây sau
+              key={workspace.id}
+              workspace={workspace}
+              onNavigateBoard={handleNavigateBoard}
+              onCreateBoard={handleOpenCreateBoard}
               onInviteMember={handleInviteMember}
               onRemoveMember={handleRemoveMember}
               onUpdateMemberRole={handleUpdateMemberRole}
@@ -160,14 +296,76 @@ export default function ProjectsPage() {
             />
           ))}
         </div>
-      )}
+      </section>
+    );
+  };
 
-      {/* CHỈ GIỮ LẠI MODAL NÀY Ở PAGE */}
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-400">
+              Workspace
+            </p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">
+              Không gian làm việc
+            </h1>
+          </div>
+
+          <button
+            onClick={() => setShowCreateWsModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+          >
+            <Plus size={16} />
+            <span>Tạo không gian làm việc</span>
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-24">
+            <Loader2 size={32} className="animate-spin text-blue-500" />
+          </div>
+        ) : workspaces.length === 0 ? (
+          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-20 text-center shadow-sm">
+            <p className="mb-5 text-slate-500">
+              Bạn chưa có không gian làm việc nào.
+            </p>
+            <button
+              onClick={() => setShowCreateWsModal(true)}
+              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+            >
+              Bắt đầu tạo ngay
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-14">
+            {renderWorkspaceSection(
+              "CÁC KHÔNG GIAN LÀM VIỆC CỦA BẠN",
+              ownedWorkspaces,
+            )}
+            {renderWorkspaceSection(
+              "CÁC KHÔNG GIAN LÀM VIỆC KHÁC",
+              sharedWorkspaces,
+            )}
+          </div>
+        )}
+      </div>
+
       <CreateProjectModal
         open={showCreateWsModal}
         onClose={() => setShowCreateWsModal(false)}
         onSubmit={handleCreateWorkspace}
         isLoading={isSubmittingCreate}
+      />
+
+      <CreateBoardModal
+        key={selectedWorkspaceForBoard?.id ?? "create-board-closed"}
+        open={showCreateBoardModal}
+        workspace={selectedWorkspaceForBoard}
+        onClose={handleCloseCreateBoard}
+        onSubmit={handleCreateBoard}
+        isLoading={isSubmittingBoard}
       />
     </div>
   );

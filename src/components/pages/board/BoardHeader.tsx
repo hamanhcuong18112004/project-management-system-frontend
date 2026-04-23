@@ -1,0 +1,95 @@
+"use client";
+
+import { ChevronLeft, Plus, Share2, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { BoardDetails } from "@/lib/api/board";
+
+interface BoardHeaderProps {
+  board: BoardDetails;
+  sourceMode: "live" | "mixed" | "demo";
+}
+
+const SOURCE_MODE_LABELS: Record<BoardHeaderProps["sourceMode"], string> = {
+  live: "Dữ liệu live",
+  mixed: "Mixed data",
+  demo: "Demo data",
+};
+
+export function BoardHeader({ board, sourceMode }: BoardHeaderProps) {
+  const router = useRouter();
+  const memberInitials =
+    board.members?.slice(0, 3).map((member, index) => ({
+      id: member.userId || member.id || `member-${index}`,
+      label:
+        member.fullName
+          ?.split(" ")
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "U",
+    })) || [];
+
+  return (
+    <div className="border-b border-slate-200/80 bg-white/72 px-6 py-4 shadow-sm shadow-slate-200/50 backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => router.push("/projects")}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <ChevronLeft size={16} />
+            Về workspace
+          </button>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{board.name}</h1>
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                {SOURCE_MODE_LABELS[sourceMode]}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">
+              {board.description || "Board detail theo model Board -> TaskList -> Task."}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex -space-x-2">
+            {memberInitials.map((member) => (
+              <div
+                key={member.id}
+                className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-xs font-bold text-white shadow-sm"
+              >
+                {member.label}
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <Users size={16} />
+            Thành viên
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <Plus size={16} />
+            Tạo mới
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+          >
+            <Share2 size={16} />
+            Chia sẻ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

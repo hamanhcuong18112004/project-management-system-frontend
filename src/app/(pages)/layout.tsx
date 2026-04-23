@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Header, Sidebar } from "@/components";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 
@@ -12,9 +12,11 @@ export default function PagesLayout({
 }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const router = useRouter();
+  const pathname = usePathname();
   const [hydrated, setHydrated] = useState(
     () => useAuthStore.persist?.hasHydrated?.() ?? false,
   );
+  const isBoardRoute = pathname.startsWith("/boards/");
 
   useEffect(() => {
     if (hydrated) {
@@ -47,8 +49,14 @@ export default function PagesLayout({
       <div className="flex-1 flex flex-col ml-64 transition-all duration-300">
         <Header />
 
-        <main className="flex-1 mt-16 p-6 bg-gray-50">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <main
+          className={`mt-16 flex-1 ${
+            isBoardRoute ? "overflow-hidden bg-slate-100" : "bg-gray-50 p-6"
+          }`}
+        >
+          <div className={isBoardRoute ? "h-full" : "mx-auto max-w-7xl"}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

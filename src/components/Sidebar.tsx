@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Settings,
-  LogOut,
-  ChevronDown,
-} from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ROUTES } from "@/config";
-import { useAuthStore } from "@/lib/stores/useAuthStore";
 import { logout as logoutApi } from "@/lib/api/auth";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { MAIN_MENU } from "@/lib/constants/menu";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 interface WorkspaceNavItem {
   id: string;
@@ -30,27 +26,30 @@ export function Sidebar() {
   const { user, refreshToken, logout } = useAuthStore();
 
   const isActive = (href: string) => {
-    if (href === ROUTES.dashboard) return pathname === href;
+    if (href === ROUTES.dashboard) {
+      return pathname === href;
+    }
+
     return pathname.startsWith(href);
   };
 
-  // Load workspace list for sidebar sub-menu
   useEffect(() => {
     const loadWorkspaces = async () => {
       try {
         const mod = await import("../lib/api/workspace");
         const workspaces = await mod.getMyWorkspaces();
         setWorkspaceItems(
-          workspaces.map((w: { id: string; name: string }) => ({
-            id: w.id,
-            name: w.name,
-            href: `/projects/${w.id}`,
-          }))
+          workspaces.map((workspace: { id: string; name: string }) => ({
+            id: workspace.id,
+            name: workspace.name,
+            href: `/projects/${workspace.id}`,
+          })),
         );
       } catch {
-        // silently fail — workspaces will show empty
+        // Ignore sidebar workspace loading failures.
       }
     };
+
     loadWorkspaces();
   }, []);
 
@@ -64,8 +63,7 @@ export function Sidebar() {
       toast.success("Đã đăng xuất thành công!");
       router.push("/login");
     } catch (error) {
-      const errorMessage = getApiErrorMessage(error, "Đã xảy ra lỗi khi đăng xuất");
-      toast.error(errorMessage);
+      toast.error(getApiErrorMessage(error, "Đã xảy ra lỗi khi đăng xuất"));
       logout();
       router.push("/login");
     } finally {
@@ -74,21 +72,18 @@ export function Sidebar() {
   };
 
   return (
-    <aside
-      className="fixed left-0 top-0 h-screen w-64 flex flex-col z-50"
-      style={{ background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)" }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">T</span>
+    <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 shadow-sm">
+          <span className="text-sm font-bold text-white">T</span>
         </div>
-        <span className="text-white font-bold text-xl tracking-tight">TaskFlow</span>
+        <span className="text-xl font-bold tracking-tight text-slate-900">
+          TaskFlow
+        </span>
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="space-y-1">
           {MAIN_MENU.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -97,16 +92,18 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
                   active
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 <Icon
                   size={20}
                   className={`shrink-0 ${
-                    active ? "text-white" : "text-slate-400 group-hover:text-white"
+                    active
+                      ? "text-blue-700"
+                      : "text-slate-400 group-hover:text-slate-700"
                   }`}
                 />
                 <span className="text-sm font-medium">{item.label}</span>
@@ -115,11 +112,10 @@ export function Sidebar() {
           })}
         </div>
 
-        {/* Workspace Sub-section */}
         <div className="mt-6">
           <button
-            onClick={() => setWorkspacesExpanded(!workspacesExpanded)}
-            className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors"
+            onClick={() => setWorkspacesExpanded((current) => !current)}
+            className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600"
           >
             <span>Workspace</span>
             <ChevronDown
@@ -129,22 +125,24 @@ export function Sidebar() {
               }`}
             />
           </button>
+
           {workspacesExpanded && (
-            <div className="space-y-0.5 mt-1">
-              {workspaceItems.map((ws) => {
-                const active = pathname === ws.href;
+            <div className="mt-1 space-y-1">
+              {workspaceItems.map((workspace) => {
+                const active = pathname === workspace.href;
+
                 return (
                   <Link
-                    key={ws.id}
-                    href={ws.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                    key={workspace.id}
+                    href={workspace.href}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${
                       active
-                        ? "bg-white/10 text-white"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
-                    <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                    <span className="truncate">{ws.name}</span>
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                    <span className="truncate">{workspace.name}</span>
                   </Link>
                 );
               })}
@@ -153,40 +151,40 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Bottom section */}
-      <div className="px-3 pb-3 space-y-1">
-        {/* Settings */}
+      <div className="space-y-1 px-3 pb-3">
         <Link
           href={ROUTES.settings}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+          className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
             isActive(ROUTES.settings)
-              ? "bg-blue-600 text-white"
-              : "text-slate-400 hover:bg-white/5 hover:text-white"
+              ? "bg-blue-50 text-blue-700"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           }`}
         >
-          <Settings size={20} className="shrink-0" />
+          <Settings
+            size={20}
+            className={`shrink-0 ${
+              isActive(ROUTES.settings) ? "text-blue-700" : "text-slate-400"
+            }`}
+          />
           <span className="text-sm font-medium">Cài đặt</span>
         </Link>
 
-        {/* User profile card */}
-        <div className="flex items-center gap-3 px-3 py-3 rounded-lg border border-white/5 bg-white/5">
-          <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
-            <span className="text-white font-semibold text-sm">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600">
+            <span className="text-sm font-semibold text-white">
               {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
             </span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-slate-900">
               {user?.fullName || "User"}
             </p>
-            <p className="text-slate-500 text-xs truncate">
-              {user?.email || ""}
-            </p>
+            <p className="truncate text-xs text-slate-500">{user?.email || ""}</p>
           </div>
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+            className="rounded-md p-1.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
             title="Đăng xuất"
           >
             <LogOut size={16} />
