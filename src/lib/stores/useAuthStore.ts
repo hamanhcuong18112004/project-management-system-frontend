@@ -2,6 +2,23 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { refreshToken as apiRefreshToken, UserData } from "../api/auth";
 
+async function ensureAuthStoreHydrated() {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    const persistApi = useAuthStore.persist;
+    if (!persistApi?.hasHydrated || persistApi.hasHydrated()) {
+        return;
+    }
+
+    try {
+        await persistApi.rehydrate?.();
+    } catch {
+        // Keep flow resilient; refreshAccessToken will handle missing tokens below.
+    }
+}
+
 interface AuthState {
     accessToken: string | null;
     refreshToken: string | null;
@@ -27,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
 
             setAuth: (accessToken, refreshToken, user) => {
                 set({ accessToken, refreshToken, user, isAuthenticated: true });
-                console.log("✅ [AUTH] User authenticated:", user.email);
+                console.log("✅ [AUTH] User authenticated:");
             },
 
             logout: () => {
@@ -41,7 +58,11 @@ export const useAuthStore = create<AuthState>()(
             },
 
             refreshAccessToken: async () => {
+                await ensureAuthStoreHydrated();
                 const storedRefreshToken = get().refreshToken;
+                console.log(
+                    `🔍 [AUTH] Refresh state | hasRefreshToken=${Boolean(storedRefreshToken)} hasAccessToken=${Boolean(get().accessToken)}`,
+                );
                 if (!storedRefreshToken) {
                     console.log(
                         "❌ [AUTH] No refresh token stored, logging out.",
@@ -57,6 +78,7 @@ export const useAuthStore = create<AuthState>()(
                     set({
                         accessToken: tokens.accessToken,
                         refreshToken: tokens.refreshToken ?? storedRefreshToken,
+                        isAuthenticated: true,
                     });
                     console.log(
                         "✅ [AUTH] Access token refreshed successfully",
@@ -74,6 +96,8 @@ export const useAuthStore = create<AuthState>()(
                 // Persist user and refreshToken; accessToken is intentionally ephemeral
                 user: state.user,
                 refreshToken: state.refreshToken,
+                accessToken: state.accessToken, // Include accessToken for debugging, but it won't be used on app reload
+                isAuthenticated: state.isAuthenticated,
             }),
         },
     ),

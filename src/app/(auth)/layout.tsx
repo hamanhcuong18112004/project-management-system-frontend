@@ -131,14 +131,22 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(() => useAuthStore.persist.hasHydrated());
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const unsubscribeHydration = useAuthStore.persist.onFinishHydration(() => {
+    // Check if already hydrated (safe: only runs on client)
+    if (useAuthStore.persist?.hasHydrated?.()) {
+      setHydrated(true);
+      return;
+    }
+
+    const unsubscribeHydration = useAuthStore.persist?.onFinishHydration?.(() => {
       setHydrated(true);
     });
 
-    return unsubscribeHydration;
+    return () => {
+      unsubscribeHydration?.();
+    };
   }, []);
 
   useEffect(() => {

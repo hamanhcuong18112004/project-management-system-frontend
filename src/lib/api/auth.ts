@@ -170,12 +170,12 @@ export async function resetPassword(
 // ─────────────────────────────────────────────
 
 /**
- * GET /users/me
+ * GET /me
  * Returns the currently authenticated user's profile.
  */
 export async function getMyProfile(): Promise<UserData> {
     const res = await apiClient.get<ApiResponse<UserData>>(
-        `${service}/users/me`,
+        `${service}/me`,
     );
     return unwrap(res);
 }
