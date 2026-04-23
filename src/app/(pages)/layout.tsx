@@ -1,10 +1,45 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header, Sidebar } from "@/components";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 export default function PagesLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const router = useRouter();
+  const [hydrated, setHydrated] = useState(
+    () => useAuthStore.persist?.hasHydrated?.() ?? false,
+  );
+
+  useEffect(() => {
+    if (hydrated) {
+      return;
+    }
+
+    const unsubscribeHydration = useAuthStore.persist?.onFinishHydration?.(() => {
+      setHydrated(true);
+    });
+
+    return () => {
+      unsubscribeHydration?.();
+    };
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (hydrated && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [hydrated, isAuthenticated, router]);
+
+  if (!hydrated || !isAuthenticated) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen flex">
       <Sidebar />
