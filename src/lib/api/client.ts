@@ -4,7 +4,7 @@ import { useAuthStore } from "../stores/useAuthStore";
 import { getApiErrorCode, getApiErrorMessage } from "./error";
 
 const API_URL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/identity";
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const apiClient = axios.create({
     baseURL: API_URL,

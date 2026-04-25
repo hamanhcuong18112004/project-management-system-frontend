@@ -40,9 +40,25 @@ export interface CreateTaskListPayload {
   position?: number;
 }
 
+export interface UpdateTaskListPayload {
+  name?: string;
+  position?: number;
+}
+
 export interface CreateTaskPayload {
   taskListId: string;
   title: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDate?: string | null;
+  position?: number;
+  archived?: boolean;
+}
+
+export interface UpdateTaskPayload {
+  taskListId?: string;
+  title?: string;
   description?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
@@ -91,9 +107,24 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
           ? Number(raw.position)
           : null,
     archived: Boolean(raw.archived),
-    attachmentCount: Array.isArray(raw.attachments) ? raw.attachments.length : 0,
-    commentCount: Array.isArray(raw.comments) ? raw.comments.length : 0,
-    checklistCount: Array.isArray(raw.checklists) ? raw.checklists.length : 0,
+    attachmentCount:
+      typeof raw.attachmentCount === "number"
+        ? raw.attachmentCount
+        : Array.isArray(raw.attachments)
+          ? raw.attachments.length
+          : 0,
+    commentCount:
+      typeof raw.commentCount === "number"
+        ? raw.commentCount
+        : Array.isArray(raw.comments)
+          ? raw.comments.length
+          : 0,
+    checklistCount:
+      typeof raw.checklistCount === "number"
+        ? raw.checklistCount
+        : Array.isArray(raw.checklists)
+          ? raw.checklists.length
+          : 0,
   };
 }
 
@@ -151,4 +182,50 @@ export async function createTask(
   );
 
   return normalizeTask(unwrapResponse(response.data));
+}
+
+export async function updateTaskList(
+  taskListId: string,
+  payload: UpdateTaskListPayload,
+): Promise<BoardTaskList> {
+  const response = await apiClient.put<ServiceEnvelope<Record<string, unknown>>>(
+    `${SERVICE}/api/task-lists/${taskListId}`,
+    payload,
+  );
+
+  return normalizeTaskList(unwrapResponse(response.data));
+}
+
+export async function deleteTaskList(taskListId: string): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/task-lists/${taskListId}`);
+}
+
+export async function deleteTaskListsByBoardId(boardId: string): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/task-lists/board/${boardId}`);
+}
+
+function createTaskUpdateBody(payload: UpdateTaskPayload) {
+  const nextPayload: Record<string, unknown> = { ...payload };
+
+  if (Object.prototype.hasOwnProperty.call(payload, "dueDate")) {
+    nextPayload.dueDate = payload.dueDate ?? "";
+  }
+
+  return nextPayload;
+}
+
+export async function updateTask(
+  taskId: string,
+  payload: UpdateTaskPayload,
+): Promise<BoardTask> {
+  const response = await apiClient.put<ServiceEnvelope<Record<string, unknown>>>(
+    `${SERVICE}/api/tasks/${taskId}`,
+    createTaskUpdateBody(payload),
+  );
+
+  return normalizeTask(unwrapResponse(response.data));
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/tasks/${taskId}`);
 }

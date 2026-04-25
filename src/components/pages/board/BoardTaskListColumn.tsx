@@ -1,75 +1,197 @@
 "use client";
 
-import { Plus, SquarePen } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { Pencil, Plus, SquarePen } from "lucide-react";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
 import type { BoardTask, BoardTaskList } from "@/lib/api/task";
-import { BoardTaskCard } from "./BoardTaskCard";
+import { useRealtime } from "@/providers/RealtimeProvider";
+import { createTaskDragId, createTaskListDragId } from "./boardState";
+import {
+  BoardTaskCard,
+  BoardTaskDropPlaceholder,
+  SortableBoardTaskCard,
+} from "./BoardTaskCard";
 
 interface BoardTaskListColumnProps {
   list: BoardTaskList;
   onOpenTask: (task: BoardTask) => void;
   onCreateTask: (list: BoardTaskList, title: string) => Promise<void> | void;
+  onOpenListSettings: (list: BoardTaskList) => void;
+  tempDropPosition?: number | null;
+  activeDragId?: string | null;
+  activeTask?: BoardTask | null;
 }
 
-export function BoardTaskListColumn({
-  list,
-  onOpenTask,
-  onCreateTask,
-}: BoardTaskListColumnProps) {
-  const [addingTask, setAddingTask] = useState(false);
-  const [taskTitle, setTaskTitle] = useState("");
-
-  const submitTask = async () => {
-    if (!taskTitle.trim()) {
-      return;
-    }
-
-    await onCreateTask(list, taskTitle.trim());
-    setTaskTitle("");
-    setAddingTask(false);
-  };
-
+export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
   return (
-    <section className="flex h-fit w-[320px] shrink-0 flex-col rounded-3xl border border-slate-200/80 bg-white/78 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
+    <section className="w-[320px] shrink-0 rounded-3xl border border-slate-200/80 bg-white/92 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold text-slate-900">{list.name}</h3>
           <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
             {list.tasks.length} task
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAddingTask(true)}
-          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
-          title="Them the"
-        >
-          <SquarePen size={16} />
-        </button>
+        <div className="flex items-center gap-1 opacity-55">
+          <button
+            type="button"
+            disabled
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
+            aria-label="Cài đặt danh sách"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            type="button"
+            disabled
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
+            aria-label="Thêm thẻ"
+          >
+            <SquarePen size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
         {list.tasks.map((task) => (
-          <BoardTaskCard key={task.id} task={task} onClick={onOpenTask} />
+          <BoardTaskCard key={task.id} task={task} />
         ))}
       </div>
 
+      <button
+        type="button"
+        disabled
+        className="mt-4 flex w-full items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-3 text-sm font-medium text-slate-500 opacity-60"
+      >
+        <Plus size={16} />
+        Thêm thẻ
+      </button>
+    </section>
+  );
+}
+
+function BoardTaskListColumnBase({
+  list,
+  onOpenTask,
+  onCreateTask,
+  onOpenListSettings,
+  tempDropPosition,
+  activeDragId,
+  activeTask,
+  dragHandlers,
+  isOver,
+}: BoardTaskListColumnProps & {
+  dragHandlers?: Record<string, unknown>;
+  isOver?: boolean;
+}) {
+  const [addingTask, setAddingTask] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+
+  const activeFromThisList = activeDragId
+    ? list.tasks.some((task) => createTaskDragId(task.id) === activeDragId)
+    : false;
+  const showPlaceholder =
+    typeof tempDropPosition === "number" &&
+    tempDropPosition >= 0 &&
+    !activeFromThisList;
+  const showEndPlaceholder =
+    showPlaceholder &&
+    typeof tempDropPosition === "number" &&
+    tempDropPosition >= list.tasks.length &&
+    Boolean(activeTask);
+
+  const submitTask = async () => {
+    if (!taskTitle.trim() || creatingTask) {
+      return;
+    }
+
+    setCreatingTask(true);
+
+    try {
+      await onCreateTask(list, taskTitle.trim());
+      setTaskTitle("");
+      setAddingTask(false);
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
+  return (
+    <section className="flex h-fit w-[320px] shrink-0 flex-col rounded-3xl border border-slate-200/80 bg-white/78 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div
+          className="min-w-0 flex-1 cursor-grab rounded-2xl px-1 py-1 active:cursor-grabbing"
+          {...dragHandlers}
+        >
+          <h3 className="truncate text-lg font-semibold text-slate-900">{list.name}</h3>
+          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
+            {list.tasks.length} task
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onOpenListSettings(list)}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+            title="Cài đặt danh sách"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddingTask(true)}
+            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+            title="Thêm thẻ"
+          >
+            <SquarePen size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div
+        className={`space-y-3 rounded-2xl transition ${isOver ? "bg-sky-50/80 p-2" : ""}`}
+      >
+        <SortableContext
+          items={list.tasks.map((task) => createTaskDragId(task.id))}
+          strategy={verticalListSortingStrategy}
+        >
+          {list.tasks.map((task, index) => (
+            <Fragment key={task.id}>
+              {showPlaceholder && tempDropPosition === index && activeTask ? (
+                <BoardTaskDropPlaceholder task={activeTask} />
+              ) : null}
+              <SortableBoardTaskCard task={task} taskListId={list.id} onClick={onOpenTask} />
+            </Fragment>
+          ))}
+        </SortableContext>
+      </div>
+
+      {showEndPlaceholder ? (
+        <div className="mt-4">
+          <BoardTaskDropPlaceholder task={activeTask!} />
+        </div>
+      ) : null}
+
       {addingTask ? (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-          <textarea
+          <input
             value={taskTitle}
             onChange={(event) => setTaskTitle(event.target.value)}
-            rows={3}
-            placeholder="Nhap tieu de the"
-            className="w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+            placeholder="Nhập tiêu đề thẻ"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
           />
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={() => void submitTask()}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+              disabled={creatingTask}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Them the
+              Thêm thẻ
             </button>
             <button
               type="button"
@@ -79,20 +201,72 @@ export function BoardTaskListColumn({
               }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Huy
+              Hủy
             </button>
           </div>
         </div>
-      ) : (
+      ) : showEndPlaceholder ? null : (
         <button
           type="button"
           onClick={() => setAddingTask(true)}
           className="mt-4 flex items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-3 py-3 text-sm font-medium text-slate-600 transition hover:border-sky-400 hover:bg-sky-50/80 hover:text-sky-700"
         >
           <Plus size={16} />
-          Them the
+          Thêm thẻ
         </button>
       )}
     </section>
+  );
+}
+
+export function BoardTaskListColumn(props: BoardTaskListColumnProps) {
+  const { checkIsLocked } = useRealtime();
+  const dragId = createTaskListDragId(props.list.id);
+  const disabled = checkIsLocked(dragId);
+
+  const {
+    setNodeRef: setSortableNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: dragId,
+    data: {
+      type: "taskList",
+      taskListId: props.list.id,
+    },
+    disabled,
+  });
+
+  const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
+    id: dragId,
+    data: {
+      type: "taskList",
+      taskListId: props.list.id,
+    },
+  });
+
+  const setNodeRef = (node: HTMLElement | null) => {
+    setSortableNodeRef(node);
+    setDroppableNodeRef(node);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className={isDragging ? "opacity-55" : disabled ? "opacity-60" : ""}
+    >
+      <BoardTaskListColumnBase
+        {...props}
+        dragHandlers={disabled ? {} : { ...attributes, ...listeners }}
+        isOver={isOver}
+      />
+    </div>
   );
 }

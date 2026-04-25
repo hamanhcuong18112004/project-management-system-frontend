@@ -1,21 +1,20 @@
 "use client";
 
-import { ChevronLeft, Plus, Share2, Users } from "lucide-react";
+import { ChevronLeft, Pencil, Share2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { BoardDetails } from "@/lib/api/board";
 
 interface BoardHeaderProps {
   board: BoardDetails;
-  sourceMode: "live" | "mixed" | "demo";
+  onOpenBoardSettings: () => void;
+  onOpenMembers: () => void;
 }
 
-const SOURCE_MODE_LABELS: Record<BoardHeaderProps["sourceMode"], string> = {
-  live: "Dữ liệu live",
-  mixed: "Mixed data",
-  demo: "Demo data",
-};
-
-export function BoardHeader({ board, sourceMode }: BoardHeaderProps) {
+export function BoardHeader({
+  board,
+  onOpenBoardSettings,
+  onOpenMembers,
+}: BoardHeaderProps) {
   const router = useRouter();
   const memberInitials =
     board.members?.slice(0, 3).map((member, index) => ({
@@ -29,33 +28,32 @@ export function BoardHeader({ board, sourceMode }: BoardHeaderProps) {
           .toUpperCase() || "U",
     })) || [];
 
+  const canManageMembers = board.visibility === "PRIVATE";
+
   return (
-    <div className="border-b border-slate-200/80 bg-white/72 px-6 py-4 shadow-sm shadow-slate-200/50 backdrop-blur-xl">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="sticky top-0 z-20 w-full min-w-0 shrink-0 border-b border-slate-200/80 bg-white/72 px-6 py-4 shadow-sm shadow-slate-200/50 backdrop-blur-xl">
+      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4 overflow-hidden">
           <button
             type="button"
             onClick={() => router.push("/projects")}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             <ChevronLeft size={16} />
             Về workspace
           </button>
 
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{board.name}</h1>
-              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                {SOURCE_MODE_LABELS[sourceMode]}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-slate-600">
-              {board.description || "Board detail theo model Board -> TaskList -> Task."}
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold text-slate-900">
+              {board.name}
+            </h1>
+            <p className="mt-1 truncate text-sm text-slate-600">
+              {board.description || "Board detail theo mô hình Board -> TaskList -> Task."}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <div className="flex -space-x-2">
             {memberInitials.map((member) => (
               <div
@@ -69,17 +67,25 @@ export function BoardHeader({ board, sourceMode }: BoardHeaderProps) {
 
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            onClick={onOpenMembers}
+            disabled={!canManageMembers}
+            title={
+              canManageMembers
+                ? "Quản lý thành viên của bảng riêng tư"
+                : "Chỉ dùng cho bảng riêng tư"
+            }
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Users size={16} />
             Thành viên
           </button>
           <button
             type="button"
+            onClick={onOpenBoardSettings}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            <Plus size={16} />
-            Tạo mới
+            <Pencil size={16} />
+            Cài đặt bảng
           </button>
           <button
             type="button"

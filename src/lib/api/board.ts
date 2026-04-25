@@ -5,7 +5,7 @@ import type {
   BoardVisibility,
 } from "./workspace";
 
-const SERVICE = "board";
+const BOARD_BASE_PATH = "board";
 
 type ServiceEnvelope<T> = {
   data?: T;
@@ -47,6 +47,19 @@ export interface CreateBoardPayload {
   archived?: boolean;
   backgroundType?: BoardBackgroundType;
   backgroundValue?: string;
+}
+
+export interface UpdateBoardPayload {
+  name?: string;
+  description?: string;
+  visibility?: BoardVisibility;
+  archived?: boolean;
+  backgroundType?: BoardBackgroundType;
+  backgroundValue?: string;
+}
+
+export interface ReplaceBoardMembersPayload {
+  userIds: string[];
 }
 
 function unwrapResponse<T>(payload: ServiceEnvelope<T> | T): T {
@@ -134,8 +147,10 @@ export function normalizeBoard(raw: Record<string, unknown>): BoardDetails {
 }
 
 export async function getBoardById(boardId: string): Promise<BoardDetails> {
-  const response = await apiClient.get<ServiceEnvelope<Record<string, unknown>>>(
-    `${SERVICE}/api/boards/${boardId}`,
+  const response = await apiClient.get<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}`,
   );
 
   return normalizeBoard(unwrapResponse(response.data));
@@ -144,8 +159,10 @@ export async function getBoardById(boardId: string): Promise<BoardDetails> {
 export async function getBoardsByWorkspace(
   workspaceId: string,
 ): Promise<BoardDetails[]> {
-  const response = await apiClient.get<ServiceEnvelope<Record<string, unknown>[]>>(
-    `${SERVICE}/api/boards/workspace/${workspaceId}`,
+  const response = await apiClient.get<
+    ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
+  >(
+    `${BOARD_BASE_PATH}/workspace/${workspaceId}`,
   );
 
   return unwrapResponse(response.data).map((board) => normalizeBoard(board));
@@ -154,8 +171,42 @@ export async function getBoardsByWorkspace(
 export async function createBoard(
   payload: CreateBoardPayload,
 ): Promise<BoardDetails> {
-  const response = await apiClient.post<ServiceEnvelope<Record<string, unknown>>>(
-    `${SERVICE}/api/boards`,
+  const response = await apiClient.post<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}`,
+    payload,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function updateBoard(
+  boardId: string,
+  payload: UpdateBoardPayload,
+): Promise<BoardDetails> {
+  const response = await apiClient.put<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}`,
+    payload,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function deleteBoard(boardId: string): Promise<void> {
+  await apiClient.delete(`${BOARD_BASE_PATH}/${boardId}`);
+}
+
+export async function replaceBoardMembers(
+  boardId: string,
+  payload: ReplaceBoardMembersPayload,
+): Promise<BoardDetails> {
+  const response = await apiClient.put<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/members`,
     payload,
   );
 

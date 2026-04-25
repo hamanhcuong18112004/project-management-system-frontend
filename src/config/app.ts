@@ -7,8 +7,8 @@ export const APP_CONFIG = {
 } as const;
 
 export const API_CONFIG = {
-    baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api",
-    wsURL: process.env.NEXT_PUBLIC_WS_URL || "http://localhost:8080",
+    baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+    wsURL: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8084/ws/boards",
     timeout: 15000,
 } as const;
 
@@ -25,3 +25,4 @@ export const ROUTES = {
     login: "/login",
     register: "/register",
 } as const;
+

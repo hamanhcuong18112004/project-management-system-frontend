@@ -14,6 +14,7 @@ import {
   type Role,
   type Workspace,
 } from "@/lib/api/workspace";
+import { createBoard, getBoardsByWorkspace } from "@/lib/api/board";
 import { getApiErrorMessage } from "@/lib/api/error";
 import {
   CreateBoardModal,
@@ -34,14 +35,6 @@ type WorkspaceSettingsFormData = {
   name: string;
   description: string;
 };
-
-function createLocalBoardId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `temp-board-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -68,6 +61,18 @@ export default function ProjectsPage() {
     try {
       setIsLoading(true);
       const data = await getMyWorkspaces();
+      const boardsByWorkspace = new Map<string, Board[]>(
+        await Promise.all(
+          data.map(
+            async (workspace): Promise<[string, Board[]]> => [
+              workspace.id,
+              await getBoardsByWorkspace(workspace.id).catch(
+                () => workspace.boards || [],
+              ),
+            ],
+          ),
+        ),
+      );
 
       const safeData = data.map((workspace) => {
         let role: Role = "MEMBER";
@@ -84,7 +89,7 @@ export default function ProjectsPage() {
 
         return {
           ...workspace,
-          boards: workspace.boards || [],
+          boards: boardsByWorkspace.get(workspace.id) || workspace.boards || [],
           members: workspace.members || [],
           role,
         };
@@ -206,7 +211,7 @@ export default function ProjectsPage() {
     setSelectedWorkspaceForBoard(null);
   };
 
-  const handleCreateBoard = (data: CreateBoardFormData) => {
+  const handleCreateBoard = async (data: CreateBoardFormData) => {
     if (!selectedWorkspaceForBoard) {
       return;
     }
@@ -214,31 +219,39 @@ export default function ProjectsPage() {
     try {
       setIsSubmittingBoard(true);
 
-      const localBoard: Board = {
-        id: createLocalBoardId(),
+      const createdBoard: Board = await createBoard({
         name: data.name,
-        description: null,
+        description: "",
+        workspaceId: selectedWorkspaceForBoard.id,
+        ownerId: userId,
         visibility: data.visibility,
+        archived: false,
         backgroundType: data.backgroundType,
         backgroundValue: data.backgroundValue,
-        workspaceId: selectedWorkspaceForBoard.id,
-      };
+      });
 
       setWorkspaces((currentWorkspaces) =>
         currentWorkspaces.map((workspace) =>
           workspace.id === selectedWorkspaceForBoard.id
             ? {
                 ...workspace,
-                boards: [...(workspace.boards || []), localBoard],
+                boards: [
+                  ...(workspace.boards || []).filter(
+                    (board) => board.id !== createdBoard.id,
+                  ),
+                  createdBoard,
+                ],
                 updatedAt: new Date().toISOString(),
               }
             : workspace,
         ),
       );
 
-      toast.success(`Đã tạo board "${data.name}" trên giao diện.`);
+      toast.success(`Đã tạo board "${data.name}".`);
       setShowCreateBoardModal(false);
       setSelectedWorkspaceForBoard(null);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể tạo board"));
     } finally {
       setIsSubmittingBoard(false);
     }

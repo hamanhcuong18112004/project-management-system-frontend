@@ -43,18 +43,18 @@ export default function PagesLayout({
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="flex min-h-screen min-w-0">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col ml-64 transition-all duration-300">
+      <div className="ml-64 flex min-w-0 flex-1 flex-col transition-all duration-300">
         <Header />
 
         <main
           className={`mt-16 flex-1 ${
-            isBoardRoute ? "overflow-hidden bg-slate-100" : "bg-gray-50 p-6"
+            isBoardRoute ? "min-w-0 overflow-hidden bg-slate-100" : "min-w-0 bg-gray-50 p-6"
           }`}
         >
-          <div className={isBoardRoute ? "h-full" : "mx-auto max-w-7xl"}>
+          <div className={isBoardRoute ? "h-full min-w-0" : "mx-auto max-w-7xl"}>
             {children}
           </div>
         </main>

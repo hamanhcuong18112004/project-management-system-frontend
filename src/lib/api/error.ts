@@ -2,6 +2,12 @@ import axios from "axios";
 
 type BackendErrorPayload = {
     message?: string;
+    data?: {
+        message?: string;
+        error?: string;
+        status?: number;
+        path?: string;
+    };
     error?: {
         code?: string;
         details?: unknown;
@@ -18,8 +24,22 @@ export function getApiErrorMessage(
 ): string {
     if (axios.isAxiosError(error)) {
         const payload = error.response?.data as BackendErrorPayload | undefined;
+        const nestedMessage = payload?.data?.message;
+        const nestedError = payload?.data?.error;
         const serverMessage = payload?.message;
+
+        if (typeof nestedMessage === "string" && nestedMessage.trim()) {
+            return nestedMessage;
+        }
+
+        if (typeof nestedError === "string" && nestedError.trim()) {
+            return nestedError;
+        }
+
         if (typeof serverMessage === "string" && serverMessage.trim()) {
+            if (serverMessage.trim().toLowerCase() === "success") {
+                return fallback;
+            }
             return serverMessage;
         }
     }
