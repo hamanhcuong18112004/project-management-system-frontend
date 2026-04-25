@@ -5,11 +5,18 @@ import apiClient from "./client";
 // ─────────────────────────────────────────────
 export type Visibility = "PUBLIC" | "PRIVATE";
 export type Role = "OWNER" | "MEMBER";
+export type BoardVisibility = "PRIVATE" | "WORKSPACE" | "PUBLIC";
+export type BoardBackgroundType = "IMAGE" | "COLOR";
 
 export interface Board {
   id: string;
   name: string;
+  description?: string | null;
+  visibility?: BoardVisibility;
   background?: string;
+  backgroundType?: BoardBackgroundType;
+  backgroundValue?: string;
+  workspaceId?: string;
 }
 
 export interface Member {
