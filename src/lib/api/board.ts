@@ -158,11 +158,27 @@ export async function getBoardById(boardId: string): Promise<BoardDetails> {
 
 export async function getBoardsByWorkspace(
   workspaceId: string,
+  userId?: string,
 ): Promise<BoardDetails[]> {
+  const params = userId ? `?userId=${encodeURIComponent(userId)}` : "";
   const response = await apiClient.get<
     ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
   >(
-    `${BOARD_BASE_PATH}/workspace/${workspaceId}`,
+    `${BOARD_BASE_PATH}/workspace/${workspaceId}${params}`,
+  );
+
+  return unwrapResponse(response.data).map((board) => normalizeBoard(board));
+}
+
+/**
+ * Returns all boards the user is directly a BoardMember of.
+ * This includes boards in workspaces the user is NOT a workspace member of.
+ */
+export async function getBoardsByUser(userId: string): Promise<BoardDetails[]> {
+  const response = await apiClient.get<
+    ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
+  >(
+    `${BOARD_BASE_PATH}/user?userId=${encodeURIComponent(userId)}`,
   );
 
   return unwrapResponse(response.data).map((board) => normalizeBoard(board));
@@ -179,6 +195,21 @@ export async function createBoard(
   );
 
   return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function lookupUserByEmail(
+  email: string,
+): Promise<{ userId: string; email: string }> {
+  const response = await apiClient.get<
+    { userId: string; email: string } | ServiceEnvelope<{ userId: string; email: string }>
+  >(
+    `${BOARD_BASE_PATH}/users/lookup?email=${encodeURIComponent(email)}`,
+  );
+  const data = unwrapResponse(response.data) as { userId: string; email: string };
+  if (!data?.userId) {
+    throw new Error("Không tìm thấy người dùng với email này.");
+  }
+  return data;
 }
 
 export async function updateBoard(
@@ -208,6 +239,49 @@ export async function replaceBoardMembers(
   >(
     `${BOARD_BASE_PATH}/${boardId}/members`,
     payload,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function joinBoard(
+  boardId: string,
+  userId: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.post<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/join?userId=${encodeURIComponent(userId)}`,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function updateBoardMemberRole(
+  boardId: string,
+  userId: string,
+  role: string,
+  requesterId?: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.patch<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/members/${encodeURIComponent(userId)}${requesterId ? `?requesterId=${encodeURIComponent(requesterId)}` : ""}`,
+    { role },
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function removeBoardMember(
+  boardId: string,
+  userId: string,
+  requesterId?: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.delete<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/members/${encodeURIComponent(userId)}${requesterId ? `?requesterId=${encodeURIComponent(requesterId)}` : ""}`,
   );
 
   return normalizeBoard(unwrapResponse(response.data));

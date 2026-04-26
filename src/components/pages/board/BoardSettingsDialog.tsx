@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Trash2, X } from "lucide-react";
+import { Globe, Lock, Save, Trash2, Users, X } from "lucide-react";
 import type { BoardDetails, UpdateBoardPayload } from "@/lib/api/board";
+import type { BoardVisibility } from "@/lib/api/workspace";
 
 interface BoardSettingsDialogProps {
   board: BoardDetails | null;
@@ -19,6 +20,7 @@ export function BoardSettingsDialog({
 }: BoardSettingsDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<BoardVisibility>("WORKSPACE");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export function BoardSettingsDialog({
 
     setName(board.name);
     setDescription(board.description || "");
+    setVisibility((board.visibility as BoardVisibility) || "WORKSPACE");
   }, [board]);
 
   if (!board) {
@@ -44,6 +47,7 @@ export function BoardSettingsDialog({
       await onSave(board.id, {
         name: name.trim(),
         description,
+        visibility,
       });
       onClose();
     } finally {
@@ -112,6 +116,70 @@ export function BoardSettingsDialog({
               rows={5}
               className="mt-3 w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition focus:border-sky-400"
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Quyền truy cập
+            </label>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {([
+                {
+                  value: "PRIVATE" as const,
+                  label: "Riêng tư",
+                  desc: "Chỉ thành viên được mời",
+                  icon: Lock,
+                  color: "rose",
+                },
+                {
+                  value: "WORKSPACE" as const,
+                  label: "Workspace",
+                  desc: "Thành viên workspace có thể tham gia",
+                  icon: Users,
+                  color: "sky",
+                },
+                {
+                  value: "PUBLIC" as const,
+                  label: "Công khai",
+                  desc: "Ai cũng có thể xem",
+                  icon: Globe,
+                  color: "emerald",
+                },
+              ] as const).map(({ value, label, desc, icon: Icon, color }) => {
+                const active = visibility === value;
+                const base = "relative flex cursor-pointer flex-col gap-1 rounded-2xl border px-4 py-3 text-left transition";
+                const style = active
+                  ? color === "rose"
+                    ? "border-rose-400 bg-rose-50"
+                    : color === "sky"
+                      ? "border-sky-400 bg-sky-50"
+                      : "border-emerald-400 bg-emerald-50"
+                  : "border-slate-200 bg-white hover:bg-slate-50";
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setVisibility(value)}
+                    className={`${base} ${style}`}
+                  >
+                    <span className={`flex items-center gap-2 text-sm font-semibold ${
+                      active
+                        ? color === "rose" ? "text-rose-700" : color === "sky" ? "text-sky-700" : "text-emerald-700"
+                        : "text-slate-700"
+                    }`}>
+                      <Icon size={14} />
+                      {label}
+                    </span>
+                    <span className="text-xs text-slate-500">{desc}</span>
+                    {active && (
+                      <span className={`absolute right-3 top-3 h-2 w-2 rounded-full ${
+                        color === "rose" ? "bg-rose-400" : color === "sky" ? "bg-sky-400" : "bg-emerald-400"
+                      }`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
