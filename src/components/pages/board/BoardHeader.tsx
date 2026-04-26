@@ -7,6 +7,7 @@ import type { BoardDetails } from "@/lib/api/board";
 interface BoardHeaderProps {
   board: BoardDetails;
   currentUserId?: string;
+  currentUserRole?: string;
   onOpenBoardSettings: () => void;
   onOpenMembers: () => void;
   onJoinBoard?: () => void;
@@ -16,6 +17,7 @@ interface BoardHeaderProps {
 export function BoardHeader({
   board,
   currentUserId,
+  currentUserRole,
   onOpenBoardSettings,
   onOpenMembers,
   onJoinBoard,
@@ -23,12 +25,12 @@ export function BoardHeader({
 }: BoardHeaderProps) {
   const router = useRouter();
   const isCurrentUserMember = currentUserId
-    ? board.members?.some((m) => (m.userId || m.id) === currentUserId) ||
-      board.ownerId === currentUserId
+    ? board.members?.some((m) => (m.userId || m.id) === currentUserId)
     : true;
   const canJoin =
     !isCurrentUserMember &&
     (board.visibility === "WORKSPACE" || board.visibility === "PUBLIC");
+  const canManageBoard = currentUserRole === "OWNER" || currentUserRole === "ADMIN";
   const memberInitials =
     board.members?.slice(0, 3).map((member, index) => ({
       id: member.userId || member.id || `member-${index}`,
@@ -100,14 +102,16 @@ export function BoardHeader({
             <Users size={16} />
             Thành viên
           </button>
-          <button
-            type="button"
-            onClick={onOpenBoardSettings}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            <Pencil size={16} />
-            Cài đặt bảng
-          </button>
+          {canManageBoard ? (
+            <button
+              type="button"
+              onClick={onOpenBoardSettings}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Pencil size={16} />
+              Cài đặt bảng
+            </button>
+          ) : null}
           <button
             type="button"
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"

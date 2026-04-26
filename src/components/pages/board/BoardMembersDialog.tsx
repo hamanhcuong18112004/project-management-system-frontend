@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Crown, Mail, Search, UserMinus, X } from "lucide-react";
+import { ChevronDown, LogOut, Mail, Search, Shield, UserMinus, X } from "lucide-react";
 import type { BoardMemberSummary } from "@/lib/api/board";
 import type { Member as WorkspaceMember } from "@/lib/api/workspace";
+
+// Board member roles — OWNER is treated as ADMIN everywhere (no special owner concept)
+const ASSIGNABLE_ROLES = ["ADMIN", "MEMBER", "VIEWER"] as const;
+type BoardRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+
+const ROLE_LABELS: Record<BoardRole, string> = {
+  OWNER: "Admin",
+  ADMIN: "Admin",
+  MEMBER: "Thành viên",
+  VIEWER: "Xem",
+};
 
 interface BoardMembersDialogProps {
   open: boolean;
@@ -11,20 +22,25 @@ interface BoardMembersDialogProps {
   boardMembers: BoardMemberSummary[];
   workspaceMembers: WorkspaceMember[];
   ownerId?: string;
+  currentUserId?: string;
+  currentUserRole?: string;
   onClose: () => void;
-  onConfirm: (userIds: string[]) => Promise<void>;
+  onConfirm: (draft: { userId: string; role: string }[]) => Promise<void>;
 }
 
 interface DraftMember {
   userId: string;
   fullName: string;
   email: string;
-  role: string;
+  role: BoardRole;
+  isNew?: boolean;
 }
 
 function getInitials(name: string) {
+  if (!name) return "?";
   return name
     .split(" ")
+    .filter(Boolean)
     .map((p) => p[0])
     .join("")
     .slice(0, 2)
@@ -52,6 +68,8 @@ export function BoardMembersDialog({
   boardMembers,
   workspaceMembers,
   ownerId,
+  currentUserId,
+  currentUserRole,
   onClose,
   onConfirm,
 }: BoardMembersDialogProps) {
@@ -60,7 +78,9 @@ export function BoardMembersDialog({
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -69,21 +89,46 @@ export function BoardMembersDialog({
       .map((m) => {
         const uid = (m.userId || m.id) as string;
         const ws = workspaceMembers.find((w) => w.userId === uid);
+        const role = ((m.role?.toUpperCase() === "OWNER" ? "ADMIN" : m.role?.toUpperCase()) as BoardRole) || "MEMBER";
         return {
           userId: uid,
           fullName: m.fullName || ws?.fullName || "",
           email: m.email || ws?.email || "",
-          role: m.role || "MEMBER",
+          role,
         };
       });
     setDraft(enriched);
     setInviteEmail("");
     setInviteError(null);
     setConfirmOpen(false);
+    setOpenRoleDropdown(null);
   }, [open, boardMembers, workspaceMembers]);
+
+  useEffect(() => {
+    if (!openRoleDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target as Node)) {
+        setOpenRoleDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openRoleDropdown]);
 
   if (!open) return null;
 
+  const canManage = currentUserRole === "OWNER" || currentUserRole === "ADMIN";
+  const adminCount = draft.filter(
+    (m) => m.role === "ADMIN" || m.role === "OWNER",
+  ).length;
+  const hasOtherPrivileged = (excludeUserId: string) =>
+    draft.some(
+      (m) =>
+        m.userId !== excludeUserId &&
+        (m.role === "ADMIN" || m.role === "OWNER"),
+    );
+
+  // ── Invite ──────────────────────────────────────────────────────────────
   const handleAddByEmail = () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
@@ -98,22 +143,39 @@ export function BoardMembersDialog({
     }
     setDraft((prev) => [
       ...prev,
-      { userId: ws.userId, fullName: ws.fullName || ws.email || ws.userId, email: ws.email || "", role: "MEMBER" },
+      {
+        userId: ws.userId,
+        fullName: ws.fullName || ws.email || ws.userId,
+        email: ws.email || "",
+        role: "MEMBER",
+        isNew: true,
+      },
     ]);
     setInviteEmail("");
     setInviteError(null);
     inputRef.current?.focus();
   };
 
+  // ── Role change ──────────────────────────────────────────────────────────
+  const handleRoleChange = (userId: string, value: string) => {
+    if (value === "remove" || value === "leave") {
+      handleRemove(userId);
+      return;
+    }
+    const role = value as BoardRole;
+    setDraft((prev) => prev.map((m) => (m.userId === userId ? { ...m, role } : m)));
+  };
+
+  // ── Remove ───────────────────────────────────────────────────────────────
   const handleRemove = (userId: string) => {
     setDraft((prev) => prev.filter((m) => m.userId !== userId));
   };
 
+  // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
     try {
-      const nonOwnerIds = draft.filter((m) => m.userId !== ownerId).map((m) => m.userId);
-      await onConfirm(nonOwnerIds);
+      await onConfirm(draft.map((m) => ({ userId: m.userId, role: m.role })));
       setConfirmOpen(false);
       onClose();
     } finally {
@@ -123,22 +185,27 @@ export function BoardMembersDialog({
 
   const pendingChanges =
     draft.length !== boardMembers.length ||
-    draft.some((d) => !boardMembers.find((b) => (b.userId || b.id) === d.userId));
+    draft.some((d) => {
+      const orig = boardMembers.find((b) => (b.userId || b.id) === d.userId);
+      if (!orig) return true; // new member
+      return (orig.role?.toUpperCase() || "MEMBER") !== d.role;
+    });
 
-  const suggestions = inviteEmail.length > 0
-    ? workspaceMembers
-        .filter(
-          (wm) =>
-            (wm.email?.toLowerCase().includes(inviteEmail.toLowerCase()) ||
-              wm.fullName?.toLowerCase().includes(inviteEmail.toLowerCase())) &&
-            !draft.some((d) => d.userId === wm.userId),
-        )
-        .slice(0, 5)
-    : [];
+  const suggestions =
+    inviteEmail.length > 0
+      ? workspaceMembers
+          .filter(
+            (wm) =>
+              (wm.email?.toLowerCase().includes(inviteEmail.toLowerCase()) ||
+                wm.fullName?.toLowerCase().includes(inviteEmail.toLowerCase())) &&
+              !draft.some((d) => d.userId === wm.userId),
+          )
+          .slice(0, 5)
+      : [];
 
   return (
     <>
-      <div className="fixed inset-0 z-[96] flex items-center justify-center bg-slate-900/30 px-4 py-6 backdrop-blur-sm">
+      <div className="fixed inset-0 z-96 flex items-center justify-center bg-slate-900/30 px-4 py-6 backdrop-blur-sm">
         <button type="button" className="absolute inset-0 cursor-default" onClick={onClose} />
 
         <div className="relative z-10 w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
@@ -154,68 +221,66 @@ export function BoardMembersDialog({
             </button>
           </div>
 
-          {/* Invite by email */}
-          <div className="border-b border-slate-100 px-5 py-4">
-            <p className="mb-2 text-xs font-semibold text-slate-500">Mời thành viên workspace qua email</p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  ref={inputRef}
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddByEmail(); }}
-                  placeholder="Nhập email thành viên workspace..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
-                />
+          {/* Invite by email — only for admin/owner */}
+          {canManage ? (
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="mb-2 text-xs font-semibold text-slate-500">Mời thành viên workspace qua email</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    ref={inputRef}
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddByEmail(); }}
+                    placeholder="Nhập email thành viên workspace..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
+                  />
+                </div>
+                <button type="button" onClick={handleAddByEmail} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500">
+                  Thêm
+                </button>
               </div>
-              <button type="button" onClick={handleAddByEmail} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500">
-                Thêm
-              </button>
-            </div>
-            {inviteError ? <p className="mt-1.5 text-xs text-rose-500">{inviteError}</p> : null}
+              {inviteError ? <p className="mt-1.5 text-xs text-rose-500">{inviteError}</p> : null}
 
-            {/* Suggestions dropdown */}
-            {suggestions.length > 0 ? (
-              <ul className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                {suggestions.map((wm) => (
-                  <li key={wm.userId}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setInviteEmail(wm.email || "");
-                        setTimeout(() => {
+              {suggestions.length > 0 ? (
+                <ul className="mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {suggestions.map((wm) => (
+                    <li key={wm.userId}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           const ws = workspaceMembers.find((m) => m.userId === wm.userId);
                           if (ws && !draft.some((d) => d.userId === ws.userId)) {
-                            setDraft((prev) => [...prev, { userId: ws.userId, fullName: ws.fullName || ws.email || ws.userId, email: ws.email || "", role: "MEMBER" }]);
+                            setDraft((prev) => [...prev, { userId: ws.userId, fullName: ws.fullName || ws.email || ws.userId, email: ws.email || "", role: "MEMBER", isNew: true }]);
                             setInviteEmail("");
                             setInviteError(null);
                             inputRef.current?.focus();
                           }
-                        }, 0);
-                      }}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-slate-50"
-                    >
-                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(wm.userId)}`}>
-                        {getInitials(wm.fullName || wm.email || "U")}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-800">{wm.fullName || wm.email}</p>
-                        <p className="truncate text-xs text-slate-400">{wm.email}</p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+                        }}
+                        className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-slate-50"
+                      >
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(wm.userId)}`}>
+                          {getInitials(wm.fullName || wm.email || "U")}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-800">{wm.fullName || wm.email}</p>
+                          <p className="truncate text-xs text-slate-400">{wm.email}</p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* Member list */}
           <div className="px-5 py-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-500">Thành viên hiện tại ({draft.length})</p>
+              <p className="text-xs font-semibold text-slate-500">Thành viên ({draft.length})</p>
               {pendingChanges ? (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">Có thay đổi chưa lưu</span>
               ) : null}
@@ -224,36 +289,130 @@ export function BoardMembersDialog({
             {draft.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center">
                 <Search size={20} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-sm text-slate-400">Chưa có thành viên nào. Mời bằng email ở trên.</p>
+                <p className="text-sm text-slate-400">Chưa có thành viên nào.</p>
               </div>
             ) : (
-              <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+              <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
                 {draft.map((m) => {
-                  const isOwner = m.userId === ownerId || m.role === "OWNER";
-                  const displayName = m.fullName || m.email || m.userId;
+                  const isSelf = m.userId === currentUserId;
+                  const displayName = m.fullName || m.email || "";
+                  const shortId = m.userId.slice(0, 8);
+                  const showName = displayName || `...${shortId}`;
+
+                  // If this member is the only admin left in the draft, no one can change their role
+                  const isOnlyAdmin =
+                    (m.role === "ADMIN" || m.role === "OWNER") &&
+                    adminCount === 1;
+                  const canManageThisMember = canManage && !isOnlyAdmin;
+
+                  // Can current user leave? Only if another admin exists (for ADMINs), or any time for non-ADMINs
+                  const canLeave =
+                    isSelf &&
+                    (m.role !== "ADMIN" || hasOtherPrivileged(m.userId));
+
                   return (
                     <li key={m.userId} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
                       <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${avatarColor(m.userId)}`}>
-                        {getInitials(displayName)}
+                        {getInitials(displayName || shortId)}
                       </span>
+
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-semibold text-slate-800">{displayName}</p>
-                          {isOwner ? (
-                            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600">
-                              <Crown size={9} /> Owner
-                            </span>
-                          ) : (
-                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">Member</span>
-                          )}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <p className="text-sm font-semibold text-slate-800">{showName}</p>
+                          {isSelf ? <span className="rounded bg-sky-50 px-1 py-px text-[10px] font-semibold text-sky-600">Bạn</span> : null}
+                          {m.isNew ? <span className="rounded bg-emerald-50 px-1 py-px text-[10px] font-semibold text-emerald-600">Mới</span> : null}
                         </div>
-                        {m.email ? <p className="truncate text-xs text-slate-400">{m.email}</p> : null}
+                        {m.email ? (
+                          <p className="truncate text-xs text-slate-400">{m.email}</p>
+                        ) : (
+                          <p className="truncate font-mono text-[10px] text-slate-300">{m.userId}</p>
+                        )}
                       </div>
-                      {!isOwner ? (
-                        <button type="button" onClick={() => handleRemove(m.userId)} className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Xóa khỏi board">
-                          <UserMinus size={14} />
-                        </button>
-                      ) : null}
+
+                      {/* Role badge — clickable dropdown if can manage or leave, static otherwise */}
+                      {(canManageThisMember || canLeave) ? (
+                        <div ref={openRoleDropdown === m.userId ? roleDropdownRef : undefined} className="relative shrink-0">
+                          {/* Clickable role badge */}
+                          <button
+                            type="button"
+                            onClick={() => setOpenRoleDropdown((prev) => prev === m.userId ? null : m.userId)}
+                            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition hover:opacity-80 ${
+                              m.role === "ADMIN"
+                                ? "border-violet-200 bg-violet-50 text-violet-700"
+                                : m.role === "VIEWER"
+                                  ? "border-slate-200 bg-slate-50 text-slate-500"
+                                  : "border-slate-200 bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {m.role === "ADMIN" ? <Shield size={11} /> : null}
+                            {ROLE_LABELS[m.role]}
+                            <ChevronDown size={10} className="opacity-60" />
+                          </button>
+
+                          {/* Dropdown */}
+                          {openRoleDropdown === m.userId ? (
+                            <div
+                              className="absolute right-0 top-full z-20 mt-1 min-w-[148px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              {/* Role options: only admins can change roles */}
+                              {canManageThisMember ? (
+                                <>
+                                  {ASSIGNABLE_ROLES.map((r) => (
+                                    <button
+                                      key={r}
+                                      type="button"
+                                      onClick={() => { handleRoleChange(m.userId, r); setOpenRoleDropdown(null); }}
+                                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold transition hover:bg-slate-50 ${
+                                        m.role === r ? "text-sky-600" : "text-slate-700"
+                                      }`}
+                                    >
+                                      {r === "ADMIN" ? <Shield size={11} /> : <span className="w-[11px]" />}
+                                      {ROLE_LABELS[r]}
+                                      {m.role === r ? <span className="ml-auto text-sky-500">✓</span> : null}
+                                    </button>
+                                  ))}
+                                  <div className="my-1 border-t border-slate-100" />
+                                </>
+                              ) : null}
+                              {isSelf ? (
+                                canLeave ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => { handleRoleChange(m.userId, "leave"); setOpenRoleDropdown(null); }}
+                                    className="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                                  >
+                                    <LogOut size={11} /> Rời board
+                                  </button>
+                                ) : null
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => { handleRoleChange(m.userId, "remove"); setOpenRoleDropdown(null); }}
+                                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                                >
+                                  <UserMinus size={11} /> Xóa khỏi board
+                                </button>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        /* Read-only role badge */
+                        <span
+                          title={isOnlyAdmin ? "Admin duy nhất — không thể đổi role" : undefined}
+                          className={`shrink-0 inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
+                          m.role === "ADMIN"
+                            ? "border-violet-200 bg-violet-50 text-violet-700"
+                            : m.role === "VIEWER"
+                              ? "border-slate-200 bg-slate-50 text-slate-500"
+                              : "border-slate-200 bg-slate-100 text-slate-600"
+                        }`}>
+                          {m.role === "ADMIN" ? <Shield size={11} /> : null}
+                          {ROLE_LABELS[m.role]}
+                          {isOnlyAdmin ? <span className="ml-0.5 opacity-50">🔒</span> : null}
+                        </span>
+                      )}
                     </li>
                   );
                 })}
@@ -264,22 +423,23 @@ export function BoardMembersDialog({
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-              Hủy
+              Đóng
             </button>
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(true)}
-              disabled={!pendingChanges}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Lưu thay đổi
-            </button>
+            {pendingChanges ? (
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(true)}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+              >
+                Lưu thay đổi
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
 
       {confirmOpen ? (
-        <div className="fixed inset-0 z-[97] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-97 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
           <button type="button" className="absolute inset-0 cursor-default" onClick={() => setConfirmOpen(false)} />
           <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <h4 className="text-base font-bold text-slate-900">Xác nhận cập nhật</h4>

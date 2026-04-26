@@ -13,10 +13,10 @@ import {
   Loader2,
   Paperclip,
   Save,
+  Search,
   Trash2,
   Upload,
   UserMinus,
-  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -136,6 +136,9 @@ export function BoardTaskDialog({
   const [members, setMembers] = useState<string[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberAssigning, setMemberAssigning] = useState<string | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberDropdownOpen, setMemberDropdownOpen] = useState(false);
+  const memberDropdownRef = useRef<HTMLDivElement>(null);
 
   // Attachments state
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
@@ -166,6 +169,19 @@ export function BoardTaskDialog({
       .catch(() => setAttachments([]))
       .finally(() => setAttachmentsLoading(false));
   }, [open, task]);
+
+  // Close member dropdown on outside click
+  useEffect(() => {
+    if (!memberDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (memberDropdownRef.current && !memberDropdownRef.current.contains(e.target as Node)) {
+        setMemberDropdownOpen(false);
+        setMemberSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [memberDropdownOpen]);
 
   if (!open || !task) {
     return null;
@@ -405,52 +421,104 @@ export function BoardTaskDialog({
             </ul>
           )}
 
-          {/* Unassigned board members picker */}
+          {/* Board member searchable dropdown */}
           {boardMembers.length > 0 ? (
-            () => {
-              const unassigned = boardMembers.filter(
-                (m) => {
-                  const uid = m.userId || m.id;
-                  return uid && !members.includes(uid);
-                },
-              );
+            (() => {
+              const unassigned = boardMembers.filter((m) => {
+                const uid = m.userId || m.id;
+                return uid && !members.includes(uid as string);
+              });
               if (unassigned.length === 0) return null;
+              const q = memberSearch.toLowerCase();
+              const filtered = unassigned.filter((m) =>
+                (m.fullName || "").toLowerCase().includes(q) ||
+                (m.email || "").toLowerCase().includes(q)
+              );
               return (
-                <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Thành viên board
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {unassigned.map((m) => {
-                      const uid = (m.userId || m.id) as string;
-                      const displayName = m.fullName || m.email || uid;
-                      const initials = displayName.charAt(0).toUpperCase();
-                      const isBusy = memberAssigning === uid;
-                      return (
-                        <button
-                          key={uid}
-                          type="button"
-                          onClick={() => void handleAssignMember(uid)}
-                          disabled={Boolean(memberAssigning)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isBusy ? (
-                            <Loader2 size={11} className="animate-spin" />
-                          ) : (
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold">
-                              {initials}
-                            </span>
-                          )}
-                          {displayName}
-                          <UserPlus size={11} className="text-slate-400" />
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div ref={memberDropdownRef} className="relative mt-1">
+                  {/* Trigger button */}
+                  <button
+                    type="button"
+                    disabled={Boolean(memberAssigning)}
+                    onClick={() => { setMemberDropdownOpen((v) => !v); setMemberSearch(""); }}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-500 transition hover:border-sky-400 disabled:opacity-60"
+                  >
+                    <span>-- Chọn thành viên để gán --</span>
+                    {memberAssigning ? (
+                      <Loader2 size={14} className="animate-spin text-slate-400" />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-slate-400">
+                        <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Dropdown panel */}
+                  {memberDropdownOpen ? (
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                      {/* Search input */}
+                      <div className="border-b border-slate-100 px-3 py-2">
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                          <Search size={13} className="shrink-0 text-slate-400" />
+                          <input
+                            autoFocus
+                            type="text"
+                            value={memberSearch}
+                            onChange={(e) => setMemberSearch(e.target.value)}
+                            placeholder="Tìm theo tên hoặc email..."
+                            className="flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400"
+                          />
+                          {memberSearch ? (
+                            <button type="button" onClick={() => setMemberSearch("")} className="text-slate-400 hover:text-slate-600">
+                              <X size={12} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Options list */}
+                      <ul className="max-h-48 overflow-y-auto py-1">
+                        {filtered.length === 0 ? (
+                          <li className="px-4 py-3 text-center text-xs text-slate-400">Không tìm thấy thành viên nào</li>
+                        ) : (
+                          filtered.map((m) => {
+                            const uid = (m.userId || m.id) as string;
+                            const name = m.fullName || "";
+                            const email = m.email || "";
+                            const initials = (name || email || "U").charAt(0).toUpperCase();
+                            const isBusy = memberAssigning === uid;
+                            return (
+                              <li key={uid}>
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => {
+                                    void handleAssignMember(uid);
+                                    setMemberDropdownOpen(false);
+                                    setMemberSearch("");
+                                  }}
+                                  className="flex w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-sky-50 disabled:opacity-50"
+                                >
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
+                                    {isBusy ? <Loader2 size={12} className="animate-spin" /> : initials}
+                                  </span>
+                                  <div className="min-w-0">
+                                    {name ? <p className="truncate text-sm font-semibold text-slate-800">{name}</p> : null}
+                                    {email ? <p className="truncate text-xs text-slate-400">{email}</p> : null}
+                                    {!name && !email ? <p className="truncate text-xs text-slate-400">{uid}</p> : null}
+                                  </div>
+                                </button>
+                              </li>
+                            );
+                          })
+                        )}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               );
-            }
-          )() : (
+            })()
+          ) : (
             <p className="text-xs text-slate-400">Board này chưa có thành viên nào.</p>
           )}
         </div>

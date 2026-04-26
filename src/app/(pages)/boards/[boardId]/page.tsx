@@ -48,7 +48,9 @@ import {
   deleteBoard,
   getBoardById,
   joinBoard,
+  removeBoardMember,
   replaceBoardMembers,
+  updateBoardMemberRole,
   updateBoard,
   type BoardMemberSummary,
   type BoardDetails,
@@ -67,7 +69,7 @@ import {
   type BoardTaskList,
   type UpdateTaskPayload,
 } from "@/lib/api/task";
-import { getWorkspaceById, type Workspace } from "@/lib/api/workspace";
+import { getMyWorkspaces, getWorkspaceById, getWorkspaceMembers, type Member, type Workspace } from "@/lib/api/workspace";
 import { useRealtime, type DragItemType } from "@/providers/RealtimeProvider";
 
 type SelectedTaskContext = {
@@ -146,6 +148,7 @@ export default function BoardDetailPage() {
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [joiningBoard, setJoiningBoard] = useState(false);
+  const [wsMembers, setWsMembers] = useState<Member[]>([]);
   const [selectedTaskList, setSelectedTaskList] = useState<BoardTaskList | null>(null);
   const [addingList, setAddingList] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
@@ -241,6 +244,34 @@ export default function BoardDetailPage() {
         }
       });
 
+    // Try new /members endpoint first; fall back to getMyWorkspaces for enrichment
+    getWorkspaceMembers(board.workspaceId)
+      .then((members) => {
+        if (!cancelled && members.length > 0) setWsMembers(members);
+        else {
+          return getMyWorkspaces().then((workspaces) => {
+            if (!cancelled) {
+              const ws = workspaces.find((w) => w.id === board.workspaceId);
+              setWsMembers((ws?.members as Member[]) ?? []);
+            }
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          getMyWorkspaces()
+            .then((workspaces) => {
+              if (!cancelled) {
+                const ws = workspaces.find((w) => w.id === board.workspaceId);
+                setWsMembers((ws?.members as Member[]) ?? []);
+              }
+            })
+            .catch(() => {
+              if (!cancelled) setWsMembers([]);
+            });
+        }
+      });
+
     return () => {
       cancelled = true;
     };
@@ -295,10 +326,9 @@ export default function BoardDetailPage() {
     );
   }, [board]);
 
-  // Enrich board.members with fullName/email from workspace.members
+  // Enrich board.members with fullName/email from workspace members
   const enrichedBoardMembers = useMemo(() => {
     if (!board) return [];
-    const wsMembers = workspace?.members || [];
     return (board.members || []).map((m) => {
       const uid = m.userId || m.id;
       const ws = wsMembers.find((w) => w.userId === uid);
@@ -309,7 +339,14 @@ export default function BoardDetailPage() {
         email: m.email || ws?.email,
       };
     });
-  }, [board?.members, workspace?.members]);
+  }, [board?.members, wsMembers]);
+
+  // Current user's role in this board
+  const currentUserBoardRole = useMemo(() => {
+    if (!userId || !board) return undefined;
+    const member = enrichedBoardMembers.find((m) => m.userId === userId);
+    return member?.role?.toUpperCase() || undefined;
+  }, [userId, enrichedBoardMembers]);
 
   const activeTask = activeDragId ? findTaskByDragId(taskLists, activeDragId) : null;
   const activeTaskList = activeDragId
@@ -630,37 +667,58 @@ export default function BoardDetailPage() {
     setMembersDialogOpen(true);
   };
 
-  const handleConfirmBoardMembers = async (userIds: string[]) => {
-    if (!board) {
-      return;
-    }
+  const handleConfirmBoardMembers = async (newDraft: { userId: string; role: string }[]) => {
+    if (!board) return;
 
-    const workspaceMembers = workspace?.members || [];
-    const updatedBoard = await replaceBoardMembers(board.id, { userIds });
-    const nextMembers: BoardMemberSummary[] = (updatedBoard.members || []).map(
-      (member) => {
-        const workspaceMember = workspaceMembers.find(
-          (item) => item.userId === member.userId,
-        );
+    const current = enrichedBoardMembers;
+    const currentIds = new Set(current.map((c) => (c.userId || c.id) as string));
+    const draftMap = new Map(newDraft.map((d) => [d.userId, d.role]));
 
-        return {
-          ...member,
-          id: member.id || member.userId,
-          userId: member.userId,
-          fullName: workspaceMember?.fullName,
-          email: workspaceMember?.email,
-        };
+    // Members removed from draft (including owner if they removed themselves)
+    const toRemove = current.filter(
+      (c) => {
+        const uid = (c.userId || c.id) as string;
+        return !draftMap.has(uid);
       },
     );
 
-    setBoard({
-      ...updatedBoard,
-      members: nextMembers,
+    // Members added in draft (excluding owner who is always present on BE side)
+    const toAdd = newDraft.filter((d) => !currentIds.has(d.userId) && d.userId !== board.ownerId);
+
+    // Role changes for existing members (including the creator/owner)
+    const toUpdateRole = newDraft.filter((d) => {
+      const existing = current.find((c) => (c.userId || c.id) === d.userId);
+      if (!existing) return false;
+      // Normalize OWNER → ADMIN when comparing (creator stored as OWNER in old data)
+      const existingNorm = (existing.role?.toUpperCase() === "OWNER" ? "ADMIN" : existing.role?.toUpperCase()) || "MEMBER";
+      return existingNorm !== d.role.toUpperCase();
     });
 
-    toast.success(
-      "Đã cập nhật danh sách thành viên trên giao diện. Bước tiếp theo là nối board-service và notification-service.",
-    );
+    if (toAdd.length > 0) {
+      // Bulk replace handles all adds/removes in one shot
+      const allNonOwnerIds = newDraft.filter((d) => d.userId !== board.ownerId).map((d) => d.userId);
+      await replaceBoardMembers(board.id, { userIds: allNonOwnerIds });
+      // Fix roles that differ from defaults (owner defaults to ADMIN, others to MEMBER after replaceBoardMembers)
+      const needRoleUpdate = newDraft.filter((d) => {
+        const defaultRole = d.userId === board.ownerId ? "ADMIN" : "MEMBER";
+        return d.role.toUpperCase() !== defaultRole;
+      });
+      await Promise.all(needRoleUpdate.map((d) => updateBoardMemberRole(board.id, d.userId, d.role, userId ?? undefined)));
+    } else {
+      // Individual operations only
+      await Promise.all([
+        ...toRemove.map((m) => removeBoardMember(board.id, (m.userId || m.id) as string, userId ?? undefined)),
+        ...toUpdateRole.map((d) => updateBoardMemberRole(board.id, d.userId, d.role, userId ?? undefined)),
+      ]);
+    }
+
+    const updatedBoard = await getBoardById(board.id);
+    const nextMembers: BoardMemberSummary[] = (updatedBoard.members || []).map((member) => {
+      const ws = wsMembers.find((w) => w.userId === (member.userId || member.id));
+      return { ...member, fullName: member.fullName || ws?.fullName, email: member.email || ws?.email };
+    });
+    setBoard({ ...updatedBoard, members: nextMembers });
+    toast.success("Đã cập nhật thành viên board");
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -831,6 +889,7 @@ export default function BoardDetailPage() {
           <BoardHeader
             board={board}
             currentUserId={userId}
+            currentUserRole={currentUserBoardRole}
             onOpenBoardSettings={() => setBoardSettingsOpen(true)}
             onOpenMembers={handleOpenMembers}
             onJoinBoard={() => void handleJoinBoard()}
@@ -959,12 +1018,14 @@ export default function BoardDetailPage() {
         open={membersDialogOpen}
         boardName={board.name}
         boardMembers={enrichedBoardMembers}
-        workspaceMembers={workspace?.members || []}
+        workspaceMembers={wsMembers}
         ownerId={board.ownerId || undefined}
+        currentUserId={userId}
+        currentUserRole={currentUserBoardRole}
         onClose={() => setMembersDialogOpen(false)}
-        onConfirm={async (userIds) => {
+        onConfirm={async (draft) => {
           try {
-            await handleConfirmBoardMembers(userIds);
+            await handleConfirmBoardMembers(draft);
           } catch (error) {
             toast.error(
               getApiErrorMessage(error, "Không thể cập nhật thành viên của bảng"),

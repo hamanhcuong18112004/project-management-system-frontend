@@ -227,3 +227,33 @@ export async function joinBoard(
 
   return normalizeBoard(unwrapResponse(response.data));
 }
+
+export async function updateBoardMemberRole(
+  boardId: string,
+  userId: string,
+  role: string,
+  requesterId?: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.patch<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/members/${encodeURIComponent(userId)}${requesterId ? `?requesterId=${encodeURIComponent(requesterId)}` : ""}`,
+    { role },
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function removeBoardMember(
+  boardId: string,
+  userId: string,
+  requesterId?: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.delete<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/members/${encodeURIComponent(userId)}${requesterId ? `?requesterId=${encodeURIComponent(requesterId)}` : ""}`,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}

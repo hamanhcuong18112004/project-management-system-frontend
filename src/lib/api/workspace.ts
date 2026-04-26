@@ -109,6 +109,11 @@ export async function getMyWorkspaces(): Promise<Workspace[]> {
   return unwrap(res) ?? [];
 }
 
+export async function getWorkspaceMembers(workspaceId: string): Promise<Member[]> {
+  const res = await apiClient.get<Member[]>(`${SERVICE}/api/workspaces/${workspaceId}/members`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
 export async function inviteToWorkspace(workspaceId: string, email: string): Promise<void> {
   const res = await apiClient.post<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/invite`, { email });
   unwrap(res);
