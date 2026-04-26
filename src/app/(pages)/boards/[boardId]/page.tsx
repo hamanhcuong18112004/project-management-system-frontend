@@ -47,6 +47,7 @@ import { getBoardBackgroundStyle } from "@/components/pages/workspace/boardPrese
 import {
   deleteBoard,
   getBoardById,
+  joinBoard,
   replaceBoardMembers,
   updateBoard,
   type BoardMemberSummary,
@@ -144,6 +145,7 @@ export default function BoardDetailPage() {
   const [selectedTask, setSelectedTask] = useState<SelectedTaskContext>(null);
   const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
+  const [joiningBoard, setJoiningBoard] = useState(false);
   const [selectedTaskList, setSelectedTaskList] = useState<BoardTaskList | null>(null);
   const [addingList, setAddingList] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
@@ -160,6 +162,17 @@ export default function BoardDetailPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 80, tolerance: 6 } }),
   );
+
+  const userId = useMemo(() => {
+    if (typeof window === "undefined") return undefined;
+    try {
+      const raw = window.localStorage.getItem("auth-storage");
+      if (!raw) return undefined;
+      return (JSON.parse(raw) as { state?: { user?: { id?: string } } }).state?.user?.id;
+    } catch {
+      return undefined;
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -281,6 +294,22 @@ export default function BoardDetailPage() {
       board.background,
     );
   }, [board]);
+
+  // Enrich board.members with fullName/email from workspace.members
+  const enrichedBoardMembers = useMemo(() => {
+    if (!board) return [];
+    const wsMembers = workspace?.members || [];
+    return (board.members || []).map((m) => {
+      const uid = m.userId || m.id;
+      const ws = wsMembers.find((w) => w.userId === uid);
+      return {
+        ...m,
+        userId: uid,
+        fullName: m.fullName || ws?.fullName,
+        email: m.email || ws?.email,
+      };
+    });
+  }, [board?.members, workspace?.members]);
 
   const activeTask = activeDragId ? findTaskByDragId(taskLists, activeDragId) : null;
   const activeTaskList = activeDragId
@@ -581,12 +610,23 @@ export default function BoardDetailPage() {
     }
   };
 
-  const handleOpenMembers = () => {
-    if (!board || board.visibility !== "PRIVATE") {
-      toast.info("Chỉ bảng riêng tư mới cần chọn thành viên.");
-      return;
+  const handleJoinBoard = async () => {
+    if (!board || !userId || joiningBoard) return;
+    setJoiningBoard(true);
+    try {
+      const updatedBoard = await joinBoard(board.id, userId);
+      setBoard((current) =>
+        current ? { ...current, members: updatedBoard.members } : current,
+      );
+      toast.success("Bạn đã tham gia board!");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể tham gia board"));
+    } finally {
+      setJoiningBoard(false);
     }
+  };
 
+  const handleOpenMembers = () => {
     setMembersDialogOpen(true);
   };
 
@@ -790,8 +830,11 @@ export default function BoardDetailPage() {
         <div className="relative flex min-h-[calc(100vh-4rem)] w-full min-w-0 flex-col">
           <BoardHeader
             board={board}
+            currentUserId={userId}
             onOpenBoardSettings={() => setBoardSettingsOpen(true)}
             onOpenMembers={handleOpenMembers}
+            onJoinBoard={() => void handleJoinBoard()}
+            joiningBoard={joiningBoard}
           />
 
           <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden px-6 py-6">
@@ -907,6 +950,7 @@ export default function BoardDetailPage() {
         open={Boolean(selectedTask)}
         task={selectedTask?.task || null}
         listName={selectedTask?.listName}
+        boardMembers={enrichedBoardMembers}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, payload) => handleSaveTask(taskId, payload)}
         onDelete={(task) => handleDeleteTask(task)}
@@ -914,10 +958,9 @@ export default function BoardDetailPage() {
       <BoardMembersDialog
         open={membersDialogOpen}
         boardName={board.name}
-        members={workspace?.members || []}
-        selectedUserIds={(board.members || [])
-          .map((member) => member.userId || member.id)
-          .filter((value): value is string => Boolean(value))}
+        boardMembers={enrichedBoardMembers}
+        workspaceMembers={workspace?.members || []}
+        ownerId={board.ownerId || undefined}
         onClose={() => setMembersDialogOpen(false)}
         onConfirm={async (userIds) => {
           try {

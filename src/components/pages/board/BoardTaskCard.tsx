@@ -7,6 +7,7 @@ import {
   GripVertical,
   MessageSquare,
   Paperclip,
+  Users,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -70,8 +71,9 @@ function BoardTaskCardBase({
   const attachmentCount = Number(task.attachmentCount || 0);
   const commentCount = Number(task.commentCount || 0);
   const checklistCount = Number(task.checklistCount || 0);
+  const memberCount = Number(task.memberCount || 0);
   const hasMeta = Boolean(
-    dueDate || attachmentCount > 0 || commentCount > 0 || checklistCount > 0,
+    dueDate || attachmentCount > 0 || commentCount > 0 || checklistCount > 0 || memberCount > 0,
   );
 
   return (
@@ -144,6 +146,12 @@ function BoardTaskCardBase({
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
               <CheckSquare size={12} />
               {checklistCount}
+            </span>
+          ) : null}
+          {memberCount > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-sky-600">
+              <Users size={12} />
+              {memberCount}
             </span>
           ) : null}
           </div>

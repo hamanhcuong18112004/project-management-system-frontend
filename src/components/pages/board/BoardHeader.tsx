@@ -6,16 +6,29 @@ import type { BoardDetails } from "@/lib/api/board";
 
 interface BoardHeaderProps {
   board: BoardDetails;
+  currentUserId?: string;
   onOpenBoardSettings: () => void;
   onOpenMembers: () => void;
+  onJoinBoard?: () => void;
+  joiningBoard?: boolean;
 }
 
 export function BoardHeader({
   board,
+  currentUserId,
   onOpenBoardSettings,
   onOpenMembers,
+  onJoinBoard,
+  joiningBoard = false,
 }: BoardHeaderProps) {
   const router = useRouter();
+  const isCurrentUserMember = currentUserId
+    ? board.members?.some((m) => (m.userId || m.id) === currentUserId) ||
+      board.ownerId === currentUserId
+    : true;
+  const canJoin =
+    !isCurrentUserMember &&
+    (board.visibility === "WORKSPACE" || board.visibility === "PUBLIC");
   const memberInitials =
     board.members?.slice(0, 3).map((member, index) => ({
       id: member.userId || member.id || `member-${index}`,
@@ -27,8 +40,6 @@ export function BoardHeader({
           .slice(0, 2)
           .toUpperCase() || "U",
     })) || [];
-
-  const canManageMembers = board.visibility === "PRIVATE";
 
   return (
     <div className="sticky top-0 z-20 w-full min-w-0 shrink-0 border-b border-slate-200/80 bg-white/72 px-6 py-4 shadow-sm shadow-slate-200/50 backdrop-blur-xl">
@@ -65,16 +76,26 @@ export function BoardHeader({
             ))}
           </div>
 
+          {canJoin ? (
+            <button
+              type="button"
+              onClick={onJoinBoard}
+              disabled={joiningBoard}
+              className="inline-flex items-center gap-2 rounded-xl border border-sky-400 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {joiningBoard ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+              ) : (
+                <Users size={16} />
+              )}
+              Tham gia board
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onOpenMembers}
-            disabled={!canManageMembers}
-            title={
-              canManageMembers
-                ? "Quản lý thành viên của bảng riêng tư"
-                : "Chỉ dùng cho bảng riêng tư"
-            }
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Quản lý thành viên board"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             <Users size={16} />
             Thành viên

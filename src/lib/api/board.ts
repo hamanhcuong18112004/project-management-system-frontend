@@ -158,11 +158,13 @@ export async function getBoardById(boardId: string): Promise<BoardDetails> {
 
 export async function getBoardsByWorkspace(
   workspaceId: string,
+  userId?: string,
 ): Promise<BoardDetails[]> {
+  const params = userId ? `?userId=${encodeURIComponent(userId)}` : "";
   const response = await apiClient.get<
     ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
   >(
-    `${BOARD_BASE_PATH}/workspace/${workspaceId}`,
+    `${BOARD_BASE_PATH}/workspace/${workspaceId}${params}`,
   );
 
   return unwrapResponse(response.data).map((board) => normalizeBoard(board));
@@ -208,6 +210,19 @@ export async function replaceBoardMembers(
   >(
     `${BOARD_BASE_PATH}/${boardId}/members`,
     payload,
+  );
+
+  return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function joinBoard(
+  boardId: string,
+  userId: string,
+): Promise<BoardDetails> {
+  const response = await apiClient.post<
+    ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>
+  >(
+    `${BOARD_BASE_PATH}/${boardId}/join?userId=${encodeURIComponent(userId)}`,
   );
 
   return normalizeBoard(unwrapResponse(response.data));

@@ -24,6 +24,18 @@ export interface BoardTask {
   attachmentCount?: number;
   commentCount?: number;
   checklistCount?: number;
+  memberCount?: number;
+  assigneeIds?: string[];
+}
+
+export interface TaskAttachment {
+  id: string;
+  fileUrl: string;
+  fileName?: string | null;
+  fileType?: string | null;
+  fileSize?: number | null;
+  uploadedBy?: string | null;
+  createdAt?: string | null;
 }
 
 export interface BoardTaskList {
@@ -125,6 +137,15 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
         : Array.isArray(raw.checklists)
           ? raw.checklists.length
           : 0,
+    memberCount:
+      typeof raw.memberCount === "number"
+        ? raw.memberCount
+        : Array.isArray(raw.assigneeIds)
+          ? (raw.assigneeIds as unknown[]).length
+          : 0,
+    assigneeIds: Array.isArray(raw.assigneeIds)
+      ? (raw.assigneeIds as unknown[]).map(String)
+      : [],
   };
 }
 
@@ -228,4 +249,88 @@ export async function updateTask(
 
 export async function deleteTask(taskId: string): Promise<void> {
   await apiClient.delete(`${SERVICE}/api/tasks/${taskId}`);
+}
+
+// ── Task Members ──────────────────────────────────────────────────────────────
+
+export async function getTaskMembers(taskId: string): Promise<string[]> {
+  const response = await apiClient.get<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/members`,
+  );
+  const data = unwrapResponse(response.data as ServiceEnvelope<string[]> | string[]);
+  return Array.isArray(data) ? data.map(String) : [];
+}
+
+export async function assignTaskMember(
+  taskId: string,
+  userId: string,
+): Promise<void> {
+  await apiClient.post(`${SERVICE}/api/tasks/${taskId}/members`, { userId });
+}
+
+export async function unassignTaskMember(
+  taskId: string,
+  userId: string,
+): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/tasks/${taskId}/members/${userId}`);
+}
+
+// ── Task Attachments ──────────────────────────────────────────────────────────
+
+function normalizeAttachment(raw: Record<string, unknown>): TaskAttachment {
+  return {
+    id: String(raw.id || ""),
+    fileUrl: String(raw.fileUrl || ""),
+    fileName: (raw.fileName as string | null | undefined) ?? null,
+    fileType: (raw.fileType as string | null | undefined) ?? null,
+    fileSize: typeof raw.fileSize === "number" ? raw.fileSize : null,
+    uploadedBy: raw.uploadedBy ? String(raw.uploadedBy) : null,
+    createdAt: (raw.createdAt as string | null | undefined) ?? null,
+  };
+}
+
+export async function getTaskAttachments(
+  taskId: string,
+): Promise<TaskAttachment[]> {
+  const response = await apiClient.get<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/attachments`,
+  );
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[],
+  );
+  return Array.isArray(data)
+    ? data.map((item) => normalizeAttachment(item as Record<string, unknown>))
+    : [];
+}
+
+export async function uploadTaskAttachment(
+  taskId: string,
+  file: File,
+  uploadedBy?: string,
+): Promise<TaskAttachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (uploadedBy) {
+    formData.append("uploadedBy", uploadedBy);
+  }
+
+  const response = await apiClient.post<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/attachments`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>,
+  );
+  return normalizeAttachment(data as Record<string, unknown>);
+}
+
+export async function deleteTaskAttachment(
+  taskId: string,
+  attachmentId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `${SERVICE}/api/tasks/${taskId}/attachments/${attachmentId}`,
+  );
 }

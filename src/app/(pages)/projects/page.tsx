@@ -66,7 +66,7 @@ export default function ProjectsPage() {
           data.map(
             async (workspace): Promise<[string, Board[]]> => [
               workspace.id,
-              await getBoardsByWorkspace(workspace.id).catch(
+              await getBoardsByWorkspace(workspace.id, userId).catch(
                 () => workspace.boards || [],
               ),
             ],
