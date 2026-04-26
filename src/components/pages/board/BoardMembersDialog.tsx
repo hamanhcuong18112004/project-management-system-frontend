@@ -26,6 +26,7 @@ interface BoardMembersDialogProps {
   currentUserRole?: string;
   onClose: () => void;
   onConfirm: (draft: { userId: string; role: string }[]) => Promise<void>;
+  onLookupByEmail?: (email: string) => Promise<{ userId: string; email: string }>;
 }
 
 interface DraftMember {
@@ -72,10 +73,12 @@ export function BoardMembersDialog({
   currentUserRole,
   onClose,
   onConfirm,
+  onLookupByEmail,
 }: BoardMembersDialogProps) {
   const [draft, setDraft] = useState<DraftMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [openRoleDropdown, setOpenRoleDropdown] = useState<string | null>(null);
@@ -129,9 +132,53 @@ export function BoardMembersDialog({
     );
 
   // ── Invite ──────────────────────────────────────────────────────────────
-  const handleAddByEmail = () => {
+  const handleAddByEmail = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
+
+    // Check duplicate in draft first
+    if (draft.some((d) => d.email?.toLowerCase() === email)) {
+      setInviteError("Người dùng này đã là thành viên của board.");
+      return;
+    }
+
+    // Use API lookup to support users outside the workspace
+    if (onLookupByEmail) {
+      setInviting(true);
+      setInviteError(null);
+      try {
+        const result = await onLookupByEmail(email);
+        if (draft.some((d) => d.userId === result.userId)) {
+          setInviteError("Người dùng này đã là thành viên của board.");
+          return;
+        }
+        const ws = workspaceMembers.find((m) => m.userId === result.userId);
+        setDraft((prev) => [
+          ...prev,
+          {
+            userId: result.userId,
+            fullName: ws?.fullName || "",
+            email: result.email,
+            role: "MEMBER" as const,
+            isNew: true,
+          },
+        ]);
+        setInviteEmail("");
+        setInviteError(null);
+        inputRef.current?.focus();
+      } catch (err: unknown) {
+        const message =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          (err instanceof Error ? err.message : null) ||
+          "Không tìm thấy người dùng với email này.";
+        setInviteError(message);
+      } finally {
+        setInviting(false);
+      }
+      return;
+    }
+
+    // Fallback: search within workspaceMembers (no API)
     const ws = workspaceMembers.find((m) => m.email?.toLowerCase() === email);
     if (!ws) {
       setInviteError("Không tìm thấy người dùng này trong workspace.");
@@ -224,7 +271,7 @@ export function BoardMembersDialog({
           {/* Invite by email — only for admin/owner */}
           {canManage ? (
             <div className="border-b border-slate-100 px-5 py-4">
-              <p className="mb-2 text-xs font-semibold text-slate-500">Mời thành viên workspace qua email</p>
+              <p className="mb-2 text-xs font-semibold text-slate-500">Mời thành viên qua email</p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -233,13 +280,13 @@ export function BoardMembersDialog({
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleAddByEmail(); }}
-                    placeholder="Nhập email thành viên workspace..."
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleAddByEmail(); }}
+                    placeholder="Nhập email (workspace hoặc bên ngoài)..."
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
                   />
                 </div>
-                <button type="button" onClick={handleAddByEmail} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500">
-                  Thêm
+                <button type="button" onClick={() => void handleAddByEmail()} disabled={inviting} className="shrink-0 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60">
+                  {inviting ? <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : "Thêm"}
                 </button>
               </div>
               {inviteError ? <p className="mt-1.5 text-xs text-rose-500">{inviteError}</p> : null}
@@ -296,7 +343,7 @@ export function BoardMembersDialog({
                 {draft.map((m) => {
                   const isSelf = m.userId === currentUserId;
                   const displayName = m.fullName || m.email || "";
-                  const shortId = m.userId.slice(0, 8);
+                  const shortId = (m.userId ?? "").slice(0, 8);
                   const showName = displayName || `...${shortId}`;
 
                   // If this member is the only admin left in the draft, no one can change their role

@@ -112,13 +112,15 @@ export function BoardHeader({
               Cài đặt bảng
             </button>
           ) : null}
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
-          >
-            <Share2 size={16} />
-            Chia sẻ
-          </button>
+          {canManageBoard ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+            >
+              <Share2 size={16} />
+              Chia sẻ
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

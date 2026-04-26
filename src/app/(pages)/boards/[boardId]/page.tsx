@@ -48,6 +48,7 @@ import {
   deleteBoard,
   getBoardById,
   joinBoard,
+  lookupUserByEmail,
   removeBoardMember,
   replaceBoardMembers,
   updateBoardMemberRole,
@@ -1023,6 +1024,7 @@ export default function BoardDetailPage() {
         currentUserId={userId}
         currentUserRole={currentUserBoardRole}
         onClose={() => setMembersDialogOpen(false)}
+        onLookupByEmail={lookupUserByEmail}
         onConfirm={async (draft) => {
           try {
             await handleConfirmBoardMembers(draft);

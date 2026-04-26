@@ -8,13 +8,14 @@ import {
   createWorkspace,
   deleteWorkspace,
   getMyWorkspaces,
+  getWorkspaceById,
   inviteToWorkspace,
   updateWorkspace,
   type Board,
   type Role,
   type Workspace,
 } from "@/lib/api/workspace";
-import { createBoard, getBoardsByWorkspace } from "@/lib/api/board";
+import { createBoard, getBoardsByWorkspace, getBoardsByUser } from "@/lib/api/board";
 import { getApiErrorMessage } from "@/lib/api/error";
 import {
   CreateBoardModal,
@@ -60,7 +61,13 @@ export default function ProjectsPage() {
   const fetchWorkspaces = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await getMyWorkspaces();
+
+      // Fetch workspaces AND direct board memberships in parallel
+      const [data, directBoards] = await Promise.all([
+        getMyWorkspaces(),
+        userId ? getBoardsByUser(userId).catch(() => []) : Promise.resolve([]),
+      ]);
+
       const boardsByWorkspace = new Map<string, Board[]>(
         await Promise.all(
           data.map(
@@ -73,6 +80,18 @@ export default function ProjectsPage() {
           ),
         ),
       );
+
+      // Merge direct board memberships into the per-workspace map (dedup by id)
+      for (const board of directBoards) {
+        if (!board.workspaceId) continue;
+        const existing = boardsByWorkspace.get(board.workspaceId) ?? [];
+        if (!existing.some((b) => b.id === board.id)) {
+          boardsByWorkspace.set(board.workspaceId, [...existing, board]);
+        }
+      }
+
+      // Build base workspace list
+      const knownWorkspaceIds = new Set(data.map((w) => w.id));
 
       const safeData = data.map((workspace) => {
         let role: Role = "MEMBER";
@@ -95,7 +114,30 @@ export default function ProjectsPage() {
         };
       });
 
-      setWorkspaces(safeData);
+      // For direct boards in workspaces the user is NOT a member of,
+      // fetch workspace info and append synthetic workspace entries
+      const orphanWorkspaceIds = [
+        ...new Set(
+          directBoards
+            .filter((b) => b.workspaceId && !knownWorkspaceIds.has(b.workspaceId))
+            .map((b) => b.workspaceId!),
+        ),
+      ];
+
+      const orphanWorkspaces: Workspace[] = (
+        await Promise.all(
+          orphanWorkspaceIds.map((id) => getWorkspaceById(id).catch(() => null)),
+        )
+      ).filter(Boolean) as Workspace[];
+
+      const orphanEntries: Workspace[] = orphanWorkspaces.map((workspace) => ({
+        ...workspace,
+        boards: boardsByWorkspace.get(workspace.id) ?? [],
+        members: workspace.members || [],
+        role: "MEMBER" as Role,
+      }));
+
+      setWorkspaces([...safeData, ...orphanEntries]);
     } catch (error) {
       toast.error(
         getApiErrorMessage(

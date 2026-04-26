@@ -170,6 +170,20 @@ export async function getBoardsByWorkspace(
   return unwrapResponse(response.data).map((board) => normalizeBoard(board));
 }
 
+/**
+ * Returns all boards the user is directly a BoardMember of.
+ * This includes boards in workspaces the user is NOT a workspace member of.
+ */
+export async function getBoardsByUser(userId: string): Promise<BoardDetails[]> {
+  const response = await apiClient.get<
+    ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
+  >(
+    `${BOARD_BASE_PATH}/user?userId=${encodeURIComponent(userId)}`,
+  );
+
+  return unwrapResponse(response.data).map((board) => normalizeBoard(board));
+}
+
 export async function createBoard(
   payload: CreateBoardPayload,
 ): Promise<BoardDetails> {
@@ -181,6 +195,21 @@ export async function createBoard(
   );
 
   return normalizeBoard(unwrapResponse(response.data));
+}
+
+export async function lookupUserByEmail(
+  email: string,
+): Promise<{ userId: string; email: string }> {
+  const response = await apiClient.get<
+    { userId: string; email: string } | ServiceEnvelope<{ userId: string; email: string }>
+  >(
+    `${BOARD_BASE_PATH}/users/lookup?email=${encodeURIComponent(email)}`,
+  );
+  const data = unwrapResponse(response.data) as { userId: string; email: string };
+  if (!data?.userId) {
+    throw new Error("Không tìm thấy người dùng với email này.");
+  }
+  return data;
 }
 
 export async function updateBoard(
