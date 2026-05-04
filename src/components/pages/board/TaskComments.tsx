@@ -36,18 +36,18 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
   const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
-  const { lastCommentTaskId } = useRealtime();
+  const { lastCommentUpdate } = useRealtime();
 
   useEffect(() => {
     loadComments();
   }, [taskId]);
 
   useEffect(() => {
-    if (lastCommentTaskId === taskId) {
+    if (lastCommentUpdate?.taskId === taskId) {
       console.log("Realtime comment update detected for task:", taskId);
       loadComments();
     }
-  }, [lastCommentTaskId, taskId]);
+  }, [lastCommentUpdate, taskId]);
 
   const loadComments = async () => {
     setLoading(true);
