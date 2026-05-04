@@ -25,7 +25,7 @@ export type RemoteDragState = {
 };
 
 type IncomingRealtimeMessage = {
-  type: "drag_start" | "drag_move" | "drag_end" | "board_updated";
+  type: "drag_start" | "drag_move" | "drag_end" | "board_updated" | "comment_updated";
   boardId?: string;
   itemId?: string;
   itemType?: DragItemType;
@@ -45,6 +45,7 @@ type RealtimeContextValue = {
   boardVersion: number;
   emitBoardUpdated: () => void;
   isConnected: boolean;
+  lastCommentTaskId: string | null;
 };
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
@@ -74,6 +75,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
   );
   const [boardVersion, setBoardVersion] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [lastCommentTaskId, setLastCommentTaskId] = useState<string | null>(null);
 
   const user = useAuthStore((state) => state.user);
   const [guestId] = useState(
@@ -125,16 +127,28 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
     socketRef.current = socket;
 
     socket.onopen = () => {
+      console.log("WebSocket connected to:", url.toString());
       setIsConnected(true);
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
+      console.log("WebSocket disconnected:", event.reason);
       setIsConnected(false);
       setRemoteDrags(new Map());
     };
 
+    socket.onerror = (error) => {
+      console.error("WebSocket error detail:", {
+        url: socket.url,
+        readyState: socket.readyState,
+        error: error
+      });
+      setIsConnected(false);
+    };
+
     socket.onmessage = (event) => {
       const payload = JSON.parse(event.data) as IncomingRealtimeMessage;
+      console.log("WebSocket message received:", payload);
 
       if (payload.userId === currentUserId) {
         return;
@@ -184,6 +198,10 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
 
       if (payload.type === "board_updated") {
         setBoardVersion((value) => value + 1);
+      }
+
+      if (payload.type === "comment_updated" && payload.itemId) {
+        setLastCommentTaskId(payload.itemId);
       }
     };
 
@@ -248,6 +266,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
         boardVersion,
         emitBoardUpdated,
         isConnected,
+        lastCommentTaskId,
       }}
     >
       {children}

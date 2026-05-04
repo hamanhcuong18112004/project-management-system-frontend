@@ -26,6 +26,8 @@ export interface BoardTask {
   checklistCount?: number;
   memberCount?: number;
   assigneeIds?: string[];
+  boardId?: string;
+  taskListName?: string;
 }
 
 export interface TaskAttachment {
@@ -104,6 +106,7 @@ function unwrapResponse<T>(payload: ServiceEnvelope<T> | T): T {
   return payload as T;
 }
 
+
 function normalizeTask(raw: Record<string, unknown>): BoardTask {
   return {
     id: String(raw.id || ""),
@@ -146,6 +149,8 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
     assigneeIds: Array.isArray(raw.assigneeIds)
       ? (raw.assigneeIds as unknown[]).map(String)
       : [],
+    boardId: (raw.boardId as string | undefined) || undefined,
+    taskListName: (raw.taskListName as string | undefined) || undefined,
   };
 }
 
@@ -249,6 +254,15 @@ export async function updateTask(
 
 export async function deleteTask(taskId: string): Promise<void> {
   await apiClient.delete(`${SERVICE}/api/tasks/${taskId}`);
+}
+
+export async function getCalendarTasks(month: number, year: number): Promise<BoardTask[]> {
+  const response = await apiClient.get<ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
+    `${SERVICE}/api/tasks/calendar`,
+    { params: { month, year } }
+  );
+
+  return unwrapResponse(response.data).map(normalizeTask);
 }
 
 // ── Task Members ──────────────────────────────────────────────────────────────
