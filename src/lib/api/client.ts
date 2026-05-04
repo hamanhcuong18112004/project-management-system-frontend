@@ -46,6 +46,13 @@ apiClient.interceptors.request.use(
 
         if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;
+            
+            const user = useAuthStore.getState().user;
+            if (user) {
+                if (user.id) config.headers["X-User-Id"] = user.id;
+                if (user.fullName) config.headers["X-User-Name"] = encodeURIComponent(user.fullName);
+                if (user.avatarUrl) config.headers["X-User-Avatar"] = user.avatarUrl;
+            }
         } else {
             console.log(
                 `📭 [REQUEST] ${config.method?.toUpperCase()} ${config.url}`,
