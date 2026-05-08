@@ -37,19 +37,19 @@ function unwrapResponse<T>(payload: ServiceEnvelope<T> | T): T {
 
 export const notificationApi = {
   getByUserId: async (userId: string) => {
-    const response = await api.get<ServiceEnvelope<AppNotification[]> | AppNotification[]>(`/notifications?userId=${userId}`);
+    const response = await api.get<ServiceEnvelope<AppNotification[]> | AppNotification[]>(`/notifications/api/notifications?userId=${userId}`);
     return unwrapResponse(response.data);
   },
     
   markAsRead: async (id: string) => {
-    await api.patch(`/notifications/${id}/read`);
+    await api.patch(`/notifications/api/notifications/${id}/read`);
   },
     
   markAllAsRead: async (userId: string) => {
-    await api.patch(`/notifications/read-all?userId=${userId}`);
+    await api.patch(`/notifications/api/notifications/read-all?userId=${userId}`);
   },
     
   delete: async (id: string) => {
-    await api.delete(`/notifications/${id}`);
+    await api.delete(`/notifications/api/notifications/${id}`);
   },
 };
