@@ -68,7 +68,7 @@ export default function ProjectsPage() {
     typeof window !== "undefined"
       ? window.localStorage.getItem("auth-storage")
         ? JSON.parse(window.localStorage.getItem("auth-storage") || "{}").state
-            ?.user?.id
+          ?.user?.id
         : undefined
       : undefined;
 
@@ -324,15 +324,15 @@ export default function ProjectsPage() {
         currentWorkspaces.map((workspace) =>
           workspace.id === selectedWorkspaceForBoard.id
             ? {
-                ...workspace,
-                boards: [
-                  ...(workspace.boards || []).filter(
-                    (board) => board.id !== createdBoard.id,
-                  ),
-                  createdBoard,
-                ],
-                updatedAt: new Date().toISOString(),
-              }
+              ...workspace,
+              boards: [
+                ...(workspace.boards || []).filter(
+                  (board) => board.id !== createdBoard.id,
+                ),
+                createdBoard,
+              ],
+              updatedAt: new Date().toISOString(),
+            }
             : workspace,
         ),
       );

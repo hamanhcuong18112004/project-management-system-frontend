@@ -121,6 +121,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               duration: 2000,
               description: notification.message || "Dữ liệu vừa được cập nhật bởi thành viên khác.",
             });
+          } else if (notification.type === "BOARD_CREATED" || notification.type === "TASK_CREATED" || notification.type === "WORKSPACE_CREATED") {
+            toast.success(notification.title || "Tạo mới thành công", {
+              duration: 3000,
+              description: notification.message,
+            });
           }
         } catch (e) {
           console.error("Error parsing notification message:", e);
