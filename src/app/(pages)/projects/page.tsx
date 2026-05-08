@@ -272,13 +272,10 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   };
 
-  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
-    if (!confirm("Xóa thành viên này khỏi không gian làm việc?")) {
-      return;
-    }
+  const [memberToRemove, setMemberToRemove] = useState<{ workspaceId: string, memberId: string } | null>(null);
 
-    toast.info(`Xóa member ${memberId} khỏi workspace ${workspaceId} (Cần API)`);
-    fetchWorkspaces();
+  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
+    setMemberToRemove({ workspaceId, memberId });
   };
 
   const handleUpdateMemberRole = async (
@@ -485,6 +482,22 @@ export default function ProjectsPage() {
           if (workspaceToDelete) {
             await handleDeleteWorkspace(workspaceToDelete);
             setWorkspaceToDelete(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={!!memberToRemove}
+        title="Xóa thành viên"
+        description="Bạn có chắc chắn muốn xóa thành viên này khỏi không gian làm việc?"
+        confirmText="Xóa thành viên"
+        isDanger={true}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={async () => {
+          if (memberToRemove) {
+            toast.info(`Xóa member ${memberToRemove.memberId} khỏi workspace ${memberToRemove.workspaceId} (Cần API)`);
+            fetchWorkspaces();
+            setMemberToRemove(null);
           }
         }}
       />
