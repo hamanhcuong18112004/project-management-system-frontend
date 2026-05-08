@@ -44,7 +44,7 @@ export default function RootLayout({
           richColors
           theme="light"
           toastOptions={{
-            duration: 3500,
+            duration: 2000,
           }}
         />
       </body>

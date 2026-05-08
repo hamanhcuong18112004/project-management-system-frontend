@@ -109,12 +109,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           // Show toast for specific notification types
           if (notification.type === "WORKSPACE_INVITE") {
             toast.info(notification.message || "Bạn có một lời mời mới!", {
-              duration: 8000,
+              duration: 2000,
               description: "Vui lòng kiểm tra danh sách không gian làm việc để chấp nhận hoặc từ chối.",
             });
           } else if (notification.type === "WORKSPACE_INVITE_REJECTED") {
             toast.error(notification.message || "Lời mời đã bị từ chối.", {
-              duration: 6000,
+              duration: 2000,
             });
           }
         } catch (e) {
