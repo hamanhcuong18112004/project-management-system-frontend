@@ -151,7 +151,12 @@ export default function ProjectsPage() {
         role: "MEMBER" as Role,
       }));
 
-      setWorkspaces([...safeData, ...orphanEntries]);
+      const combined = [...safeData, ...orphanEntries];
+      const uniqueWorkspaces = Array.from(
+        new Map(combined.map((w) => [w.id, w])).values(),
+      );
+
+      setWorkspaces(uniqueWorkspaces);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
