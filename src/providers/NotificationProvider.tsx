@@ -116,6 +116,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             toast.error(notification.message || "Lời mời đã bị từ chối.", {
               duration: 2000,
             });
+          } else if (notification.type === "BOARD_UPDATED" || notification.type === "TASK_UPDATED") {
+            toast.info(notification.title || "Có thay đổi mới", {
+              duration: 2000,
+              description: notification.message || "Dữ liệu vừa được cập nhật bởi thành viên khác.",
+            });
           }
         } catch (e) {
           console.error("Error parsing notification message:", e);
