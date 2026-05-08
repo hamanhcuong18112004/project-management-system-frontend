@@ -41,10 +41,8 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
     setIsAccepting(true);
     try {
       await acceptWorkspaceInvite(workspaceId, inviteToken);
-      toast.success(`Bạn đã tham gia không gian làm việc "${workspaceName}"`);
-      onClose();
-      // Redirect to clean projects page and force reload to see new workspace
-      window.location.href = "/projects";
+      // Force navigation to clean projects page and reload to see new workspace
+      window.location.replace("/projects");
     } catch (error: any) {
       toast.error(error.message || "Không thể chấp nhận lời mời");
     } finally {
