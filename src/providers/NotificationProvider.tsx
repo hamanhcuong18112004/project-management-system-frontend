@@ -12,6 +12,7 @@ interface NotificationContextValue {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
   isConnected: boolean;
+  lastNotification: AppNotification | null;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -29,6 +30,7 @@ const WS_URL = normalizeWebSocketUrl(
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [lastNotification, setLastNotification] = useState<AppNotification | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -101,6 +103,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         try {
           const notification = JSON.parse(event.data) as AppNotification;
           setNotifications(prev => [notification, ...prev]);
+          setLastNotification(notification);
         } catch (e) {
           console.error("Error parsing notification message:", e);
         }
@@ -133,8 +136,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    isConnected
-  }), [notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, isConnected]);
+    isConnected,
+    lastNotification
+  }), [notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, isConnected, lastNotification]);
 
   return (
     <NotificationContext.Provider value={value}>

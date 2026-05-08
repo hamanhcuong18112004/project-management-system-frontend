@@ -111,8 +111,8 @@ export function MembersModal({
                           onChange={(e) => onUpdateMemberRole(workspace.id, member.userId, e.target.value)}
                           className="text-xs border border-gray-200 rounded px-2 py-1"
                         >
-                          <option value="MEMBER">Member</option>
-                          <option value="OWNER">Owner</option>
+                          <option value="MEMBER">Thành viên</option>
+                          <option value="OWNER">Chủ sở hữu</option>
                         </select>
                         <button 
                           onClick={() => onRemoveMember(workspace.id, member.userId)}

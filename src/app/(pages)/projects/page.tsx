@@ -25,6 +25,7 @@ import {
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { WorkspaceInvitationModal } from "@/components/modals/WorkspaceInvitationModal";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 type CreateWorkspaceFormData = {
   name: string;
@@ -44,6 +45,14 @@ export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { lastNotification } = useNotifications();
+
+  // Listen for real-time member join notifications to refresh list
+  useEffect(() => {
+    if (lastNotification?.type === "WORKSPACE_MEMBER_JOINED") {
+      fetchWorkspaces();
+    }
+  }, [lastNotification, fetchWorkspaces]);
 
   // Invitation state
   const [inviteData, setInviteData] = useState<{
