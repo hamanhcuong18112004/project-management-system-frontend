@@ -47,13 +47,6 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { lastNotification } = useNotifications();
 
-  // Listen for real-time member join notifications to refresh list
-  useEffect(() => {
-    if (lastNotification?.type === "WORKSPACE_MEMBER_JOINED") {
-      fetchWorkspaces();
-    }
-  }, [lastNotification, fetchWorkspaces]);
-
   // Invitation state
   const [inviteData, setInviteData] = useState<{
     token: string;
@@ -174,6 +167,13 @@ export default function ProjectsPage() {
   useEffect(() => {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
+
+  // Listen for real-time member join notifications to refresh list
+  useEffect(() => {
+    if (lastNotification?.type === "WORKSPACE_MEMBER_JOINED") {
+      fetchWorkspaces();
+    }
+  }, [lastNotification, fetchWorkspaces]);
 
   // Handle invitation query params
   useEffect(() => {
