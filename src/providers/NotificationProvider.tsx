@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import { toast } from "sonner";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 import { AppNotification, notificationApi } from "@/lib/api/notification";
 
@@ -104,6 +105,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           const notification = JSON.parse(event.data) as AppNotification;
           setNotifications(prev => [notification, ...prev]);
           setLastNotification(notification);
+
+          // Show toast for specific notification types
+          if (notification.type === "WORKSPACE_INVITE") {
+            toast.info(notification.message || "Bạn có một lời mời mới!", {
+              duration: 8000,
+              description: "Vui lòng kiểm tra danh sách không gian làm việc để chấp nhận hoặc từ chối.",
+            });
+          }
         } catch (e) {
           console.error("Error parsing notification message:", e);
         }

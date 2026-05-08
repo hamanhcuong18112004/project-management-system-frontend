@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { acceptWorkspaceInvite, rejectWorkspaceInvite } from "@/lib/api/workspace";
 import { Loader2, Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface WorkspaceInvitationModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
   const [isRejecting, setIsRejecting] = useState(false);
   const [showRejectReason, setShowRejectReason] = useState(false);
   const [reason, setReason] = useState("");
+  const router = useRouter();
 
   const handleAccept = async () => {
     setIsAccepting(true);
