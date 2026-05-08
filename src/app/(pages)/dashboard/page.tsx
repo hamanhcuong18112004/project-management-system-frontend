@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Plus,
   FolderKanban,
@@ -12,6 +12,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores";
+import { CreateProjectModal } from "@/components/pages/workspace";
+import { createWorkspace } from "@/lib/api/workspace";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 // ── Static data for dashboard ──
 
@@ -123,6 +127,26 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const greeting = getGreeting();
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreateWorkspace = async (data: any) => {
+    try {
+      setIsSubmitting(true);
+      await createWorkspace({
+        name: data.name,
+        description: data.description,
+        visibility: data.visibility
+      });
+      toast.success("Đã tạo workspace thành công!");
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Không thể tạo workspace"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Greeting Banner */}
@@ -171,9 +195,12 @@ export default function DashboardPage() {
         <div className="flex gap-4 flex-wrap">
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
+            const isCreateWorkspace = action.label === "Tạo workspace";
+
             return (
               <button
                 key={action.label}
+                onClick={isCreateWorkspace ? () => setIsCreateModalOpen(true) : undefined}
                 className="flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all group min-w-35"
               >
                 <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
@@ -261,6 +288,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      <CreateProjectModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateWorkspace}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 }
