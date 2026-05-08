@@ -388,9 +388,9 @@ export default function ProjectsPage() {
         </div>
 
         <div className="space-y-8">
-          {items.map((workspace) => (
+          {items.map((workspace, i) => (
             <WorkspaceRow
-              key={workspace.id}
+              key={`${workspace.id}-${i}`}
               workspace={workspace}
               onNavigateBoard={handleNavigateBoard}
               onCreateBoard={handleOpenCreateBoard}

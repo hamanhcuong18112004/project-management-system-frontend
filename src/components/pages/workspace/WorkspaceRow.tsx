@@ -107,8 +107,8 @@ export function WorkspaceRow({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {boards.map((board) => (
-            <div key={board.id}>
+          {boards.map((board, i) => (
+            <div key={`${board.id}-${i}`}>
               <BoardCard board={board} onClick={onNavigateBoard} />
             </div>
           ))}
