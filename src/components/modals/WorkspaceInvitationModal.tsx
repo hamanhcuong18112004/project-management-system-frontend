@@ -19,15 +19,17 @@ import { useRouter } from "next/navigation";
 interface WorkspaceInvitationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAccept?: () => void;
   workspaceId: string;
   workspaceName: string;
-  inviterName: string;
+  inviterName?: string;
   inviteToken: string;
 }
 
 export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> = ({
   isOpen,
   onClose,
+  onAccept,
   workspaceId,
   workspaceName,
   inviterName,
@@ -44,6 +46,9 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
     try {
       await acceptWorkspaceInvite(workspaceId, inviteToken);
       toast.success(`Bạn đã tham gia không gian làm việc "${workspaceName}"`);
+      if (onAccept) {
+        onAccept();
+      }
       // Use router to clear query params without full reload to avoid auth redirect race condition
       router.replace("/projects");
       onClose();

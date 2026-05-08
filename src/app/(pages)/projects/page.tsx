@@ -497,6 +497,9 @@ export default function ProjectsPage() {
             // Clear query params
             router.push("/projects");
           }}
+          onAccept={() => {
+            fetchWorkspaces();
+          }}
           workspaceId={inviteData.workspaceId}
           workspaceName={inviteData.workspaceName}
           inviterName={inviteData.inviterName}
