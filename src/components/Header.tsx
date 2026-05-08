@@ -137,6 +137,13 @@ export function Header() {
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">
                               {n.message}
                             </p>
+                            {(n.fullName || n.workspaceName) && (
+                              <p className="text-[11px] text-gray-400 mt-1 flex items-center">
+                                {n.fullName && <span className="font-medium text-gray-500">{n.fullName}</span>}
+                                {n.fullName && n.workspaceName && <span className="mx-1.5">•</span>}
+                                {n.workspaceName && <span>{n.workspaceName}</span>}
+                              </p>
+                            )}
                             <span className="text-[10px] text-gray-400 mt-2 block font-medium">
                               {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
                             </span>

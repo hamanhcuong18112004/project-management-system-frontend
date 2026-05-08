@@ -10,7 +10,9 @@ export interface AppNotification {
   createdAt: string;
   boardId?: string;
   workspaceId?: string;
+  workspaceName?: string;
   actorUserId?: string;
+  fullName?: string;
 }
 
 type ServiceEnvelope<T> = {
