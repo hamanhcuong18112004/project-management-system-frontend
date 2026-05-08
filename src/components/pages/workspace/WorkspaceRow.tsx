@@ -45,7 +45,7 @@ export function WorkspaceRow({
   const boards = workspace.boards || [];
   const members = workspace.members || [];
   const isOwner = workspace.role === "OWNER";
-  const initial = workspace.name.charAt(0).toUpperCase();
+  const initial = (workspace?.name || "?").charAt(0).toUpperCase();
 
   const handleUpdateSubmit = async (data: WorkspaceSettingsFormData) => {
     try {

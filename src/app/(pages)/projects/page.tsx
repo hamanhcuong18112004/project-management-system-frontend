@@ -185,13 +185,19 @@ export default function ProjectsPage() {
       const checkInvite = async () => {
         try {
           const ws = await getWorkspaceById(wsId);
-          setInviteData({
-            token,
-            workspaceId: wsId,
-            inviterName: invName || "Ai đó",
-            workspaceName: ws.name,
-          });
-          setShowInviteModal(true);
+          if (ws) {
+            setInviteData({
+              token,
+              workspaceId: wsId,
+              inviterName: invName || "Ai đó",
+              workspaceName: ws.name,
+            });
+            setShowInviteModal(true);
+          } else {
+            console.warn("Workspace not found or deleted");
+            // Clear query params since invitation is invalid
+            router.push("/projects");
+          }
         } catch (error) {
           console.error("Failed to fetch workspace for invitation", error);
         }
