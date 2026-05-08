@@ -112,6 +112,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               duration: 8000,
               description: "Vui lòng kiểm tra danh sách không gian làm việc để chấp nhận hoặc từ chối.",
             });
+          } else if (notification.type === "WORKSPACE_INVITE_REJECTED") {
+            toast.error(notification.message || "Lời mời đã bị từ chối.", {
+              duration: 6000,
+            });
           }
         } catch (e) {
           console.error("Error parsing notification message:", e);
