@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, Search, Settings } from "lucide-react";
 import { useAuthStore } from "@/lib/stores";
 import { MAIN_MENU } from "@/lib/constants/menu";
@@ -14,6 +14,7 @@ import { vi } from "date-fns/locale";
 const HEADER_TABS = MAIN_MENU.filter((item) => item.label !== "Trang chủ");
 
 export function Header() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const pathname = usePathname();
   const { lastCommentUpdate } = useRealtime();
@@ -115,7 +116,12 @@ export function Header() {
                       {notifications.map((n, i) => (
                         <div 
                           key={n.id} 
-                          onClick={() => !n.read && markAsRead(n.id)}
+                          onClick={() => {
+                            if (!n.read) markAsRead(n.id);
+                            if (n.type === "WORKSPACE_INVITE" && n.inviteToken && n.workspaceId) {
+                              router.push(`/projects?inviteToken=${n.inviteToken}&workspaceId=${n.workspaceId}&inviterName=${encodeURIComponent(n.fullName || '')}`);
+                            }
+                          }}
                           className={`group p-4 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50' : ''} ${!n.read ? 'bg-blue-50/30' : ''}`}
                         >
                           <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${!n.read ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-gray-300'}`} />

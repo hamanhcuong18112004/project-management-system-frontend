@@ -13,6 +13,7 @@ export interface AppNotification {
   workspaceName?: string;
   actorUserId?: string;
   fullName?: string;
+  inviteToken?: string;
 }
 
 type ServiceEnvelope<T> = {

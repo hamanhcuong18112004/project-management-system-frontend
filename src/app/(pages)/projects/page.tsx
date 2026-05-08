@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +23,8 @@ import {
   type CreateBoardFormData,
 } from "@/components/pages/workspace";
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { WorkspaceInvitationModal } from "@/components/modals/WorkspaceInvitationModal";
 
 type CreateWorkspaceFormData = {
   name: string;
@@ -39,8 +41,18 @@ type WorkspaceSettingsFormData = {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Invitation state
+  const [inviteData, setInviteData] = useState<{
+    token: string;
+    workspaceId: string;
+    inviterName: string;
+    workspaceName: string;
+  } | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -154,6 +166,31 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
+  // Handle invitation query params
+  useEffect(() => {
+    const token = searchParams.get("inviteToken");
+    const wsId = searchParams.get("workspaceId");
+    const invName = searchParams.get("inviterName");
+
+    if (token && wsId) {
+      const checkInvite = async () => {
+        try {
+          const ws = await getWorkspaceById(wsId);
+          setInviteData({
+            token,
+            workspaceId: wsId,
+            inviterName: invName || "Ai đó",
+            workspaceName: ws.name,
+          });
+          setShowInviteModal(true);
+        } catch (error) {
+          console.error("Failed to fetch workspace for invitation", error);
+        }
+      };
+      checkInvite();
+    }
+  }, [searchParams]);
+
   const ownedWorkspaces = useMemo(
     () => workspaces.filter((workspace) => workspace.role === "OWNER"),
     [workspaces],
@@ -179,15 +216,9 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDeleteWorkspace = async (workspaceId: string) => {
-    if (
-      !confirm(
-        "Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.",
-      )
-    ) {
-      return;
-    }
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
 
+  const handleDeleteWorkspace = async (workspaceId: string) => {
     try {
       await deleteWorkspace(workspaceId);
       toast.success("Đã xóa không gian làm việc");
@@ -347,7 +378,7 @@ export default function ProjectsPage() {
               onRemoveMember={handleRemoveMember}
               onUpdateMemberRole={handleUpdateMemberRole}
               onUpdateWorkspace={handleUpdateWorkspace}
-              onDeleteWorkspace={handleDeleteWorkspace}
+              onDeleteWorkspace={setWorkspaceToDelete}
             />
           ))}
         </div>
@@ -422,6 +453,36 @@ export default function ProjectsPage() {
         onSubmit={handleCreateBoard}
         isLoading={isSubmittingBoard}
       />
+
+      <ConfirmModal
+        open={!!workspaceToDelete}
+        title="Xóa không gian làm việc"
+        description="Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất."
+        confirmText="Xóa Workspace"
+        isDanger={true}
+        onClose={() => setWorkspaceToDelete(null)}
+        onConfirm={async () => {
+          if (workspaceToDelete) {
+            await handleDeleteWorkspace(workspaceToDelete);
+            setWorkspaceToDelete(null);
+          }
+        }}
+      />
+
+      {inviteData && (
+        <WorkspaceInvitationModal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            // Clear query params
+            router.push("/projects");
+          }}
+          workspaceId={inviteData.workspaceId}
+          workspaceName={inviteData.workspaceName}
+          inviterName={inviteData.inviterName}
+          inviteToken={inviteData.token}
+        />
+      )}
     </div>
   );
 }

@@ -43,6 +43,7 @@ import {
   sortTasks,
   sortTaskLists,
 } from "@/components/pages/board/boardState";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { getBoardBackgroundStyle } from "@/components/pages/workspace/boardPresets";
 import {
   deleteBoard,
@@ -157,6 +158,13 @@ export default function BoardDetailPage() {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [activeDragType, setActiveDragType] = useState<DragItemType>("task");
   const [tempDropTarget, setTempDropTarget] = useState<DropTarget>(null);
+
+  type DeleteContext =
+    | { type: 'BOARD'; board: BoardDetails }
+    | { type: 'LIST'; list: BoardTaskList }
+    | { type: 'TASK'; task: BoardTask }
+    | null;
+  const [deleteContext, setDeleteContext] = useState<DeleteContext>(null);
 
   const pointerRef = useRef({ x: 0, y: 0 });
   const dragMoveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -484,6 +492,8 @@ export default function BoardDetailPage() {
       toast.error(getApiErrorMessage(error, "Không thể cập nhật bảng"));
     }
   };
+
+  const [boardToDeleteState, setBoardToDeleteState] = useState<BoardDetails | null>(null);
 
   const handleDeleteBoard = async (boardToDelete: BoardDetails) => {
     try {
@@ -1013,7 +1023,7 @@ export default function BoardDetailPage() {
         boardMembers={enrichedBoardMembers}
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, payload) => handleSaveTask(taskId, payload)}
-        onDelete={(task) => handleDeleteTask(task)}
+        onDelete={(task) => setDeleteContext({ type: 'TASK', task })}
       />
       <BoardMembersDialog
         open={membersDialogOpen}
@@ -1040,18 +1050,46 @@ export default function BoardDetailPage() {
         board={boardSettingsOpen ? board : null}
         onClose={() => setBoardSettingsOpen(false)}
         onSave={(boardIdToUpdate, payload) => handleSaveBoard(boardIdToUpdate, payload)}
-        onDelete={(boardToDelete) => handleDeleteBoard(boardToDelete)}
+        onDelete={(boardToDelete) => setDeleteContext({ type: 'BOARD', board: boardToDelete })}
       />
       <TaskListSettingsDialog
         taskList={selectedTaskList}
         onClose={() => setSelectedTaskList(null)}
         onSave={(taskList, nextName) => handleSaveTaskList(taskList, nextName)}
-        onDelete={(taskList) => handleDeleteTaskList(taskList)}
+        onDelete={(taskList) => setDeleteContext({ type: 'LIST', list: taskList })}
       />
       <BoardAiAssistant
         boardId={board.id}
         boardName={board.name}
         workspaceId={board.workspaceId}
+      />
+
+      <ConfirmModal
+        open={!!deleteContext}
+        title={
+          deleteContext?.type === 'BOARD' ? "Xóa bảng này" :
+            deleteContext?.type === 'LIST' ? "Xóa danh sách này" :
+              deleteContext?.type === 'TASK' ? "Xóa thẻ công việc" : ""
+        }
+        description={
+          deleteContext?.type === 'BOARD' ? "Bạn có chắc chắn muốn xóa bảng này? Mọi dữ liệu (danh sách, thẻ công việc) bên trong sẽ bị mất vĩnh viễn và không thể khôi phục." :
+            deleteContext?.type === 'LIST' ? "Bạn có chắc chắn muốn xóa danh sách này? Tất cả các thẻ công việc nằm trong danh sách cũng sẽ bị xóa theo." :
+              deleteContext?.type === 'TASK' ? "Bạn có chắc chắn muốn xóa thẻ công việc này? Dữ liệu về mô tả, tệp đính kèm và bình luận sẽ bị mất hoàn toàn." : ""
+        }
+        confirmText="Xác nhận Xóa"
+        isDanger={true}
+        onClose={() => setDeleteContext(null)}
+        onConfirm={async () => {
+          if (!deleteContext) return;
+          if (deleteContext.type === 'BOARD') {
+            await handleDeleteBoard(deleteContext.board);
+          } else if (deleteContext.type === 'LIST') {
+            await handleDeleteTaskList(deleteContext.list);
+          } else if (deleteContext.type === 'TASK') {
+            await handleDeleteTask(deleteContext.task);
+          }
+          setDeleteContext(null);
+        }}
       />
     </>
   );

@@ -118,3 +118,13 @@ export async function inviteToWorkspace(workspaceId: string, email: string): Pro
   const res = await apiClient.post<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/invite`, { email });
   unwrap(res);
 }
+
+export async function acceptWorkspaceInvite(workspaceId: string, token: string): Promise<void> {
+  const res = await apiClient.get<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/accept-invite?token=${token}`);
+  unwrap(res);
+}
+
+export async function rejectWorkspaceInvite(workspaceId: string, token: string, reason: string): Promise<void> {
+  const res = await apiClient.post<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/reject-invite?token=${token}&reason=${encodeURIComponent(reason)}`);
+  unwrap(res);
+}

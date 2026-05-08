@@ -55,6 +55,9 @@ export const useAuthStore = create<AuthState>()(
                     isAuthenticated: false,
                 });
                 console.log("🚪 [AUTH] User logged out");
+                if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+                    window.location.href = "/login";
+                }
             },
 
             refreshAccessToken: async () => {
