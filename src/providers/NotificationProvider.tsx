@@ -121,8 +121,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               duration: 2000,
               description: notification.message || "Dữ liệu vừa được cập nhật bởi thành viên khác.",
             });
-          } else if (notification.type === "BOARD_CREATED" || notification.type === "TASK_CREATED" || notification.type === "WORKSPACE_CREATED") {
-            toast.success(notification.title || "Tạo mới thành công", {
+          } else if (notification.type === "BOARD_CREATED" || notification.type === "TASK_CREATED" || notification.type === "WORKSPACE_CREATED" || notification.type === "TASK_ASSIGNED" || notification.type === "BOARD_MEMBER_ADDED") {
+            toast.success(notification.title || "Thông báo mới", {
               duration: 3000,
               description: notification.message,
             });

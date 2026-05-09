@@ -173,9 +173,18 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
-  // Listen for real-time member join notifications to refresh list
+  // Listen for real-time notifications to refresh list
   useEffect(() => {
-    if (lastNotification?.type === "WORKSPACE_MEMBER_JOINED") {
+    const refreshTypes = [
+      "WORKSPACE_MEMBER_JOINED",
+      "BOARD_CREATED",
+      "BOARD_UPDATED",
+      "WORKSPACE_CREATED",
+      "WORKSPACE_DELETED",
+      "BOARD_MEMBER_ADDED",
+    ];
+
+    if (lastNotification && refreshTypes.includes(lastNotification.type)) {
       fetchWorkspaces();
     }
   }, [lastNotification, fetchWorkspaces]);

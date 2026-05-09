@@ -73,6 +73,7 @@ import {
 } from "@/lib/api/task";
 import { getMyWorkspaces, getWorkspaceById, getWorkspaceMembers, type Member, type Workspace } from "@/lib/api/workspace";
 import { useRealtime, type DragItemType } from "@/providers/RealtimeProvider";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 type SelectedTaskContext = {
   listId: string;
@@ -131,7 +132,6 @@ export default function BoardDetailPage() {
   const params = useParams<{ boardId: string }>();
   const router = useRouter();
   const boardId = params.boardId;
-
   const {
     boardVersion,
     remoteDrags,
@@ -139,7 +139,9 @@ export default function BoardDetailPage() {
     emitDragEnd,
     emitDragMove,
     emitDragStart,
+    setBoardVersion,
   } = useRealtime();
+  const { lastNotification } = useNotifications();
 
   const [board, setBoard] = useState<BoardDetails | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -230,6 +232,14 @@ export default function BoardDetailPage() {
       cancelled = true;
     };
   }, [boardId, boardVersion]);
+
+  // Refresh on BOARD_UPDATED and TASK notifications (e.g. task list created/updated/deleted by others)
+  useEffect(() => {
+    const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED"];
+    if (lastNotification && refreshTypes.includes(lastNotification.type) && lastNotification.boardId === boardId) {
+      setBoardVersion((v) => v + 1);
+    }
+  }, [lastNotification, boardId, setBoardVersion]);
 
   useEffect(() => {
     let cancelled = false;
