@@ -5,14 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
+  createWorkspaceRole,
   createWorkspace,
   deleteWorkspace,
+  deleteWorkspaceRole,
   getMyWorkspaces,
   getWorkspaceById,
   inviteToWorkspace,
+  removeWorkspaceMember,
   updateWorkspace,
+  updateWorkspaceMemberRole,
+  updateWorkspaceRole,
   type Board,
-  type Role,
+  type SaveRolePayload,
+  type WorkspaceRoleCode,
   type Workspace,
 } from "@/lib/api/workspace";
 import { createBoard, getBoardsByWorkspace, getBoardsByUser } from "@/lib/api/board";
@@ -108,15 +114,15 @@ export default function ProjectsPage() {
       const knownWorkspaceIds = new Set(data.map((w) => w.id));
 
       const safeData = data.map((workspace) => {
-        let role: Role = "MEMBER";
+        let role: WorkspaceRoleCode = "MEMBER";
 
         if (userId && Array.isArray(workspace.members)) {
           const foundMember = workspace.members.find(
             (member) => member.userId === userId,
           );
 
-          if (foundMember?.role) {
-            role = foundMember.role as Role;
+          if (foundMember?.role?.code) {
+            role = foundMember.role.code;
           }
         }
 
@@ -148,7 +154,7 @@ export default function ProjectsPage() {
         ...workspace,
         boards: boardsByWorkspace.get(workspace.id) ?? [],
         members: workspace.members || [],
-        role: "MEMBER" as Role,
+        role: "MEMBER" as WorkspaceRoleCode,
       }));
 
       const combined = [...safeData, ...orphanEntries];
@@ -275,8 +281,8 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleInviteMember = async (workspaceId: string, email: string) => {
-    await inviteToWorkspace(workspaceId, email);
+  const handleInviteMember = async (workspaceId: string, email: string, roleId: string) => {
+    await inviteToWorkspace(workspaceId, email, roleId);
     toast.info(`Đã gửi lời mời tới email ${email}`);
     fetchWorkspaces();
   };
@@ -290,9 +296,32 @@ export default function ProjectsPage() {
   const handleUpdateMemberRole = async (
     workspaceId: string,
     memberId: string,
-    role: string,
+    roleId: string,
   ) => {
-    toast.info(`Cập nhật role member ${memberId} thành ${role} (Cần API)`);
+    await updateWorkspaceMemberRole(workspaceId, memberId, roleId);
+    toast.success("Cập nhật vai trò thành viên thành công");
+    fetchWorkspaces();
+  };
+
+  const handleCreateRole = async (workspaceId: string, payload: SaveRolePayload) => {
+    await createWorkspaceRole(workspaceId, payload);
+    toast.success("Đã tạo role mới");
+    fetchWorkspaces();
+  };
+
+  const handleUpdateRole = async (
+    workspaceId: string,
+    roleId: string,
+    payload: SaveRolePayload,
+  ) => {
+    await updateWorkspaceRole(workspaceId, roleId, payload);
+    toast.success("Đã cập nhật role");
+    fetchWorkspaces();
+  };
+
+  const handleDeleteRole = async (workspaceId: string, roleId: string) => {
+    await deleteWorkspaceRole(workspaceId, roleId);
+    toast.success("Đã xóa role");
     fetchWorkspaces();
   };
 
@@ -398,11 +427,15 @@ export default function ProjectsPage() {
             <WorkspaceRow
               key={`${workspace.id}-${i}`}
               workspace={workspace}
+              currentUserId={userId}
               onNavigateBoard={handleNavigateBoard}
               onCreateBoard={handleOpenCreateBoard}
               onInviteMember={handleInviteMember}
               onRemoveMember={handleRemoveMember}
               onUpdateMemberRole={handleUpdateMemberRole}
+              onCreateRole={handleCreateRole}
+              onUpdateRole={handleUpdateRole}
+              onDeleteRole={handleDeleteRole}
               onUpdateWorkspace={handleUpdateWorkspace}
               onDeleteWorkspace={setWorkspaceToDelete}
             />
@@ -504,7 +537,8 @@ export default function ProjectsPage() {
         onClose={() => setMemberToRemove(null)}
         onConfirm={async () => {
           if (memberToRemove) {
-            toast.info(`Xóa member ${memberToRemove.memberId} khỏi workspace ${memberToRemove.workspaceId} (Cần API)`);
+            await removeWorkspaceMember(memberToRemove.workspaceId, memberToRemove.memberId);
+            toast.success("Đã xóa thành viên khỏi workspace");
             fetchWorkspaces();
             setMemberToRemove(null);
           }
