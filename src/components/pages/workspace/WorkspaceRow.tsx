@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Layout, Settings, Sparkles, Users } from "lucide-react";
-import type { Workspace } from "@/lib/api/workspace";
+import type { SaveRolePayload, Workspace } from "@/lib/api/workspace";
 import { BoardCard, CreateBoardCard } from "./BoardCard";
 import { MembersModal } from "./MembersModal";
 import { SettingsModal } from "./SettingsModal";
@@ -15,26 +15,34 @@ type WorkspaceSettingsFormData = {
 
 interface WorkspaceRowProps {
   workspace: Workspace;
+  currentUserId?: string;
   onNavigateBoard: (board: NonNullable<Workspace["boards"]>[number]) => void;
   onCreateBoard: (workspace: Workspace) => void;
-  onInviteMember: (workspaceId: string, email: string) => void;
-  onRemoveMember: (workspaceId: string, memberId: string) => void;
+  onInviteMember: (workspaceId: string, email: string, roleId: string) => Promise<void>;
+  onRemoveMember: (workspaceId: string, memberId: string) => Promise<void>;
   onUpdateMemberRole: (
     workspaceId: string,
     memberId: string,
-    role: string,
-  ) => void;
+    roleId: string,
+  ) => Promise<void>;
+  onCreateRole: (workspaceId: string, payload: SaveRolePayload) => Promise<void>;
+  onUpdateRole: (workspaceId: string, roleId: string, payload: SaveRolePayload) => Promise<void>;
+  onDeleteRole: (workspaceId: string, roleId: string) => Promise<void>;
   onUpdateWorkspace: (data: WorkspaceSettingsFormData) => Promise<void>;
   onDeleteWorkspace: (workspaceId: string) => void;
 }
 
 export function WorkspaceRow({
   workspace,
+  currentUserId,
   onNavigateBoard,
   onCreateBoard,
   onInviteMember,
   onRemoveMember,
   onUpdateMemberRole,
+  onCreateRole,
+  onUpdateRole,
+  onDeleteRole,
   onUpdateWorkspace,
   onDeleteWorkspace,
 }: WorkspaceRowProps) {
@@ -124,9 +132,13 @@ export function WorkspaceRow({
         open={showMembersModal}
         onClose={() => setShowMembersModal(false)}
         workspace={workspace}
+        currentUserId={currentUserId}
         onInviteMember={onInviteMember}
         onRemoveMember={onRemoveMember}
         onUpdateMemberRole={onUpdateMemberRole}
+        onCreateRole={onCreateRole}
+        onUpdateRole={onUpdateRole}
+        onDeleteRole={onDeleteRole}
       />
 
       <SettingsModal
