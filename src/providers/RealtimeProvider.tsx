@@ -44,6 +44,7 @@ type RealtimeContextValue = {
   emitDragMove: (id: string, type: DragItemType, x: number, y: number) => void;
   emitDragEnd: (id: string, type: DragItemType, overId?: string | null) => void;
   boardVersion: number;
+  setBoardVersion: React.Dispatch<React.SetStateAction<number>>;
   emitBoardUpdated: () => void;
   isConnected: boolean;
   lastCommentUpdate: { taskId: string; timestamp: number; actionUser?: string; actionType?: string; targetUserId?: string; taskTitle?: string } | null;
@@ -129,7 +130,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
       socket.onopen = () => {
         setIsConnected(true);
         socket?.send(JSON.stringify({ type: "board_updated", itemId: boardId }));
-        
+
         pingInterval = setInterval(() => {
           if (socket?.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "ping" }));
@@ -188,8 +189,8 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
         }
 
         if (payload.type === "comment_updated" && payload.itemId) {
-          setLastCommentUpdate({ 
-            taskId: payload.itemId, 
+          setLastCommentUpdate({
+            taskId: payload.itemId,
             timestamp: Date.now(),
             actionUser: payload.username,
             actionType: payload.itemType,
@@ -211,7 +212,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
       socket.onclose = () => {
         setIsConnected(false);
         clearInterval(pingInterval);
-        
+
         reconnectTimeout = setTimeout(() => {
           if (boardId) {
             console.log("Reconnecting WebSocket...");
@@ -286,6 +287,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
         emitDragMove,
         emitDragEnd,
         boardVersion,
+        setBoardVersion,
         emitBoardUpdated,
         isConnected,
         lastCommentUpdate,

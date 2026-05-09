@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import AuthProvider from "@/providers/AuthProvider";
 import RealtimeProvider from "@/providers/RealtimeProvider";
+import { NotificationProvider } from "@/providers/NotificationProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           <RealtimeProvider>
-            {children}
+            <NotificationProvider>
+              {children}
+            </NotificationProvider>
           </RealtimeProvider>
         </AuthProvider>
         <Toaster
@@ -41,7 +44,7 @@ export default function RootLayout({
           richColors
           theme="light"
           toastOptions={{
-            duration: 3500,
+            duration: 2000,
           }}
         />
       </body>

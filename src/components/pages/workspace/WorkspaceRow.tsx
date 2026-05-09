@@ -53,7 +53,7 @@ export function WorkspaceRow({
   const boards = workspace.boards || [];
   const members = workspace.members || [];
   const isOwner = workspace.role === "OWNER";
-  const initial = workspace.name.charAt(0).toUpperCase();
+  const initial = (workspace?.name || "?").charAt(0).toUpperCase();
 
   const handleUpdateSubmit = async (data: WorkspaceSettingsFormData) => {
     try {
@@ -115,8 +115,8 @@ export function WorkspaceRow({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {boards.map((board) => (
-            <div key={board.id}>
+          {boards.map((board, i) => (
+            <div key={`${board.id}-${i}`}>
               <BoardCard board={board} onClick={onNavigateBoard} />
             </div>
           ))}

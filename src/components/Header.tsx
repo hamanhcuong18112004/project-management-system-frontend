@@ -2,61 +2,35 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, Search, Settings } from "lucide-react";
 import { useAuthStore } from "@/lib/stores";
 import { MAIN_MENU } from "@/lib/constants/menu";
 import { useRealtime } from "@/providers/RealtimeProvider";
+import { useNotifications } from "@/providers/NotificationProvider";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 
 const HEADER_TABS = MAIN_MENU.filter((item) => item.label !== "Trang chủ");
 
 export function Header() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const pathname = usePathname();
   const { lastCommentUpdate } = useRealtime();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  
   const [isJiggling, setIsJiggling] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [notifications, setNotifications] = useState<{ id: string; message: string; time: number; read: boolean }[]>([]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
+  // Hiệu ứng rung khi có thông báo mới (unreadCount tăng)
   useEffect(() => {
-    if (lastCommentUpdate) {
-      const { actionUser, actionType, targetUserId, taskTitle } = lastCommentUpdate;
-
-      // Xóa bình luận không cần thông báo
-      if (actionType === "DELETE") return;
-
-      // Nếu là Phản hồi hoặc Thả cảm xúc mà người nhận KHÔNG PHẢI mình -> Bỏ qua
-      if ((actionType === "REPLY" || actionType === "REACT") && targetUserId && targetUserId !== user?.id) {
-        return;
-      }
-
-      let message = `Có thông báo mới trong task "${taskTitle || "không rõ"}".`;
-      if (actionType === "REPLY") {
-        message = `${actionUser || "Một người dùng"} vừa phản hồi bình luận của bạn trong task "${taskTitle || "không rõ"}".`;
-      } else if (actionType === "REACT") {
-        message = `${actionUser || "Một người dùng"} vừa thả cảm xúc vào bình luận của bạn trong task "${taskTitle || "không rõ"}".`;
-      } else if (actionType === "COMMENT") {
-        message = `${actionUser || "Một người dùng"} vừa bình luận trong task "${taskTitle || "không rõ"}".`;
-      }
-
+    if (unreadCount > 0) {
       setIsJiggling(true);
-      
-      setNotifications(prev => [
-        { 
-          id: Math.random().toString(), 
-          message, 
-          time: Date.now(),
-          read: false
-        },
-        ...prev
-      ].slice(0, 10));
-
       const timer = setTimeout(() => setIsJiggling(false), 1000);
       return () => clearTimeout(timer);
     }
-  }, [lastCommentUpdate, user?.id]);
+  }, [unreadCount]);
 
   const isTabActive = (href: string) => {
     if (href === "/projects") return pathname.startsWith("/projects");
@@ -110,13 +84,7 @@ export function Header() {
                 isJiggling ? "animate-bounce text-blue-600" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               }`}
               aria-label="Thông báo"
-              onClick={() => {
-                if (!isDropdownOpen) {
-                  // Đánh dấu tất cả là đã đọc khi mở menu
-                  setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-                }
-                setIsDropdownOpen(!isDropdownOpen);
-              }}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <Bell size={20} />
               {unreadCount > 0 && (
@@ -128,28 +96,62 @@ export function Header() {
 
             {/* Notifications Dropdown */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                   <h3 className="font-semibold text-gray-800 text-sm">Thông báo</h3>
-                  {notifications.length > 0 && (
-                    <button 
-                      onClick={() => setNotifications([])}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                    >
-                      Xóa tất cả
-                    </button>
-                  )}
+                  <div className="flex gap-3">
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={() => markAllAsRead()}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                      >
+                        Đọc tất cả
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="max-h-[350px] overflow-y-auto">
+                <div className="max-h-[450px] overflow-y-auto">
                   {notifications.length > 0 ? (
                     <div className="flex flex-col">
                       {notifications.map((n, i) => (
-                        <div key={n.id} className={`p-4 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50' : ''} ${!n.read ? 'bg-blue-50/30' : ''}`}>
-                          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!n.read ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-gray-300'}`} />
-                          <div>
-                            <p className={`text-sm leading-snug ${!n.read ? 'text-gray-800 font-medium' : 'text-gray-600'}`}>{n.message}</p>
-                            <span className="text-xs text-gray-400 mt-1.5 block font-medium">
-                              {new Date(n.time).toLocaleTimeString('vi-VN')}
+                        <div 
+                          key={n.id} 
+                          onClick={() => {
+                            if (!n.read) markAsRead(n.id);
+                            if (n.type === "WORKSPACE_INVITE" && n.inviteToken && n.workspaceId) {
+                              router.push(`/projects?inviteToken=${n.inviteToken}&workspaceId=${n.workspaceId}&inviterName=${encodeURIComponent(n.fullName || '')}`);
+                            }
+                          }}
+                          className={`group p-4 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50' : ''} ${!n.read ? 'bg-blue-50/30' : ''}`}
+                        >
+                          <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${!n.read ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-gray-300'}`} />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start gap-2">
+                              <p className={`text-sm leading-snug ${!n.read ? 'text-gray-800 font-semibold' : 'text-gray-600'}`}>
+                                {n.title}
+                              </p>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(n.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-500 rounded text-gray-400 transition-all"
+                              >
+                                <Settings size={12} />
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {n.message}
+                            </p>
+                            {(n.fullName || n.workspaceName) && (
+                              <p className="text-[11px] text-gray-400 mt-1 flex items-center">
+                                {n.fullName && <span className="font-medium text-gray-500">{n.fullName}</span>}
+                                {n.fullName && n.workspaceName && <span className="mx-1.5">•</span>}
+                                {n.workspaceName && <span>{n.workspaceName}</span>}
+                              </p>
+                            )}
+                            <span className="text-[10px] text-gray-400 mt-2 block font-medium">
+                              {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
                             </span>
                           </div>
                         </div>
@@ -167,7 +169,6 @@ export function Header() {
               </div>
             )}
           </div>
-
           {/* Settings */}
           <button
             className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogOut, Settings } from "lucide-react";
@@ -10,6 +10,7 @@ import { logout as logoutApi } from "@/lib/api/auth";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { MAIN_MENU } from "@/lib/constants/menu";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 interface WorkspaceNavItem {
   id: string;
@@ -24,6 +25,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, refreshToken, logout } = useAuthStore();
+  const { lastNotification } = useNotifications();
 
   const isActive = (href: string) => {
     if (href === ROUTES.dashboard) {
@@ -33,25 +35,38 @@ export function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  useEffect(() => {
-    const loadWorkspaces = async () => {
-      try {
-        const mod = await import("../lib/api/workspace");
-        const workspaces = await mod.getMyWorkspaces();
-        setWorkspaceItems(
-          workspaces.map((workspace: { id: string; name: string }) => ({
-            id: workspace.id,
-            name: workspace.name,
-            href: `/projects/${workspace.id}`,
-          })),
-        );
-      } catch {
-        // Ignore sidebar workspace loading failures.
-      }
-    };
-
-    loadWorkspaces();
+  const loadWorkspaces = useCallback(async () => {
+    try {
+      const mod = await import("../lib/api/workspace");
+      const workspaces = await mod.getMyWorkspaces();
+      setWorkspaceItems(
+        workspaces.map((workspace: { id: string; name: string }) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: `/projects/${workspace.id}`,
+        })),
+      );
+    } catch {
+      // Ignore
+    }
   }, []);
+
+  useEffect(() => {
+    loadWorkspaces();
+  }, [loadWorkspaces]);
+
+  useEffect(() => {
+    const refreshTypes = [
+      "WORKSPACE_MEMBER_JOINED",
+      "WORKSPACE_CREATED",
+      "WORKSPACE_DELETED",
+      "WORKSPACE_INVITE",
+    ];
+
+    if (lastNotification && refreshTypes.includes(lastNotification.type)) {
+      loadWorkspaces();
+    }
+  }, [lastNotification, loadWorkspaces]);
 
   const handleLogout = async () => {
     try {
@@ -92,19 +107,17 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
-                  active
+                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${active
                     ? "bg-blue-50 text-blue-700"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 <Icon
                   size={20}
-                  className={`shrink-0 ${
-                    active
+                  className={`shrink-0 ${active
                       ? "text-blue-700"
                       : "text-slate-400 group-hover:text-slate-700"
-                  }`}
+                    }`}
                 />
                 <span className="text-sm font-medium">{item.label}</span>
               </Link>
@@ -120,9 +133,8 @@ export function Sidebar() {
             <span>Workspace</span>
             <ChevronDown
               size={14}
-              className={`transition-transform duration-200 ${
-                workspacesExpanded ? "" : "-rotate-90"
-              }`}
+              className={`transition-transform duration-200 ${workspacesExpanded ? "" : "-rotate-90"
+                }`}
             />
           </button>
 
@@ -135,11 +147,10 @@ export function Sidebar() {
                   <Link
                     key={workspace.id}
                     href={workspace.href}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${
-                      active
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${active
                         ? "bg-blue-50 text-blue-700"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                     <span className="truncate">{workspace.name}</span>
@@ -154,17 +165,15 @@ export function Sidebar() {
       <div className="space-y-1 px-3 pb-3">
         <Link
           href={ROUTES.settings}
-          className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
-            isActive(ROUTES.settings)
+          className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${isActive(ROUTES.settings)
               ? "bg-blue-50 text-blue-700"
               : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          }`}
+            }`}
         >
           <Settings
             size={20}
-            className={`shrink-0 ${
-              isActive(ROUTES.settings) ? "text-blue-700" : "text-slate-400"
-            }`}
+            className={`shrink-0 ${isActive(ROUTES.settings) ? "text-blue-700" : "text-slate-400"
+              }`}
           />
           <span className="text-sm font-medium">Cài đặt</span>
         </Link>

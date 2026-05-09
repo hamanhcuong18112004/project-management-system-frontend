@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,9 @@ import {
   type CreateBoardFormData,
 } from "@/components/pages/workspace";
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { WorkspaceInvitationModal } from "@/components/modals/WorkspaceInvitationModal";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 type CreateWorkspaceFormData = {
   name: string;
@@ -45,8 +48,19 @@ type WorkspaceSettingsFormData = {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { lastNotification } = useNotifications();
+
+  // Invitation state
+  const [inviteData, setInviteData] = useState<{
+    token: string;
+    workspaceId: string;
+    inviterName: string;
+    workspaceName: string;
+  } | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -60,7 +74,7 @@ export default function ProjectsPage() {
     typeof window !== "undefined"
       ? window.localStorage.getItem("auth-storage")
         ? JSON.parse(window.localStorage.getItem("auth-storage") || "{}").state
-            ?.user?.id
+          ?.user?.id
         : undefined
       : undefined;
 
@@ -143,7 +157,12 @@ export default function ProjectsPage() {
         role: "MEMBER" as WorkspaceRoleCode,
       }));
 
-      setWorkspaces([...safeData, ...orphanEntries]);
+      const combined = [...safeData, ...orphanEntries];
+      const uniqueWorkspaces = Array.from(
+        new Map(combined.map((w) => [w.id, w])).values(),
+      );
+
+      setWorkspaces(uniqueWorkspaces);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -159,6 +178,53 @@ export default function ProjectsPage() {
   useEffect(() => {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
+
+  // Listen for real-time notifications to refresh list
+  useEffect(() => {
+    const refreshTypes = [
+      "WORKSPACE_MEMBER_JOINED",
+      "BOARD_CREATED",
+      "BOARD_UPDATED",
+      "WORKSPACE_CREATED",
+      "WORKSPACE_DELETED",
+      "BOARD_MEMBER_ADDED",
+    ];
+
+    if (lastNotification && refreshTypes.includes(lastNotification.type)) {
+      fetchWorkspaces();
+    }
+  }, [lastNotification, fetchWorkspaces]);
+
+  // Handle invitation query params
+  useEffect(() => {
+    const token = searchParams.get("inviteToken");
+    const wsId = searchParams.get("workspaceId");
+    const invName = searchParams.get("inviterName");
+
+    if (token && wsId) {
+      const checkInvite = async () => {
+        try {
+          const ws = await getWorkspaceById(wsId);
+          if (ws) {
+            setInviteData({
+              token,
+              workspaceId: wsId,
+              inviterName: invName || "Ai đó",
+              workspaceName: ws.name,
+            });
+            setShowInviteModal(true);
+          } else {
+            console.warn("Workspace not found or deleted");
+            // Clear query params since invitation is invalid
+            router.push("/projects");
+          }
+        } catch (error) {
+          console.error("Failed to fetch workspace for invitation", error);
+        }
+      };
+      checkInvite();
+    }
+  }, [searchParams]);
 
   const ownedWorkspaces = useMemo(
     () => workspaces.filter((workspace) => workspace.role === "OWNER"),
@@ -185,15 +251,9 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDeleteWorkspace = async (workspaceId: string) => {
-    if (
-      !confirm(
-        "Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.",
-      )
-    ) {
-      return;
-    }
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
 
+  const handleDeleteWorkspace = async (workspaceId: string) => {
     try {
       await deleteWorkspace(workspaceId);
       toast.success("Đã xóa không gian làm việc");
@@ -227,14 +287,10 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   };
 
-  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
-    if (!confirm("Xóa thành viên này khỏi không gian làm việc?")) {
-      return;
-    }
+  const [memberToRemove, setMemberToRemove] = useState<{ workspaceId: string, memberId: string } | null>(null);
 
-    await removeWorkspaceMember(workspaceId, memberId);
-    toast.success("Đã xóa thành viên khỏi workspace");
-    fetchWorkspaces();
+  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
+    setMemberToRemove({ workspaceId, memberId });
   };
 
   const handleUpdateMemberRole = async (
@@ -306,15 +362,15 @@ export default function ProjectsPage() {
         currentWorkspaces.map((workspace) =>
           workspace.id === selectedWorkspaceForBoard.id
             ? {
-                ...workspace,
-                boards: [
-                  ...(workspace.boards || []).filter(
-                    (board) => board.id !== createdBoard.id,
-                  ),
-                  createdBoard,
-                ],
-                updatedAt: new Date().toISOString(),
-              }
+              ...workspace,
+              boards: [
+                ...(workspace.boards || []).filter(
+                  (board) => board.id !== createdBoard.id,
+                ),
+                createdBoard,
+              ],
+              updatedAt: new Date().toISOString(),
+            }
             : workspace,
         ),
       );
@@ -367,9 +423,9 @@ export default function ProjectsPage() {
         </div>
 
         <div className="space-y-8">
-          {items.map((workspace) => (
+          {items.map((workspace, i) => (
             <WorkspaceRow
-              key={workspace.id}
+              key={`${workspace.id}-${i}`}
               workspace={workspace}
               currentUserId={userId}
               onNavigateBoard={handleNavigateBoard}
@@ -381,7 +437,7 @@ export default function ProjectsPage() {
               onUpdateRole={handleUpdateRole}
               onDeleteRole={handleDeleteRole}
               onUpdateWorkspace={handleUpdateWorkspace}
-              onDeleteWorkspace={handleDeleteWorkspace}
+              onDeleteWorkspace={setWorkspaceToDelete}
             />
           ))}
         </div>
@@ -456,6 +512,56 @@ export default function ProjectsPage() {
         onSubmit={handleCreateBoard}
         isLoading={isSubmittingBoard}
       />
+
+      <ConfirmModal
+        open={!!workspaceToDelete}
+        title="Xóa không gian làm việc"
+        description="Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất."
+        confirmText="Xóa Workspace"
+        isDanger={true}
+        onClose={() => setWorkspaceToDelete(null)}
+        onConfirm={async () => {
+          if (workspaceToDelete) {
+            await handleDeleteWorkspace(workspaceToDelete);
+            setWorkspaceToDelete(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={!!memberToRemove}
+        title="Xóa thành viên"
+        description="Bạn có chắc chắn muốn xóa thành viên này khỏi không gian làm việc?"
+        confirmText="Xóa thành viên"
+        isDanger={true}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={async () => {
+          if (memberToRemove) {
+            await removeWorkspaceMember(memberToRemove.workspaceId, memberToRemove.memberId);
+            toast.success("Đã xóa thành viên khỏi workspace");
+            fetchWorkspaces();
+            setMemberToRemove(null);
+          }
+        }}
+      />
+
+      {inviteData && (
+        <WorkspaceInvitationModal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            // Clear query params
+            router.push("/projects");
+          }}
+          onAccept={() => {
+            fetchWorkspaces();
+          }}
+          workspaceId={inviteData.workspaceId}
+          workspaceName={inviteData.workspaceName}
+          inviterName={inviteData.inviterName}
+          inviteToken={inviteData.token}
+        />
+      )}
     </div>
   );
 }

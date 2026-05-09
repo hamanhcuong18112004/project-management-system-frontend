@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LayoutPanelTop, X } from "lucide-react";
+import { LayoutPanelTop, X, Sparkles } from "lucide-react";
 import type {
   BoardBackgroundType,
   BoardVisibility,
@@ -34,6 +34,17 @@ interface CreateBoardModalProps {
 
 const PREVIEW_COLUMNS = [4, 3, 4];
 
+const BOARD_AI_SUGGESTIONS = [
+  "Sprint Planning: Giai đoạn 1",
+  "Quản lý Lỗi & Cải tiến sản phẩm",
+  "Kế hoạch Marketing Quý 3/2024",
+  "Quy trình Tuyển dụng & Onboarding",
+  "Nghiên cứu Thị trường & Đối thủ",
+  "Phát triển Tính năng Mobile App",
+  "Lịch biên tập nội dung Social Media",
+  "Theo dõi tiến độ Dự án ERP",
+];
+
 export function CreateBoardModal({
   open,
   workspace,
@@ -52,6 +63,12 @@ export function CreateBoardModal({
     DEFAULT_BOARD_BACKGROUND.value,
   );
   const [errors, setErrors] = useState<{ name?: string }>({});
+
+  const handleAISuggest = () => {
+    const randomTitle = BOARD_AI_SUGGESTIONS[Math.floor(Math.random() * BOARD_AI_SUGGESTIONS.length)];
+    setName(randomTitle);
+    if (errors.name) setErrors({});
+  };
 
   const previewStyle = useMemo(
     () => getBoardBackgroundStyle(backgroundType, backgroundValue),
@@ -214,9 +231,19 @@ export function CreateBoardModal({
           </div>
 
           <div className="mb-3">
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-              Tiêu đề bảng <span className="text-red-400">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-semibold text-slate-700">
+                Tiêu đề bảng <span className="text-red-400">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAISuggest}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-all active:scale-95"
+              >
+                <Sparkles size={10} className="fill-blue-500 text-blue-500" />
+                AI Suggest
+              </button>
+            </div>
             <input
               type="text"
               value={name}

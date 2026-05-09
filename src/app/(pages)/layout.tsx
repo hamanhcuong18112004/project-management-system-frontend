@@ -50,9 +50,8 @@ export default function PagesLayout({
         <Header />
 
         <main
-          className={`mt-16 flex-1 ${
-            isBoardRoute ? "min-w-0 overflow-hidden bg-slate-100" : "min-w-0 bg-gray-50 p-6"
-          }`}
+          className={`mt-16 flex-1 ${isBoardRoute ? "min-w-0 overflow-hidden bg-slate-100" : "min-w-0 bg-gray-50 p-6"
+            }`}
         >
           <div className={isBoardRoute ? "h-full min-w-0" : "mx-auto max-w-7xl"}>
             {children}

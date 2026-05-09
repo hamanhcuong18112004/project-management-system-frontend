@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { X, Sparkles } from "lucide-react";
 import type { Visibility } from "@/lib/api/workspace";
 
 const COLORS = [
@@ -13,6 +13,13 @@ const COLORS = [
   "#ec4899", // pink
   "#6366f1", // indigo
   "#06b6d4", // cyan
+];
+
+const AI_SUGGESTIONS = [
+  { name: "Phát triển ứng dụng Thương mại điện tử", description: "Dự án xây dựng hệ thống bán hàng trực tuyến tích hợp thanh toán và quản lý kho." },
+  { name: "Hệ thống Quản lý Nhân sự (HRM)", description: "Nền tảng quản lý thông tin nhân viên, chấm công và tính lương tự động." },
+  { name: "Chiến dịch Marketing Mùa hè 2024", description: "Lập kế hoạch và triển khai các hoạt động quảng bá sản phẩm cho quý 3." },
+  { name: "Nghiên cứu & Phát triển (R&D) Sản phẩm mới", description: "Tập trung vào việc khảo sát thị trường và xây dựng prototype cho dòng sản phẩm tiếp theo." },
 ];
 
 interface CreateProjectModalProps {
@@ -40,6 +47,13 @@ export function CreateProjectModal({
   const [errors, setErrors] = useState<{ name?: string }>({});
 
   if (!open) return null;
+
+  const handleAISuggest = () => {
+    const random = AI_SUGGESTIONS[Math.floor(Math.random() * AI_SUGGESTIONS.length)];
+    setName(random.name);
+    setDescription(random.description);
+    if (errors.name) setErrors({});
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,9 +103,19 @@ export function CreateProjectModal({
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Tên workspace <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">
+                Tên workspace <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAISuggest}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 hover:border-blue-200 transition-all active:scale-95 shadow-sm"
+              >
+                <Sparkles size={12} className="fill-blue-500 text-blue-500" />
+                AI Suggest
+              </button>
+            </div>
             <input
               type="text"
               value={name}
