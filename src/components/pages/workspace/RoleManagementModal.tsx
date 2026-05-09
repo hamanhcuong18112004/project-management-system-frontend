@@ -167,112 +167,133 @@ export function RoleManagementModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-md" onClick={onClose} />
 
-      <div className="relative flex h-[86vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-        <aside className="w-full max-w-xs border-r border-slate-200 bg-gradient-to-b from-slate-50 to-white p-5">
-          <div className="mb-5 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                Quản lý vai trò
-              </p>
-              <h3 className="mt-2 text-lg font-bold text-slate-900">{workspaceName}</h3>
+      <div className="relative flex h-[90vh] w-full max-w-6xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl">
+        {/* Sidebar */}
+        <aside className="w-full max-w-[280px] flex flex-col border-r border-slate-100 bg-slate-50/50">
+          <div className="p-6 border-b border-slate-100 bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Workspace Roles
+              </span>
+              <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">
+                <X size={16} />
+              </button>
             </div>
-            <button onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-              <X size={18} />
-            </button>
+            <h3 className="text-xl font-black text-slate-900 truncate">{workspaceName}</h3>
           </div>
 
-          <button
-            onClick={handleReset}
-            className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-100"
-          >
-            <PlusCircle size={16} /> Tạo vai trò mới
-          </button>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <button
+              onClick={handleReset}
+              className={`flex w-full items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-3 text-sm font-bold transition
+                ${!selectedRoleId 
+                  ? "border-blue-500 bg-blue-50 text-blue-600" 
+                  : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-white"}`}
+            >
+              <PlusCircle size={18} />
+              <span>Tạo vai trò mới</span>
+            </button>
 
-          <div className="space-y-2 overflow-y-auto pr-1">
-            {roles.map((role) => (
-              <button
-                key={role.id}
-                onClick={() => setSelectedRoleId(role.id)}
-                className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                  selectedRoleId === role.id
-                    ? "border-cyan-400 bg-cyan-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{role.name}</p>
-                  {role.systemRole && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                          <Shield size={12} /> Hệ thống
-                    </span>
+            <div className="pt-4 space-y-2">
+              <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Danh sách vai trò</span>
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setSelectedRoleId(role.id)}
+                  className={`group relative w-full rounded-2xl p-4 text-left transition-all duration-200 ${
+                    selectedRoleId === role.id
+                      ? "bg-white shadow-lg shadow-slate-200/50 ring-1 ring-slate-200"
+                      : "hover:bg-white/80"
+                  }`}
+                >
+                  {selectedRoleId === role.id && (
+                    <div className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full bg-blue-600" />
                   )}
-                </div>
-                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{role.code}</p>
-                <p className="mt-2 text-xs text-slate-500">{role.permissions.length} quyền</p>
-              </button>
-            ))}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-sm font-black ${selectedRoleId === role.id ? "text-blue-600" : "text-slate-700"}`}>
+                      {role.name}
+                    </p>
+                    {role.systemRole && (
+                      <Shield size={12} className="text-amber-500" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{role.code}</span>
+                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-500">{role.permissions.length} quyền</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </aside>
 
-        <section className="flex-1 overflow-y-auto bg-white p-6">
-          <div className="mb-6 flex items-center justify-between gap-3">
+        {/* Main Content */}
+        <section className="flex-1 flex flex-col bg-white overflow-hidden">
+          <div className="flex items-center justify-between px-8 py-6 border-b border-slate-50">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">
-                {isEditing ? "Chỉnh sửa vai trò" : "Tạo vai trò mới"}
+              <h2 className="text-2xl font-black text-slate-900">
+                {isEditing ? "Cấu hình vai trò" : "Thiết lập vai trò mới"}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Gán quyền theo module để kiểm soát truy cập ở mức production.
+              <p className="text-sm font-medium text-slate-500">
+                Định nghĩa các đặc quyền truy cập cho nhóm người dùng này.
               </p>
             </div>
             {readOnlySystemRole && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                <AlertTriangle size={14} /> Vai trò hệ thống chỉ xem
-              </span>
+              <div className="flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-[11px] font-bold text-amber-600 ring-1 ring-amber-100">
+                <AlertTriangle size={14} /> 
+                <span>VAI TRÒ HỆ THỐNG (CHỈ XEM)</span>
+              </div>
             )}
           </div>
 
-          <form onSubmit={handleSave} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Tên vai trò</span>
+          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Tên hiển thị</label>
                 <input
                   value={form.name}
                   onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Ví dụ: Người đánh giá QA"
+                  placeholder="Ví dụ: Quản lý dự án"
                   disabled={!canSubmit || readOnlySystemRole || submitting}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-cyan-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-900 transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 outline-none"
                 />
-              </label>
+              </div>
 
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Mã vai trò</span>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400">Mã định danh (Role Code)</label>
                 <input
                   value={form.code}
                   onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
-                  placeholder="QA_REVIEWER"
+                  placeholder="PROJECT_MANAGER"
                   disabled={!canSubmit || readOnlySystemRole || submitting}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm uppercase tracking-wider focus:border-cyan-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-sm font-black tracking-widest text-blue-600 transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/5 outline-none disabled:opacity-50"
                 />
-              </label>
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-700">Quyền</p>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">
-                  {form.permissionIds.length} đã chọn
-                </p>
+            <div className="space-y-6">
+              <div className="flex items-end justify-between">
+                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Phân quyền chi tiết</h4>
+                <div className="px-3 py-1 rounded-full bg-blue-50 text-[10px] font-black text-blue-600 ring-1 ring-blue-100">
+                  {form.permissionIds.length} QUYỀN ĐÃ CHỌN
+                </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid gap-6">
                 {Object.entries(permissionGroups).map(([moduleName, modulePermissions]) => (
-                  <div key={moduleName} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <h4 className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  <div key={moduleName} className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-300">
                         {MODULE_LABELS[moduleName] || moduleName}
-                      </h4>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                      </span>
+                      <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+                    
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {modulePermissions.map((permission) => {
                         const checked = form.permissionIds.includes(permission.id);
                         return (
@@ -281,17 +302,27 @@ export function RoleManagementModal({
                             type="button"
                             onClick={() => togglePermission(permission.id)}
                             disabled={!canSubmit || readOnlySystemRole || submitting}
-                            className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-left transition ${
+                            className={`group flex items-start justify-between gap-3 rounded-2xl border p-4 text-left transition-all duration-200 ${
                               checked
-                                ? "border-cyan-400 bg-cyan-50"
-                                : "border-slate-200 bg-white hover:border-slate-300"
+                                ? "border-blue-200 bg-blue-50/50 ring-1 ring-blue-100"
+                                : "border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm"
                             }`}
                           >
-                            <div>
-                              <p className="text-sm font-medium text-slate-800">{permission.name}</p>
-                              <p className="text-xs text-slate-500">{permission.id}</p>
+                            <div className="space-y-1">
+                              <p className={`text-sm font-bold ${checked ? "text-blue-700" : "text-slate-700"}`}>
+                                {permission.name}
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-400 font-mono opacity-60">
+                                {permission.id}
+                              </p>
                             </div>
-                            {checked && <Check size={15} className="mt-0.5 text-cyan-700" />}
+                            <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                              checked 
+                                ? "border-blue-600 bg-blue-600 text-white" 
+                                : "border-slate-200 bg-white group-hover:border-slate-300"
+                            }`}>
+                              {checked && <Check size={12} strokeWidth={4} />}
+                            </div>
                           </button>
                         );
                       })}
@@ -300,26 +331,38 @@ export function RoleManagementModal({
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+          {/* Footer Actions */}
+          <div className="px-8 py-6 border-t border-slate-50 bg-slate-50/30 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={!canDeleteRole || !selectedRole || selectedRole.systemRole || submitting}
+              className="group flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-red-500 transition hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Trash2 size={18} className="transition group-hover:scale-110" />
+              <span>Xóa vai trò này</span>
+            </button>
+
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={handleDelete}
-                disabled={!canDeleteRole || !selectedRole || selectedRole.systemRole || submitting}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={onClose}
+                className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition"
               >
-                <Trash2 size={15} /> Xóa vai trò
+                Hủy bỏ
               </button>
-
               <button
                 type="submit"
+                onClick={handleSave}
                 disabled={!canSubmit || readOnlySystemRole || submitting}
-                className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-slate-900 px-8 py-3 text-sm font-bold text-white shadow-xl shadow-slate-900/10 transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50"
               >
-                {isEditing ? "Lưu cập nhật" : "Tạo vai trò"}
+                {submitting ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo vai trò"}
               </button>
             </div>
-          </form>
+          </div>
         </section>
       </div>
     </div>

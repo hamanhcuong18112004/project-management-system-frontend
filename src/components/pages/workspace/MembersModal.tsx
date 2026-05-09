@@ -164,117 +164,133 @@ export function MembersModal({
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {/* Invite Form */}
           {canInviteMembers && (
-            <form onSubmit={handleInviteSubmit} className="grid gap-3 border-b border-slate-100 pb-6 md:grid-cols-[1fr_220px_auto]">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Nhập email của thành viên mới..."
-                className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-100"
-              />
+            <form onSubmit={handleInviteSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-5 md:flex-row md:items-end">
+              <div className="flex-1 space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Mời thành viên</label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="Nhập email..."
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none"
+                />
+              </div>
 
-              <select
-                value={inviteRoleId}
-                onChange={(event) => setInviteRoleId(event.target.value)}
-                disabled={loadingRbac || inviteRoleOptions.length === 0}
-                className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-100"
-              >
-                {inviteRoleOptions.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name} ({role.code})
-                  </option>
-                ))}
-              </select>
+              <div className="w-full space-y-1.5 md:w-[200px]">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Vai trò</label>
+                <select
+                  value={inviteRoleId}
+                  onChange={(event) => setInviteRoleId(event.target.value)}
+                  disabled={loadingRbac || inviteRoleOptions.length === 0}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none"
+                >
+                  {inviteRoleOptions.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <button
                 type="submit"
                 disabled={submittingInvite || !inviteRoleId}
-                className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                className="flex h-[42px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60"
               >
-                <UserPlus size={16} /> Mời
+                <UserPlus size={18} /> Mời
               </button>
             </form>
           )}
 
-          <div className="flex items-center justify-between rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-cyan-900">Vai trò và quyền</p>
-              <p className="text-xs text-cyan-700">Quản lý vai trò và gán quyền theo module cho workspace.</p>
+          <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 p-5 text-white shadow-lg shadow-cyan-600/20">
+            <div className="space-y-1">
+              <p className="text-sm font-bold">Quản lý Vai trò & Quyền</p>
+              <p className="text-xs text-cyan-50/80">Tùy chỉnh phân quyền chi tiết cho từng nhóm thành viên.</p>
             </div>
             <button
               onClick={() => setShowRoleManager(true)}
               disabled={(!canViewRoles && !canManageRoles) || loadingRbac}
-              className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-bold backdrop-blur-md transition hover:bg-white/30 disabled:opacity-60"
             >
-              <Shield size={16} /> Quản lý vai trò
+              <Shield size={16} /> Thiết lập
             </button>
           </div>
 
           {/* Member List */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Danh sách thành viên ({members.length})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">
+                Thành viên ({members.length})
+              </h3>
+            </div>
+            
             {members.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">Chưa có thành viên nào.</p>
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <Users size={40} className="mb-2 opacity-20" />
+                <p className="text-sm italic">Chưa có thành viên nào.</p>
+              </div>
             ) : (
-              members.map((member) => (
-                <div key={member.userId} className="flex items-center justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-gray-600 text-sm">
-                      {member.fullName ? member.fullName.charAt(0).toUpperCase() : "?"}
+              <div className="space-y-3">
+                {members.map((member) => (
+                  <div 
+                    key={member.userId} 
+                    className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 transition hover:border-blue-100 hover:shadow-md hover:shadow-blue-500/5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 transition group-hover:bg-blue-50 group-hover:text-blue-600">
+                        {member.fullName ? member.fullName.charAt(0).toUpperCase() : "?"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          {member.fullName || "Người dùng chưa tên"}
+                          {member.userId === currentUserId && (
+                            <span className="ml-2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">BẠN</span>
+                          )}
+                        </p>
+                        <p className="text-xs font-medium text-slate-500">{member.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      {member.fullName ? (
-                        <p className="text-sm font-medium text-gray-900">{member.fullName}</p>
+                    
+                    <div className="flex items-center gap-3">
+                      {member.role?.code === "OWNER" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-600">
+                          <Shield size={12} /> Chủ sở hữu
+                        </span>
                       ) : (
-                        <p className="text-sm font-medium text-gray-900">N/A</p>
+                        <div className="flex items-center gap-2">
+                          {canChangeMemberRole ? (
+                            <select
+                              value={member.role?.id || ""}
+                              onChange={(e) => handleMemberRoleChange(member.userId, e.target.value)}
+                              className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 outline-none transition focus:border-blue-500 focus:bg-white"
+                            >
+                              {inviteRoleOptions.map((role) => (
+                                <option key={role.id} value={role.id}>
+                                  {role.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-500">
+                              {member.role?.name || member.role?.code}
+                            </span>
+                          )}
+
+                          {canRemoveMembers && (
+                            <button
+                              onClick={() => handleRemove(member.userId)}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                              title="Xóa thành viên"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       )}
-                      <p className="text-xs text-gray-500">{member.email}</p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* Role Tag/Selector */}
-                    <span
-                      className={`rounded px-2.5 py-1 text-xs font-medium ${
-                        member.role?.code === "OWNER"
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {member.role?.name || member.role?.code || "Chưa gán role"}
-                    </span>
-
-                    {/* Placeholder phân quyền/xóa cho Owner */}
-                    {(canChangeMemberRole || canRemoveMembers) && member.role?.code !== "OWNER" && (
-                      <>
-                        {canChangeMemberRole && (
-                          <select
-                            value={member.role?.id || ""}
-                            onChange={(e) => handleMemberRoleChange(member.userId, e.target.value)}
-                            className="rounded border border-gray-200 px-2 py-1 text-xs"
-                          >
-                            {inviteRoleOptions.map((role) => (
-                              <option key={role.id} value={role.id}>
-                                {role.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        {canRemoveMembers && (
-                          <button
-                            onClick={() => handleRemove(member.userId)}
-                            className="text-gray-400 hover:text-red-600 p-1"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
