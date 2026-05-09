@@ -24,16 +24,17 @@ export type RemoteDragState = {
   y: number;
 };
 
-type IncomingRealtimeMessage = {
-  type: "drag_start" | "drag_move" | "drag_end" | "board_updated";
-  boardId?: string;
+interface IncomingRealtimeMessage {
+  type: "drag_start" | "drag_move" | "drag_end" | "board_updated" | "comment_updated" | "ping";
   itemId?: string;
-  itemType?: DragItemType;
+  itemType?: DragItemType | "REPLY" | "REACT" | "COMMENT" | "DELETE";
   userId?: string;
   username?: string;
   x?: number;
   y?: number;
   overId?: string | null;
+  targetUserId?: string;
+  taskTitle?: string;
 };
 
 type RealtimeContextValue = {
@@ -45,6 +46,7 @@ type RealtimeContextValue = {
   boardVersion: number;
   emitBoardUpdated: () => void;
   isConnected: boolean;
+  lastCommentUpdate: { taskId: string; timestamp: number; actionUser?: string; actionType?: string; targetUserId?: string; taskTitle?: string } | null;
 };
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
@@ -74,6 +76,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
   );
   const [boardVersion, setBoardVersion] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [lastCommentUpdate, setLastCommentUpdate] = useState<{ taskId: string; timestamp: number; actionUser?: string; actionType?: string; targetUserId?: string; taskTitle?: string } | null>(null);
 
   const user = useAuthStore((state) => state.user);
   const [guestId] = useState(
@@ -106,89 +109,126 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_REALTIME_ENABLED !== "true") {
+    if (process.env.NEXT_PUBLIC_REALTIME_ENABLED !== "true" || !boardId) {
       return;
     }
 
-    if (!boardId) {
-      socketRef.current?.close();
-      socketRef.current = null;
-      return;
-    }
+    let socket: WebSocket | null = null;
+    let pingInterval: NodeJS.Timeout;
+    let reconnectTimeout: NodeJS.Timeout;
 
-    const url = new URL(WS_URL);
-    url.searchParams.set("boardId", boardId);
-    url.searchParams.set("userId", currentUserId);
-    url.searchParams.set("username", currentUserName);
+    const connect = () => {
+      const url = new URL(WS_URL);
+      url.searchParams.set("boardId", boardId);
+      url.searchParams.set("userId", currentUserId);
+      url.searchParams.set("username", currentUserName);
 
-    const socket = new WebSocket(url.toString());
-    socketRef.current = socket;
+      socket = new WebSocket(url.toString());
+      socketRef.current = socket;
 
-    socket.onopen = () => {
-      setIsConnected(true);
-    };
+      socket.onopen = () => {
+        setIsConnected(true);
+        socket?.send(JSON.stringify({ type: "board_updated", itemId: boardId }));
+        
+        pingInterval = setInterval(() => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 30000);
+      };
 
-    socket.onclose = () => {
-      setIsConnected(false);
-      setRemoteDrags(new Map());
-    };
+      socket.onmessage = (event) => {
+        const payload = JSON.parse(event.data) as IncomingRealtimeMessage;
+        console.log("🚨 [DEBUG] Nhận được tin nhắn từ Backend:", payload);
 
-    socket.onmessage = (event) => {
-      const payload = JSON.parse(event.data) as IncomingRealtimeMessage;
+        if (payload.userId === currentUserId) {
+          console.log("🚨 [DEBUG] Tin nhắn bị bỏ qua do trùng ID người gửi!");
+          return;
+        }
 
-      if (payload.userId === currentUserId) {
-        return;
-      }
-
-      if (
-        payload.type === "drag_start" &&
-        payload.itemId &&
-        payload.itemType
-      ) {
-        setRemoteDrags((prev) => {
-          const next = new Map(prev);
-          next.set(payload.itemId!, {
-            id: payload.itemId!,
-            type: payload.itemType!,
-            userId: payload.userId || "",
-            username: payload.username || "Guest",
-            x: payload.x || 0,
-            y: payload.y || 0,
+        if (payload.type === "drag_start" && payload.itemId && payload.itemType) {
+          setRemoteDrags((prev) => {
+            const next = new Map(prev);
+            next.set(payload.itemId!, {
+              id: payload.itemId!,
+              type: payload.itemType!,
+              userId: payload.userId || "",
+              username: payload.username || "Guest",
+              x: payload.x || 0,
+              y: payload.y || 0,
+            });
+            return next;
           });
-          return next;
-        });
-      }
+        }
 
-      if (payload.type === "drag_move" && payload.itemId) {
-        setRemoteDrags((prev) => {
-          const current = prev.get(payload.itemId!);
-          if (!current) return prev;
-
-          const next = new Map(prev);
-          next.set(payload.itemId!, {
-            ...current,
-            x: payload.x || 0,
-            y: payload.y || 0,
+        if (payload.type === "drag_move" && payload.itemId) {
+          setRemoteDrags((prev) => {
+            const current = prev.get(payload.itemId!);
+            if (!current) return prev;
+            const next = new Map(prev);
+            next.set(payload.itemId!, {
+              ...current,
+              x: payload.x || 0,
+              y: payload.y || 0,
+            });
+            return next;
           });
-          return next;
-        });
-      }
+        }
 
-      if (payload.type === "drag_end" && payload.itemId) {
-        setRemoteDrags((prev) => {
-          const next = new Map(prev);
-          next.delete(payload.itemId!);
-          return next;
-        });
-      }
+        if (payload.type === "drag_end" && payload.itemId) {
+          setRemoteDrags((prev) => {
+            const next = new Map(prev);
+            next.delete(payload.itemId!);
+            return next;
+          });
+        }
 
-      if (payload.type === "board_updated") {
-        setBoardVersion((value) => value + 1);
-      }
+        if (payload.type === "board_updated") {
+          setBoardVersion((value) => value + 1);
+        }
+
+        if (payload.type === "comment_updated" && payload.itemId) {
+          setLastCommentUpdate({ 
+            taskId: payload.itemId, 
+            timestamp: Date.now(),
+            actionUser: payload.username,
+            actionType: payload.itemType,
+            targetUserId: payload.targetUserId,
+            taskTitle: payload.taskTitle
+          });
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error("WebSocket error detail:", {
+          url: socket?.url,
+          readyState: socket?.readyState,
+          error: error
+        });
+        setIsConnected(false);
+      };
+
+      socket.onclose = () => {
+        setIsConnected(false);
+        clearInterval(pingInterval);
+        
+        reconnectTimeout = setTimeout(() => {
+          if (boardId) {
+            console.log("Reconnecting WebSocket...");
+            connect();
+          }
+        }, 3000);
+      };
     };
+
+    connect();
 
     return () => {
-      socket.close();
+      clearInterval(pingInterval);
+      clearTimeout(reconnectTimeout);
+      if (socket) {
+        socket.close();
+      }
       socketRef.current = null;
     };
   }, [boardId, currentUserId, currentUserName]);
@@ -248,6 +288,7 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
         boardVersion,
         emitBoardUpdated,
         isConnected,
+        lastCommentUpdate,
       }}
     >
       {children}

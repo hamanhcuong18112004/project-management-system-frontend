@@ -37,7 +37,11 @@ import {
   uploadTaskAttachment,
 } from "@/lib/api/task";
 
+import { TaskComments } from "./TaskComments";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
+
 interface BoardTaskDialogProps {
+
   open: boolean;
   task: BoardTask | null;
   listName?: string;
@@ -602,9 +606,19 @@ export function BoardTaskDialog({
             </ul>
           )}
         </div>
+
+        {/* Comments section */}
+        <TaskComments 
+          taskId={task.id} 
+          currentUserId={useAuthStore.getState().user?.id}
+          userFullName={useAuthStore.getState().user?.fullName || useAuthStore.getState().user?.email || "Người dùng"} 
+          userAvatarUrl={useAuthStore.getState().user?.avatarUrl || ""}
+        />
+
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
+
           <button
             type="button"
             onClick={() => void handleDelete()}

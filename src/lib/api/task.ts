@@ -26,6 +26,8 @@ export interface BoardTask {
   checklistCount?: number;
   memberCount?: number;
   assigneeIds?: string[];
+  boardId?: string;
+  taskListName?: string;
 }
 
 export interface TaskAttachment {
@@ -104,6 +106,7 @@ function unwrapResponse<T>(payload: ServiceEnvelope<T> | T): T {
   return payload as T;
 }
 
+
 function normalizeTask(raw: Record<string, unknown>): BoardTask {
   return {
     id: String(raw.id || ""),
@@ -146,6 +149,8 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
     assigneeIds: Array.isArray(raw.assigneeIds)
       ? (raw.assigneeIds as unknown[]).map(String)
       : [],
+    boardId: (raw.boardId as string | undefined) || undefined,
+    taskListName: (raw.taskListName as string | undefined) || undefined,
   };
 }
 
@@ -251,6 +256,15 @@ export async function deleteTask(taskId: string): Promise<void> {
   await apiClient.delete(`${SERVICE}/api/tasks/${taskId}`);
 }
 
+export async function getCalendarTasks(month: number, year: number): Promise<BoardTask[]> {
+  const response = await apiClient.get<ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]>(
+    `${SERVICE}/api/tasks/calendar`,
+    { params: { month, year } }
+  );
+
+  return unwrapResponse(response.data).map(normalizeTask);
+}
+
 // ── Task Members ──────────────────────────────────────────────────────────────
 
 export async function getTaskMembers(taskId: string): Promise<string[]> {
@@ -334,3 +348,71 @@ export async function deleteTaskAttachment(
     `${SERVICE}/api/tasks/${taskId}/attachments/${attachmentId}`,
   );
 }
+
+// ── Task Comments ─────────────────────────────────────────────────────────────
+
+export interface TaskComment {
+  id: string;
+  userId: string;
+  userFullName?: string;
+  userAvatarUrl?: string;
+  content: string;
+  imageUrl?: string;
+  parentId?: string;
+  createdAt: string;
+  reactionCounts?: Record<string, number>;
+  myReactions?: string[];
+  replies?: TaskComment[];
+}
+
+export async function getTaskComments(taskId: string): Promise<TaskComment[]> {
+  const response = await apiClient.get<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/comments`,
+  );
+  return unwrapResponse(response.data as ServiceEnvelope<TaskComment[]> | TaskComment[]);
+}
+
+export async function addTaskComment(
+  taskId: string,
+  content: string,
+   image?: File,
+   parentId?: string,
+   userFullName?: string,
+   userAvatarUrl?: string
+ ): Promise<TaskComment> {
+   if (image) {
+     const formData = new FormData();
+     formData.append("content", content);
+     formData.append("image", image);
+     if (parentId) formData.append("parentId", parentId);
+     if (userFullName) formData.append("userFullName", userFullName);
+     if (userAvatarUrl) formData.append("userAvatarUrl", userAvatarUrl);
+ 
+     const response = await apiClient.post<unknown>(
+       `${SERVICE}/api/tasks/${taskId}/comments`,
+       formData,
+       { headers: { "Content-Type": "multipart/form-data" } }
+     );
+     return unwrapResponse(response.data as ServiceEnvelope<TaskComment> | TaskComment);
+   } else {
+     const response = await apiClient.post<unknown>(
+       `${SERVICE}/api/tasks/${taskId}/comments`,
+       { content, parentId, userFullName, userAvatarUrl }
+     );
+     return unwrapResponse(response.data as ServiceEnvelope<TaskComment> | TaskComment);
+   }
+ }
+
+export async function deleteTaskComment(commentId: string): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/comments/${commentId}`);
+}
+
+export async function toggleCommentReaction(
+  commentId: string,
+  type: string
+): Promise<void> {
+  await apiClient.post(`${SERVICE}/api/comments/${commentId}/react`, null, {
+    params: { type },
+  });
+}
+
