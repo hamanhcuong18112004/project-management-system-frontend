@@ -32,16 +32,16 @@ export const MAIN_MENU: MenuItem[] = [
     href: ROUTES.projects,
     icon: FolderKanban,
   },
-  {
-    label: "Công việc",
-    href: ROUTES.tasks,
-    icon: CheckSquare,
-  },
-  {
-    label: "Nhóm",
-    href: ROUTES.team,
-    icon: Users,
-  },
+//   {
+//     label: "Công việc",
+//     href: ROUTES.tasks,
+//     icon: CheckSquare,
+//   },
+//   {
+//     label: "Nhóm",
+//     href: ROUTES.team,
+//     icon: Users,
+//   },
   {
     label: "Lịch",
     href: ROUTES.calendar,
