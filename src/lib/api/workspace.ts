@@ -53,6 +53,7 @@ export interface Workspace {
   role?: WorkspaceRoleCode;
   boards?: Board[]; // BE cần trả về danh sách bảng
   members?: Member[]; // BE cần trả về danh sách thành viên
+  permissions?: string[];
 }
 
 export interface CreateWorkspacePayload {
@@ -213,6 +214,11 @@ export async function getWorkspaceRoles(workspaceId: string): Promise<RoleDefini
 
 export async function getWorkspacePermissions(workspaceId: string): Promise<PermissionDefinition[]> {
   const res = await apiClient.get<ApiResponse<PermissionDefinition[]>>(`${SERVICE}/api/workspaces/${workspaceId}/permissions`);
+  return unwrap(res) ?? [];
+}
+
+export async function getMyPermissions(workspaceId: string): Promise<string[]> {
+  const res = await apiClient.get<ApiResponse<string[]>>(`${SERVICE}/api/workspaces/${workspaceId}/my-permissions`);
   return unwrap(res) ?? [];
 }
 

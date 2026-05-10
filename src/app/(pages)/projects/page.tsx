@@ -10,6 +10,7 @@ import {
   deleteWorkspace,
   deleteWorkspaceRole,
   getMyWorkspaces,
+  getMyPermissions,
   getWorkspaceById,
   inviteToWorkspace,
   removeWorkspaceMember,
@@ -113,8 +114,15 @@ export default function ProjectsPage() {
       // Build base workspace list
       const knownWorkspaceIds = new Set(data.map((w) => w.id));
 
-      const safeData = data.map((workspace) => {
+      const safeData = await Promise.all(data.map(async (workspace) => {
         let role: WorkspaceRoleCode = "MEMBER";
+        let permissions: string[] = [];
+
+        try {
+          permissions = await getMyPermissions(workspace.id);
+        } catch (e) {
+          console.error(`Failed to fetch permissions for workspace ${workspace.id}`, e);
+        }
 
         if (userId && Array.isArray(workspace.members)) {
           const foundMember = workspace.members.find(
@@ -131,8 +139,9 @@ export default function ProjectsPage() {
           boards: boardsByWorkspace.get(workspace.id) || workspace.boards || [],
           members: workspace.members || [],
           role,
+          permissions,
         };
-      });
+      }));
 
       // For direct boards in workspaces the user is NOT a member of,
       // fetch workspace info and append synthetic workspace entries
