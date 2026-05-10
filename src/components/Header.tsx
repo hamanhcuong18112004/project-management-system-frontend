@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Search, Settings } from "lucide-react";
-import { useAuthStore } from "@/lib/stores";
+import { useAuthStore, useSidebarStore } from "@/lib/stores";
 import { MAIN_MENU } from "@/lib/constants/menu";
 import { useRealtime } from "@/providers/RealtimeProvider";
 import { useNotifications } from "@/providers/NotificationProvider";
@@ -16,10 +16,11 @@ const HEADER_TABS = MAIN_MENU.filter((item) => item.label !== "Trang chủ");
 export function Header() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { isCollapsed } = useSidebarStore();
   const pathname = usePathname();
   const { lastCommentUpdate } = useRealtime();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
-  
+
   const [isJiggling, setIsJiggling] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -38,7 +39,8 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 z-40 transition-all duration-300">
+    <header className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-40 transition-all duration-300 ${isCollapsed ? "left-20" : "left-64"}`}>
+
       <div className="h-full px-6 flex items-center justify-between">
         {/* Left: Navigation tabs */}
         <nav className="flex items-center gap-1">
@@ -48,11 +50,10 @@ export function Header() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  active
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${active
                     ? "text-blue-600 bg-blue-50"
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 {tab.label}
               </Link>
@@ -80,9 +81,8 @@ export function Header() {
           {/* Notifications */}
           <div className="relative">
             <button
-              className={`relative p-2 rounded-lg transition-all ${
-                isJiggling ? "animate-bounce text-blue-600" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              }`}
+              className={`relative p-2 rounded-lg transition-all ${isJiggling ? "animate-bounce text-blue-600" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                }`}
               aria-label="Thông báo"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
@@ -101,7 +101,7 @@ export function Header() {
                   <h3 className="font-semibold text-gray-800 text-sm">Thông báo</h3>
                   <div className="flex gap-3">
                     {unreadCount > 0 && (
-                      <button 
+                      <button
                         onClick={() => markAllAsRead()}
                         className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
                       >
@@ -114,8 +114,8 @@ export function Header() {
                   {notifications.length > 0 ? (
                     <div className="flex flex-col">
                       {notifications.map((n, i) => (
-                        <div 
-                          key={n.id} 
+                        <div
+                          key={n.id}
                           onClick={() => {
                             if (!n.read) markAsRead(n.id);
                             if (n.type === "WORKSPACE_INVITE" && n.inviteToken && n.workspaceId) {
@@ -130,7 +130,7 @@ export function Header() {
                               <p className={`text-sm leading-snug ${!n.read ? 'text-gray-800 font-semibold' : 'text-gray-600'}`}>
                                 {n.title}
                               </p>
-                              <button 
+                              <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   deleteNotification(n.id);
