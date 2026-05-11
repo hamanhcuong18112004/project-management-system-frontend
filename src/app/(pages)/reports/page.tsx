@@ -102,19 +102,30 @@ function toPriorityChart(tasks: BoardTask[]): ChartEntry[] {
   }));
 }
 
-function toMemberChart(tasks: BoardTask[], members: Member[]) {
+function toMemberChart(
+  tasks: BoardTask[],
+  members: Member[],
+): { member: string; uid: string; TODO: number; IN_PROGRESS: number; DONE: number; ARCHIVED: number; total: number }[] {
   const nameMap: Record<string, string> = Object.fromEntries(
     members.map((m) => [m.userId, m.fullName]),
   );
-  const counts: Record<string, number> = {};
+  type Row = { TODO: number; IN_PROGRESS: number; DONE: number; ARCHIVED: number };
+  const rows: Record<string, Row> = {};
   for (const t of tasks) {
     for (const uid of t.assigneeIds ?? []) {
-      counts[uid] = (counts[uid] ?? 0) + 1;
+      if (!rows[uid]) rows[uid] = { TODO: 0, IN_PROGRESS: 0, DONE: 0, ARCHIVED: 0 };
+      const s = (t.status ?? "TODO") as keyof Row;
+      if (s in rows[uid]) rows[uid][s]++;
     }
   }
-  return Object.entries(counts)
-    .map(([uid, count]) => ({ member: nameMap[uid] ?? uid.slice(0, 8), tasks: count }))
-    .sort((a, b) => b.tasks - a.tasks)
+  return Object.entries(rows)
+    .map(([uid, r]) => ({
+      member: nameMap[uid] ?? uid.slice(0, 8),
+      uid,
+      ...r,
+      total: r.TODO + r.IN_PROGRESS + r.DONE + r.ARCHIVED,
+    }))
+    .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 }
 
@@ -195,6 +206,7 @@ export default function ReportsPage() {
   const [timelineAnchor, setTimelineAnchor] = useState<string>(
     () => new Date().toISOString().slice(0, 10),
   );
+  const [memberStatusFilter, setMemberStatusFilter] = useState<"ALL" | "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED">("ALL");
 
   // Load workspace list once
   useEffect(() => {
@@ -283,6 +295,12 @@ export default function ReportsPage() {
     () => toMemberChart(boardTasks, members),
     [boardTasks, members],
   );
+  const boardMemberChartData = useMemo(() => {
+    if (memberStatusFilter === "ALL") return boardMemberData;
+    return boardMemberData
+      .map((r) => ({ ...r, total: r[memberStatusFilter] }))
+      .filter((r) => r.total > 0);
+  }, [boardMemberData, memberStatusFilter]);
   const boardListData = useMemo(
     () =>
       selectedBoard?.taskLists.map((l) => ({
@@ -350,7 +368,7 @@ export default function ReportsPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ overflowX: "clip" }}>
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -427,17 +445,19 @@ export default function ReportsPage() {
           {/* Row 1 */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <ChartCard title="Công việc theo trạng thái">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={wsStatusData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Bar dataKey="value" name="Công việc" radius={[8, 8, 0, 0]} barSize={44}>
-                    {wsStatusData.map((e) => <Cell key={e.key} fill={e.color} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div style={{ overflow: "hidden" }}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={wsStatusData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="value" name="Công việc" radius={[8, 8, 0, 0]} barSize={44}>
+                      {wsStatusData.map((e) => <Cell key={e.key} fill={e.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </ChartCard>
 
             <ChartCard title="Phân bổ theo mức độ ưu tiên">
@@ -653,17 +673,19 @@ export default function ReportsPage() {
           {/* Row 1 */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <ChartCard title="Công việc theo trạng thái">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={boardStatusData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Bar dataKey="value" name="Công việc" radius={[8, 8, 0, 0]} barSize={44}>
-                    {boardStatusData.map((e) => <Cell key={e.key} fill={e.color} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div style={{ overflow: "hidden" }}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={boardStatusData} margin={{ top: 8, right: 24, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="value" name="Công việc" radius={[8, 8, 0, 0]} barSize={44}>
+                      {boardStatusData.map((e) => <Cell key={e.key} fill={e.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </ChartCard>
 
             <ChartCard title="Phân bổ theo mức độ ưu tiên">
@@ -674,25 +696,99 @@ export default function ReportsPage() {
           {/* Row 2 */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <ChartCard title="Khối lượng công việc theo thành viên">
-              {boardMemberData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={boardMemberData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                    <XAxis type="number" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <YAxis type="category" dataKey="member" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="tasks" name="Công việc" fill="#8b5cf6" radius={[0, 8, 8, 0]} barSize={22} />
-                  </BarChart>
-                </ResponsiveContainer>
+              {/* Filter tabs */}
+              <div className="mb-4 flex flex-wrap gap-1.5">
+                {(["ALL", "TODO", "IN_PROGRESS", "DONE", "ARCHIVED"] as const).map((f) => {
+                  const label = f === "ALL" ? "Tất cả" : STATUS_LABELS[f];
+                  const active = memberStatusFilter === f;
+                  const dotColor = f === "ALL" ? "#8b5cf6" : STATUS_COLORS[f];
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setMemberStatusFilter(f)}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                        active
+                          ? "border-transparent bg-violet-600 text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {!active && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: dotColor }}
+                        />
+                      )}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {boardMemberChartData.length > 0 ? (
+                <div className="overflow-x-auto" style={{ overflowY: "clip" }}>
+                  <div style={{ minWidth: `${Math.max(320, boardMemberChartData.length * 36)}px`, overflow: "hidden" }}>
+                    <ResponsiveContainer
+                      width="100%"
+                      height={Math.max(200, boardMemberChartData.length * 44)}
+                    >
+                      <BarChart
+                        data={boardMemberChartData}
+                        layout="vertical"
+                        margin={{ top: 4, right: 48, left: 8, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                        <XAxis
+                          type="number"
+                          tick={{ fill: "#64748b", fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="member"
+                          tick={{ fill: "#64748b", fontSize: 12 }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={90}
+                        />
+                        <Tooltip
+                          contentStyle={TOOLTIP_STYLE}
+                          formatter={(v, k) => [v, k === "total" ? STATUS_LABELS[memberStatusFilter] ?? "Tổng" : STATUS_LABELS[String(k)] ?? String(k)]}
+                        />
+                        {memberStatusFilter === "ALL" ? (
+                          <>
+                            <Legend
+                              formatter={(v) => STATUS_LABELS[String(v)] ?? String(v)}
+                              wrapperStyle={{ fontSize: 12 }}
+                            />
+                            <Bar dataKey="TODO" stackId="s" fill={STATUS_COLORS.TODO} barSize={22} />
+                            <Bar dataKey="IN_PROGRESS" stackId="s" fill={STATUS_COLORS.IN_PROGRESS} barSize={22} />
+                            <Bar dataKey="DONE" stackId="s" fill={STATUS_COLORS.DONE} barSize={22} />
+                            <Bar dataKey="ARCHIVED" stackId="s" fill={STATUS_COLORS.ARCHIVED} radius={[0, 6, 6, 0]} barSize={22} />
+                          </>
+                        ) : (
+                          <Bar
+                            dataKey="total"
+                            fill={STATUS_COLORS[memberStatusFilter]}
+                            radius={[0, 8, 8, 0]}
+                            barSize={22}
+                            label={{ position: "right", fontSize: 11, fill: "#64748b" }}
+                          />
+                        )}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               ) : (
-                <EmptyState label="Chưa có dữ liệu phân công" />
+                <EmptyState label="Không có công việc nào ở trạng thái này" />
               )}
             </ChartCard>
 
             <ChartCard title="Phân bổ công việc theo danh sách">
               {boardListData.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <div style={{ minWidth: `${Math.max(480, boardListData.length * 120)}px` }}>
+                <div className="overflow-x-auto" style={{ overflowY: "clip" }}>
+                  <div style={{ minWidth: `${Math.max(480, boardListData.length * 120)}px`, overflow: "hidden" }}>
                     <ResponsiveContainer width="100%" height={280}>
                       <BarChart data={boardListData} barCategoryGap="30%" margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -749,13 +845,14 @@ export default function ReportsPage() {
             </div>
 
             {/* Chart */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" style={{ overflowY: "clip" }}>
               <div
                 style={{
                   minWidth:
                     boardTimelineData.length > 7
                       ? `${boardTimelineData.length * 52}px`
                       : "100%",
+                  overflow: "hidden",
                 }}
               >
                 <ResponsiveContainer width="100%" height={280}>
@@ -898,7 +995,7 @@ function DonutChart({
 }) {
   return (
     <div className="flex h-65 items-center justify-center gap-8">
-      <div className="relative h-44 w-44 shrink-0">
+      <div className="relative h-44 w-44 shrink-0" style={{ overflow: "hidden" }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
