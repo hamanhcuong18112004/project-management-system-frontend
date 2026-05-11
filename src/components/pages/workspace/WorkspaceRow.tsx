@@ -98,7 +98,7 @@ export function WorkspaceRow({
               <Users size={16} /> Thành viên ({members.length})
             </button>
 
-            {isOwner && (
+            {(isOwner || workspace.permissions?.includes("ws:update") || workspace.permissions?.includes("role:view")) && (
               <>
                 <button
                   onClick={() => setShowSettingsModal(true)}
@@ -106,9 +106,11 @@ export function WorkspaceRow({
                 >
                   <Settings size={16} /> Cài đặt
                 </button>
-                <button className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 transition hover:bg-violet-100">
-                  <Sparkles size={16} /> Nâng cấp
-                </button>
+                {isOwner && (
+                  <button className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 transition hover:bg-violet-100">
+                    <Sparkles size={16} /> Nâng cấp
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -120,7 +122,7 @@ export function WorkspaceRow({
               <BoardCard board={board} onClick={onNavigateBoard} />
             </div>
           ))}
-          {isOwner && (
+          {(isOwner || workspace.permissions?.includes("board:create")) && (
             <div>
               <CreateBoardCard onClick={() => onCreateBoard(workspace)} />
             </div>
