@@ -19,11 +19,14 @@ export interface BoardTask {
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string | null;
+  createdAt?: string | null;
   position?: number | null;
   archived?: boolean;
   attachmentCount?: number;
   commentCount?: number;
   checklistCount?: number;
+  checklistTotal?: number;
+  checklistChecked?: number;
   memberCount?: number;
   assigneeIds?: string[];
   boardId?: string;
@@ -115,6 +118,7 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
     status: (raw.status as TaskStatus | undefined) || "TODO",
     priority: (raw.priority as TaskPriority | undefined) || "MEDIUM",
     dueDate: (raw.dueDate as string | null | undefined) ?? null,
+    createdAt: (raw.createdAt as string | null | undefined) ?? null,
     position:
       typeof raw.position === "number"
         ? raw.position
@@ -140,6 +144,14 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
         : Array.isArray(raw.checklists)
           ? raw.checklists.length
           : 0,
+    checklistTotal:
+      typeof raw.checklistTotal === "number"
+        ? raw.checklistTotal
+        : 0,
+    checklistChecked:
+      typeof raw.checklistChecked === "number"
+        ? raw.checklistChecked
+        : 0,
     memberCount:
       typeof raw.memberCount === "number"
         ? raw.memberCount
@@ -416,3 +428,100 @@ export async function toggleCommentReaction(
   });
 }
 
+
+// ── Task Checklists ───────────────────────────────────────────────────────────
+
+export interface TaskChecklistItemData {
+  id: string;
+  content: string;
+  completed: boolean;
+}
+
+export interface TaskChecklistData {
+  id: string;
+  title: string;
+  items: TaskChecklistItemData[];
+}
+
+function normalizeChecklistItem(raw: Record<string, unknown>): TaskChecklistItemData {
+  return {
+    id: String(raw.id || ""),
+    content: String(raw.content || ""),
+    completed: Boolean(raw.completed),
+  };
+}
+
+function normalizeChecklist(raw: Record<string, unknown>): TaskChecklistData {
+  return {
+    id: String(raw.id || ""),
+    title: String(raw.title || "Checklist"),
+    items: Array.isArray(raw.items)
+      ? raw.items.map((item) => normalizeChecklistItem(item as Record<string, unknown>))
+      : [],
+  };
+}
+
+export async function getTaskChecklists(taskId: string): Promise<TaskChecklistData[]> {
+  const response = await apiClient.get<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/checklists`,
+  );
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[],
+  );
+  return Array.isArray(data)
+    ? data.map((item) => normalizeChecklist(item as Record<string, unknown>))
+    : [];
+}
+
+export async function createTaskChecklist(
+  taskId: string,
+  title: string,
+): Promise<TaskChecklistData> {
+  const response = await apiClient.post<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/checklists`,
+    { title },
+  );
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>,
+  );
+  return normalizeChecklist(data as Record<string, unknown>);
+}
+
+export async function deleteTaskChecklist(
+  taskId: string,
+  checklistId: string,
+): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/tasks/${taskId}/checklists/${checklistId}`);
+}
+
+export async function addChecklistItem(
+  checklistId: string,
+  content: string,
+): Promise<TaskChecklistItemData> {
+  const response = await apiClient.post<unknown>(
+    `${SERVICE}/api/checklists/${checklistId}/items`,
+    { content },
+  );
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>,
+  );
+  return normalizeChecklistItem(data as Record<string, unknown>);
+}
+
+export async function updateChecklistItem(
+  itemId: string,
+  payload: { content?: string; completed?: boolean },
+): Promise<TaskChecklistItemData> {
+  const response = await apiClient.put<unknown>(
+    `${SERVICE}/api/checklist-items/${itemId}`,
+    payload,
+  );
+  const data = unwrapResponse(
+    response.data as ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>,
+  );
+  return normalizeChecklistItem(data as Record<string, unknown>);
+}
+
+export async function deleteChecklistItem(itemId: string): Promise<void> {
+  await apiClient.delete(`${SERVICE}/api/checklist-items/${itemId}`);
+}

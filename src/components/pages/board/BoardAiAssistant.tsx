@@ -223,12 +223,26 @@ export function BoardAiAssistant({
 
     try {
       const recommendation = await getWorkspaceTaskRecommendations(workspaceId, limit);
-      setResult(recommendation);
+
+      // Check if the AI returned an error in the summary
+      if (
+        recommendation.recommendedTasks.length === 0 &&
+        recommendation.summary &&
+        (recommendation.summary.toLowerCase().includes("khong the") ||
+         recommendation.summary.toLowerCase().includes("không thể"))
+      ) {
+        setError(
+          "AI không thể tải dữ liệu task. Hãy đảm bảo các service (board-service, task-service) đang hoạt động.",
+        );
+        setResult(null);
+      } else {
+        setResult(recommendation);
+      }
     } catch (requestError) {
       setError(
         getApiErrorMessage(
           requestError,
-          "Không thể lấy gợi ý từ AI. Hãy đảm bảo Ollama đang chạy.",
+          "Không thể lấy gợi ý từ AI. Hãy đảm bảo AI service và Ollama đang chạy.",
         ),
       );
     } finally {

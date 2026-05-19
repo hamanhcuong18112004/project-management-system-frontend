@@ -37,13 +37,6 @@ const PRIORITY_STYLES: Record<TaskPriority, string> = {
   URGENT: "bg-red-100 text-red-700",
 };
 
-const STATUS_STYLES: Record<NonNullable<BoardTask["status"]>, string> = {
-  TODO: "bg-slate-100 text-slate-700",
-  IN_PROGRESS: "bg-sky-100 text-sky-700",
-  DONE: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-zinc-200 text-zinc-700",
-};
-
 function formatDueDate(value?: string | null) {
   if (!value) {
     return null;
@@ -64,16 +57,17 @@ function BoardTaskCardBase({
   ghost = false,
 }: BoardTaskCardBaseProps) {
   const dueDate = formatDueDate(task.dueDate);
+  const createdAt = formatDueDate(task.createdAt);
   const overdue = isTaskOverdue(task);
   const priorityClass = PRIORITY_STYLES[task.priority || "MEDIUM"];
-  const status = task.status || "TODO";
-  const statusClass = STATUS_STYLES[status];
   const attachmentCount = Number(task.attachmentCount || 0);
   const commentCount = Number(task.commentCount || 0);
-  const checklistCount = Number(task.checklistCount || 0);
+  const checklistTotal = Number(task.checklistTotal || 0);
+  const checklistChecked = Number(task.checklistChecked || 0);
   const memberCount = Number(task.memberCount || 0);
+  const progressPercent = checklistTotal > 0 ? Math.round((checklistChecked / checklistTotal) * 100) : -1;
   const hasMeta = Boolean(
-    dueDate || attachmentCount > 0 || commentCount > 0 || checklistCount > 0 || memberCount > 0,
+    dueDate || createdAt || attachmentCount > 0 || commentCount > 0 || checklistTotal > 0 || memberCount > 0,
   );
 
   return (
@@ -103,11 +97,6 @@ function BoardTaskCardBase({
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <span
-            className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${statusClass}`}
-          >
-            {status}
-          </span>
           {task.priority ? (
             <span
               className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${priorityClass}`}
@@ -118,15 +107,40 @@ function BoardTaskCardBase({
         </div>
         </div>
 
+        {/* Progress bar for checklist */}
+        {progressPercent >= 0 ? (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+              <span className="flex items-center gap-1">
+                <CheckSquare size={10} />
+                {checklistChecked}/{checklistTotal}
+              </span>
+              <span className="font-semibold">{progressPercent}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${progressPercent === 100 ? "bg-emerald-500" : "bg-sky-500"}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
         {hasMeta ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+          {createdAt ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+              <CalendarDays size={12} />
+              {createdAt}
+            </span>
+          ) : null}
           {dueDate ? (
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-                overdue ? "bg-red-100 font-semibold text-red-700" : "bg-slate-100"
+                overdue ? "bg-red-100 font-semibold text-red-700" : "bg-orange-50 text-orange-600"
               }`}
             >
-              {overdue ? <Clock3 size={12} /> : <CalendarDays size={12} />}
+              <Clock3 size={12} />
               {dueDate}
             </span>
           ) : null}
@@ -140,12 +154,6 @@ function BoardTaskCardBase({
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
               <MessageSquare size={12} />
               {commentCount}
-            </span>
-          ) : null}
-          {checklistCount > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
-              <CheckSquare size={12} />
-              {checklistCount}
             </span>
           ) : null}
           {memberCount > 0 ? (
