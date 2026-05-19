@@ -1,151 +1,201 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Plus,
-  FolderKanban,
-  Users,
+  Bell,
   Clock,
   CheckCircle2,
   AlertTriangle,
   ListTodo,
   TrendingUp,
+  FolderKanban,
+  Users,
+  Loader2,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/stores";
-import { CreateProjectModal } from "@/components/pages/workspace";
-import { createWorkspace } from "@/lib/api/workspace";
-import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/api/error";
+import { getMyWorkspaces, type Workspace } from "@/lib/api/workspace";
+import { getBoardsByWorkspace, type BoardDetails } from "@/lib/api/board";
+import { getTaskListsByBoardId, type BoardTask } from "@/lib/api/task";
+import { notificationApi, type AppNotification } from "@/lib/api/notification";
 
-// ── Static data for dashboard ──
+// ── Types ──
 
-const STATS = [
-  {
-    label: "Tổng công việc",
-    value: 14,
-    icon: ListTodo,
-    color: "bg-blue-100 text-blue-600",
-    ring: "ring-blue-200",
-  },
-  {
-    label: "Đang thực hiện",
-    value: 9,
-    icon: TrendingUp,
-    color: "bg-yellow-100 text-yellow-600",
-    ring: "ring-yellow-200",
-  },
-  {
-    label: "Quá hạn",
-    value: 2,
-    icon: AlertTriangle,
-    color: "bg-red-100 text-red-600",
-    ring: "ring-red-200",
-  },
-  {
-    label: "Hoàn thành",
-    value: 3,
-    icon: CheckCircle2,
-    color: "bg-green-100 text-green-600",
-    ring: "ring-green-200",
-  },
-];
+interface DashboardStats {
+  totalTasks: number;
+  inProgress: number;
+  overdue: number;
+  done: number;
+}
 
-const QUICK_ACTIONS = [
-  { label: "Tạo công việc", icon: Plus },
-  { label: "Tạo workspace", icon: FolderKanban },
-  { label: "Mời thành viên", icon: Users },
-];
-
-const DEADLINES = [
-  {
-    title: "Kiểm tra sự cân đối giữa số liệu kế toán chi tiết và tổng hợp",
-    assignee: "Phạm Thị Trang",
-    date: "29/02/2024",
-    color: "border-red-400",
-  },
-  {
-    title: "Giải trình số liệu và cung cấp hồ sơ, số liệu cho cơ quan thuế",
-    assignee: "Phạm Thị Trang",
-    date: "29/03/2024",
-    color: "border-orange-400",
-  },
-  {
-    title: "Cung cấp số liệu cho ban giám đốc",
-    assignee: "Trần Thị Phương",
-    date: "20/05/2024",
-    color: "border-yellow-400",
-  },
-  {
-    title: "Lưu trữ dữ liệu kế toán theo quy định",
-    assignee: "Trần Thị Phương",
-    date: "18/05/2024",
-    color: "border-blue-400",
-  },
-  {
-    title: "Kiểm tra số dư cuối kỳ cho hợp lý và khớp đúng với các báo cáo",
-    assignee: "Lê Hoàng Văn, Nguyễn Văn Mạnh",
-    date: "21/05/2024",
-    color: "border-purple-400",
-  },
-];
-
-const ACTIVITIES = [
-  {
-    user: "Nguyễn Văn Mạnh",
-    action: "đã hoàn thành công việc: Thống kê và tổng hợp số liệu",
-    time: "10 phút trước",
-    avatarColor: "bg-blue-500",
-  },
-  {
-    user: "Trần Thị Phương",
-    action: "đã thêm bình luận vào Báo cáo tài chính quý 1",
-    time: "1 giờ trước",
-    avatarColor: "bg-red-500",
-  },
-  {
-    user: "Lê Hoàng Văn",
-    action: "đã tạo công việc mới: Kiểm tra số dư cuối kỳ",
-    time: "3 giờ trước",
-    avatarColor: "bg-green-500",
-  },
-  {
-    user: "Phạm Thị Trang",
-    action: "đã đính kèm tài liệu vào Hợp đồng thuê văn phòng",
-    time: "Hôm qua",
-    avatarColor: "bg-purple-500",
-  },
-];
-
-const WORKLOAD = [
-  { name: "Nguyễn Văn Mạnh", count: 3, color: "bg-blue-500" },
-  { name: "Trần Thị Phương", count: 5, color: "bg-purple-500" },
-  { name: "Lê Hoàng Văn", count: 5, color: "bg-green-500" },
-  { name: "Bùi Quỳnh Như", count: 0, color: "bg-gray-300" },
-];
+interface UpcomingDeadline {
+  title: string;
+  dueDate: string;
+  boardName: string;
+  priority: string;
+}
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const greeting = getGreeting();
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [allBoards, setAllBoards] = useState<BoardDetails[]>([]);
+  const [allTasks, setAllTasks] = useState<(BoardTask & { boardName?: string })[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [totalMembers, setTotalMembers] = useState(0);
 
-  const handleCreateWorkspace = async (data: any) => {
-    try {
-      setIsSubmitting(true);
-      await createWorkspace({
-        name: data.name,
-        description: data.description,
-        visibility: data.visibility
-      });
-      toast.success("Đã tạo workspace thành công!");
-      setIsCreateModalOpen(false);
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Không thể tạo workspace"));
-    } finally {
-      setIsSubmitting(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    async function fetchData() {
+      setLoading(true);
+      try {
+        // Fetch workspaces
+        const ws = await getMyWorkspaces();
+        if (cancelled) return;
+        setWorkspaces(ws);
+
+        // Count members
+        const members = ws.reduce((sum, w) => sum + (w.members?.length || 0), 0);
+        setTotalMembers(members);
+
+        // Fetch all boards from all workspaces
+        const boards: BoardDetails[] = [];
+        for (const workspace of ws) {
+          try {
+            const wsBoards = await getBoardsByWorkspace(workspace.id, user!.id);
+            boards.push(...wsBoards);
+          } catch {
+            // skip workspaces that fail
+          }
+        }
+        if (cancelled) return;
+        setAllBoards(boards);
+
+        // Fetch all tasks from all boards
+        const tasks: (BoardTask & { boardName?: string })[] = [];
+        for (const board of boards) {
+          try {
+            const taskLists = await getTaskListsByBoardId(board.id);
+            for (const list of taskLists) {
+              for (const task of list.tasks) {
+                tasks.push({ ...task, boardName: board.name });
+              }
+            }
+          } catch {
+            // skip boards that fail
+          }
+        }
+        if (cancelled) return;
+        setAllTasks(tasks);
+
+        // Fetch notifications
+        try {
+          const notifs = await notificationApi.getByUserId(user!.id);
+          if (!cancelled) setNotifications(Array.isArray(notifs) ? notifs : []);
+        } catch {
+          if (!cancelled) setNotifications([]);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  };
+
+    void fetchData();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Compute stats
+  const stats: DashboardStats = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    let overdue = 0;
+    let inProgress = 0;
+    let done = 0;
+
+    for (const task of allTasks) {
+      const checklistTotal = Number(task.checklistTotal || 0);
+      const checklistChecked = Number(task.checklistChecked || 0);
+
+      // Hoàn thành: tất cả checklist items đã checked (và có ít nhất 1 item)
+      if (checklistTotal > 0 && checklistChecked === checklistTotal) {
+        done++;
+        continue;
+      }
+
+      // Quá hạn: dueDate < ngày hiện tại
+      if (task.dueDate) {
+        const due = new Date(task.dueDate);
+        due.setHours(0, 0, 0, 0);
+        if (due < now) {
+          overdue++;
+          continue;
+        }
+      }
+
+      // Đang thực hiện: ngày hiện tại nằm trong khoảng createdAt đến dueDate
+      if (task.createdAt && task.dueDate) {
+        const created = new Date(task.createdAt);
+        created.setHours(0, 0, 0, 0);
+        const due = new Date(task.dueDate);
+        due.setHours(0, 0, 0, 0);
+        if (now >= created && now <= due) {
+          inProgress++;
+        }
+      } else if (task.createdAt && !task.dueDate) {
+        // Có ngày tạo nhưng không có deadline → coi như đang thực hiện
+        inProgress++;
+      }
+    }
+
+    return {
+      totalTasks: allTasks.length,
+      inProgress,
+      overdue,
+      done,
+    };
+  }, [allTasks]);
+
+  // Upcoming deadlines: top 10 tasks closest to deadline (have dueDate, not done)
+  const upcomingDeadlines: UpcomingDeadline[] = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    return allTasks
+      .filter((t) => {
+        if (!t.dueDate || t.status === "DONE") return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.dueDate!);
+        const dateB = new Date(b.dueDate!);
+        // Sort by closest to now (absolute distance)
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 10)
+      .map((t) => ({
+        title: t.title,
+        dueDate: t.dueDate!,
+        boardName: t.boardName || "",
+        priority: t.priority || "MEDIUM",
+      }));
+  }, [allTasks]);
+
+  // Pending tasks count
+  const pendingCount = stats.totalTasks - stats.done;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-slate-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -158,62 +208,79 @@ export default function DashboardPage() {
             {greeting}, {user?.fullName || "bạn"}!
           </h1>
           <p className="text-blue-100 mt-1 text-sm">
-            Chào mừng bạn đến với trang tổng quan. Hôm nay bạn có lý và 2 công việc cần chú ý gấp.
+            Chào mừng bạn đến với trang tổng quan.
+            {stats.overdue > 0 && ` Bạn có ${stats.overdue} công việc quá hạn cần chú ý.`}
           </p>
-          <div className="mt-4 text-sm text-blue-200">
-            9 công việc đang chờ xử lý
+          <div className="mt-4 flex flex-wrap gap-4 text-sm text-blue-200">
+            <span>{pendingCount} công việc đang chờ xử lý</span>
+            <span>•</span>
+            <span>{workspaces.length} workspace</span>
+            <span>•</span>
+            <span>{allBoards.length} bảng</span>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
-                  <Icon size={22} />
-                </div>
-                <div>
-                  <p className="text-gray-500 text-xs">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        <StatCard
+          label="Tổng công việc"
+          value={stats.totalTasks}
+          icon={ListTodo}
+          color="bg-blue-100 text-blue-600"
+        />
+        <StatCard
+          label="Đang thực hiện"
+          value={stats.inProgress}
+          icon={TrendingUp}
+          color="bg-yellow-100 text-yellow-600"
+        />
+        <StatCard
+          label="Quá hạn"
+          value={stats.overdue}
+          icon={AlertTriangle}
+          color="bg-red-100 text-red-600"
+        />
+        <StatCard
+          label="Hoàn thành"
+          value={stats.done}
+          icon={CheckCircle2}
+          color="bg-green-100 text-green-600"
+        />
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
-        <div className="flex gap-4 flex-wrap">
-          {QUICK_ACTIONS.map((action) => {
-            const Icon = action.icon;
-            const isCreateWorkspace = action.label === "Tạo workspace";
-
-            return (
-              <button
-                key={action.label}
-                onClick={isCreateWorkspace ? () => setIsCreateModalOpen(true) : undefined}
-                className="flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all group min-w-35"
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                  <Icon size={20} className="text-gray-400 group-hover:text-blue-600" />
-                </div>
-                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-700">{action.label}</span>
-              </button>
-            );
-          })}
+      {/* Overview cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <FolderKanban size={22} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Workspace</p>
+            <p className="text-xl font-bold text-gray-900">{workspaces.length}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center text-sky-600">
+            <ListTodo size={22} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Tổng bảng</p>
+            <p className="text-xl font-bold text-gray-900">{allBoards.length}</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600">
+            <Users size={22} />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Thành viên</p>
+            <p className="text-xl font-bold text-gray-900">{totalMembers}</p>
+          </div>
         </div>
       </div>
 
-      {/* Two-column layout: Deadlines + Activity/Workload */}
+      {/* Two-column layout: Deadlines + Notifications */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Deadlines */}
         <div className="lg:col-span-3 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
@@ -221,86 +288,169 @@ export default function DashboardPage() {
             <Clock size={18} className="text-red-500" />
             <h2 className="text-lg font-semibold text-gray-900">Hạn chốt sắp tới</h2>
           </div>
-          <div className="space-y-3">
-            {DEADLINES.map((d, i) => (
-              <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 bg-gray-50 ${d.color}`}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Phụ trách: {d.assignee}
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-gray-500 whitespace-nowrap bg-white px-2 py-1 rounded-full border border-gray-200">
-                  {d.date}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right column: Activity + Workload */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Recent Activity */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Hoạt động gần đây</h2>
-            <div className="space-y-4">
-              {ACTIVITIES.map((a, i) => (
-                <div key={i} className="flex gap-3">
-                  <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold ${a.avatarColor}`}>
-                    {a.user.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-semibold text-gray-900">{a.user}</span>{" "}
-                      {a.action}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{a.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Workload */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Khối lượng công việc</h2>
-              <span className="text-xs text-blue-600 cursor-pointer hover:underline">→</span>
-            </div>
+          {upcomingDeadlines.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Không có deadline nào sắp tới.</p>
+          ) : (
             <div className="space-y-3">
-              {WORKLOAD.map((w, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{w.name}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${w.color}`}
-                        style={{ width: `${Math.min((w.count / 6) * 100, 100)}%` }}
-                      />
+              {upcomingDeadlines.map((d, i) => {
+                const isOverdue = new Date(d.dueDate) < new Date();
+                const borderColor = isOverdue
+                  ? "border-red-400"
+                  : d.priority === "URGENT"
+                    ? "border-red-400"
+                    : d.priority === "HIGH"
+                      ? "border-orange-400"
+                      : d.priority === "MEDIUM"
+                        ? "border-yellow-400"
+                        : "border-blue-400";
+
+                return (
+                  <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 bg-gray-50 ${borderColor}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Bảng: {d.boardName}
+                      </p>
                     </div>
-                    <span className="text-xs font-medium text-gray-500 w-8 text-right">
-                      {w.count} CV
+                    <span className={`text-xs font-medium whitespace-nowrap px-2 py-1 rounded-full border ${isOverdue ? "bg-red-50 text-red-700 border-red-200" : "bg-white text-gray-500 border-gray-200"}`}>
+                      {formatDate(d.dueDate)}
                     </span>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Notifications */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell size={18} className="text-blue-500" />
+            <h2 className="text-lg font-semibold text-gray-900">Thông báo mới</h2>
+            {notifications.filter((n) => !n.read).length > 0 && (
+              <span className="ml-auto text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                {notifications.filter((n) => !n.read).length} mới
+              </span>
+            )}
+          </div>
+          {notifications.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Chưa có thông báo nào.</p>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {notifications.slice(0, 10).map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`flex gap-3 p-3 rounded-lg transition ${notif.read ? "bg-white" : "bg-blue-50/60"}`}
+                >
+                  <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold ${getNotifColor(notif.type)}`}>
+                    {getNotifIcon(notif.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-snug">
+                      <span className="font-semibold text-gray-900">{notif.title}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{notif.message}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(notif.createdAt)}</p>
+                  </div>
+                  {!notif.read && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />
+                  )}
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
-      <CreateProjectModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateWorkspace}
-        isLoading={isSubmitting}
-      />
     </div>
   );
 }
+
+// ── Helper Components ──
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+}) {
+  return (
+    <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+          <Icon size={22} />
+        </div>
+        <div>
+          <p className="text-gray-500 text-xs">{label}</p>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers ──
 
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Chào buổi sáng";
   if (h < 18) return "Chào buổi chiều";
   return "Chào buổi tối";
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatTimeAgo(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return "Vừa xong";
+  if (diffMin < 60) return `${diffMin} phút trước`;
+  if (diffHour < 24) return `${diffHour} giờ trước`;
+  if (diffDay < 7) return `${diffDay} ngày trước`;
+  return formatDate(value);
+}
+
+function getNotifColor(type: string): string {
+  switch (type) {
+    case "TASK_CREATED": return "bg-blue-500";
+    case "TASK_UPDATED": return "bg-amber-500";
+    case "TASK_ASSIGNED": return "bg-violet-500";
+    case "BOARD_UPDATED": return "bg-indigo-500";
+    case "BOARD_MEMBER_ADDED": return "bg-green-500";
+    case "TASK_DEADLINE_APPROACHING": return "bg-red-500";
+    case "WORKSPACE_INVITE": return "bg-emerald-500";
+    default: return "bg-slate-500";
+  }
+}
+
+function getNotifIcon(type: string): string {
+  switch (type) {
+    case "TASK_CREATED": return "✚";
+    case "TASK_UPDATED": return "✎";
+    case "TASK_ASSIGNED": return "→";
+    case "BOARD_UPDATED": return "◫";
+    case "BOARD_MEMBER_ADDED": return "+";
+    case "TASK_DEADLINE_APPROACHING": return "⚠";
+    case "WORKSPACE_INVITE": return "✉";
+    default: return "•";
+  }
 }

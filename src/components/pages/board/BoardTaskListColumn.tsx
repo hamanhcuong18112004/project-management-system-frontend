@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { Pencil, Plus, SquarePen } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
@@ -42,14 +42,6 @@ export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
             aria-label="Cài đặt danh sách"
           >
             <Pencil size={16} />
-          </button>
-          <button
-            type="button"
-            disabled
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
-            aria-label="Thêm thẻ"
-          >
-            <SquarePen size={16} />
           </button>
         </div>
       </div>
@@ -140,14 +132,6 @@ function BoardTaskListColumnBase({
             title="Cài đặt danh sách"
           >
             <Pencil size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddingTask(true)}
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
-            title="Thêm thẻ"
-          >
-            <SquarePen size={16} />
           </button>
         </div>
       </div>
