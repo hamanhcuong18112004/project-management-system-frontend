@@ -24,7 +24,6 @@ import type {
   BoardTask,
   TaskAttachment,
   TaskPriority,
-  TaskStatus,
   UpdateTaskPayload,
 } from "@/lib/api/task";
 import type { BoardMemberSummary } from "@/lib/api/board";
@@ -38,6 +37,7 @@ import {
 } from "@/lib/api/task";
 
 import { TaskComments } from "./TaskComments";
+import { TaskChecklists } from "./TaskChecklists";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 interface BoardTaskDialogProps {
@@ -59,7 +59,6 @@ interface TaskFieldRowProps {
   children: ReactNode;
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "DONE", "ARCHIVED"];
 const PRIORITY_OPTIONS: TaskPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 
 function formatFileSize(bytes?: number | null) {
@@ -133,7 +132,6 @@ export function BoardTaskDialog({
 }: BoardTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<TaskStatus>("TODO");
   const [priority, setPriority] = useState<TaskPriority>("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +157,6 @@ export function BoardTaskDialog({
 
     setTitle(task.title);
     setDescription(task.description ?? "");
-    setStatus(task.status ?? "TODO");
     setPriority(task.priority ?? "MEDIUM");
     setDueDate(toDateInputValue(task.dueDate));
 
@@ -204,7 +201,6 @@ export function BoardTaskDialog({
       await onSave(task.id, {
         title: title.trim(),
         description,
-        status,
         priority,
         dueDate: toDueDatePayload(dueDate),
       });
@@ -327,28 +323,6 @@ export function BoardTaskDialog({
               disabled={readOnly}
               className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
-          </TaskFieldRow>
-
-          <TaskFieldRow label="Trạng thái">
-            <div className="relative">
-              <select
-                value={status}
-                onChange={(event) => setStatus(event.target.value as TaskStatus)}
-                disabled={readOnly}
-                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-            </div>
           </TaskFieldRow>
 
           <TaskFieldRow label="Ưu tiên" icon={<Flag size={15} />}>
@@ -619,6 +593,9 @@ export function BoardTaskDialog({
             </ul>
           )}
         </div>
+
+        {/* Checklist section */}
+        <TaskChecklists taskId={task.id} />
 
         {/* Comments section */}
         <TaskComments 

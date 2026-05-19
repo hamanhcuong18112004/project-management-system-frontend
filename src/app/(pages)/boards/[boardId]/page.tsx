@@ -656,13 +656,21 @@ export default function BoardDetailPage() {
   };
 
   const handleDeleteTask = async (task: BoardTask) => {
-    if (!selectedTask) {
+    // Find which list contains this task
+    const ownerList = taskLists.find((list) =>
+      list.tasks.some((t) => t.id === task.id),
+    );
+    const listId = selectedTask?.listId || ownerList?.id;
+
+    if (!listId) {
+      toast.error("Không tìm thấy danh sách chứa task này");
       return;
     }
 
     try {
       await deleteTask(task.id);
-      setTaskLists((current) => removeTask(current, selectedTask.listId, task.id));
+      setTaskLists((current) => removeTask(current, listId, task.id));
+      setSelectedTask(null);
       toast.success("Đã xóa task");
       emitBoardUpdated();
     } catch (error) {

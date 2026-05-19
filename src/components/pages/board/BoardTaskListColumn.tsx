@@ -44,14 +44,6 @@ export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
           >
             <Pencil size={16} />
           </button>
-          <button
-            type="button"
-            disabled
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500"
-            aria-label="Thêm thẻ"
-          >
-            <SquarePen size={16} />
-          </button>
         </div>
       </div>
 
