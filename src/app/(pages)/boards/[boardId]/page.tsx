@@ -367,6 +367,9 @@ export default function BoardDetailPage() {
     return member?.role?.toUpperCase() || undefined;
   }, [userId, enrichedBoardMembers]);
 
+  // True when the current user is NOT a member of this board (workspace member viewing only)
+  const isReadOnly = !currentUserBoardRole;
+
   const activeTask = activeDragId ? findTaskByDragId(taskLists, activeDragId) : null;
   const activeTaskList = activeDragId
     ? findTaskListByDragId(taskLists, activeDragId)
@@ -751,6 +754,7 @@ export default function BoardDetailPage() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (isReadOnly) return;
     const dragId = String(event.active.id);
     const dragType =
       event.active.data.current?.type === "taskList" ? "taskList" : "task";
@@ -959,11 +963,19 @@ export default function BoardDetailPage() {
                       }
                       activeDragId={activeDragId}
                       activeTask={activeDragType === "task" ? activeTask : null}
+                      readOnly={isReadOnly}
                     />
                   ))}
 
                   <section className="w-[320px] shrink-0 rounded-3xl border border-dashed border-slate-300/80 bg-white/60 p-4 shadow-lg shadow-slate-300/25 backdrop-blur-xl">
-                    {addingList ? (
+                    {isReadOnly ? (
+                      <div className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-400">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-300">
+                          <Plus size={16} />
+                        </span>
+                        Tham gia board để thêm danh sách
+                      </div>
+                    ) : addingList ? (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3">
                         <textarea
                           value={newListName}
@@ -1042,6 +1054,7 @@ export default function BoardDetailPage() {
         onClose={() => setSelectedTask(null)}
         onSave={(taskId, payload) => handleSaveTask(taskId, payload)}
         onDelete={(task) => setDeleteContext({ type: 'TASK', task })}
+        readOnly={isReadOnly}
       />
       <BoardMembersDialog
         open={membersDialogOpen}

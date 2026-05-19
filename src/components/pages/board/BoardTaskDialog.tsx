@@ -49,6 +49,7 @@ interface BoardTaskDialogProps {
   onClose: () => void;
   onSave: (taskId: string, payload: UpdateTaskPayload) => Promise<void> | void;
   onDelete: (task: BoardTask) => Promise<void> | void;
+  readOnly?: boolean;
 }
 
 interface TaskFieldRowProps {
@@ -127,6 +128,7 @@ export function BoardTaskDialog({
   onClose,
   onSave,
   onDelete,
+  readOnly,
 }: BoardTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -279,9 +281,9 @@ export function BoardTaskDialog({
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
               Task Detail
             </p>
-            <h3 className="mt-2 text-xl font-bold text-slate-900">Chỉnh sửa thẻ</h3>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">{readOnly ? "Xem thẻ" : "Chỉnh sửa thẻ"}</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Cập nhật nội dung, độ ưu tiên và hạn xử lý cho task này.
+              {readOnly ? "Bạn chỉ có quyền xem thẻ này." : "Cập nhật nội dung, trạng thái và hạn xử lý cho task này."}
             </p>
           </div>
 
@@ -307,7 +309,8 @@ export function BoardTaskDialog({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Nhập tiêu đề task"
-              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+              disabled={readOnly}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
 
@@ -317,7 +320,8 @@ export function BoardTaskDialog({
               onChange={(event) => setDescription(event.target.value)}
               rows={4}
               placeholder="Thêm mô tả ngắn gọn cho task"
-              className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+              disabled={readOnly}
+              className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
 
@@ -326,7 +330,8 @@ export function BoardTaskDialog({
               <select
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400"
+                disabled={readOnly}
+                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -347,7 +352,8 @@ export function BoardTaskDialog({
               type="date"
               value={dueDate}
               onChange={(event) => setDueDate(event.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-400"
+              disabled={readOnly}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
         </div>
@@ -386,14 +392,16 @@ export function BoardTaskDialog({
                         ) : null}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleUnassignMember(userId)}
-                      className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                      title="Bỏ gán"
-                    >
-                      <UserMinus size={13} />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUnassignMember(userId)}
+                        className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        title="Bỏ gán"
+                      >
+                        <UserMinus size={13} />
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -401,7 +409,7 @@ export function BoardTaskDialog({
           )}
 
           {/* Board member searchable dropdown */}
-          {boardMembers.length > 0 ? (
+          {!readOnly && boardMembers.length > 0 ? (
             (() => {
               const unassigned = boardMembers.filter((m) => {
                 const uid = m.userId || m.id;
@@ -498,7 +506,7 @@ export function BoardTaskDialog({
               );
             })()
           ) : (
-            <p className="text-xs text-slate-400">Board này chưa có thành viên nào.</p>
+            <p className="text-xs text-slate-400">{readOnly ? null : "Board này chưa có thành viên nào."}</p>
           )}
         </div>
 
@@ -510,15 +518,17 @@ export function BoardTaskDialog({
               <span>Tài liệu đính kèm</span>
               {attachmentsLoading && <Loader2 size={13} className="animate-spin text-slate-400" />}
             </div>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-              Tải lên
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                Tải lên
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -530,15 +540,15 @@ export function BoardTaskDialog({
           </div>
           {!attachmentsLoading && attachments.length === 0 ? (
             <div
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-sky-300 hover:bg-sky-50/50"
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+              className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center transition${readOnly ? " cursor-default" : " cursor-pointer hover:border-sky-300 hover:bg-sky-50/50"}`}
+              onClick={readOnly ? undefined : () => fileInputRef.current?.click()}
+              role={readOnly ? undefined : "button"}
+              tabIndex={readOnly ? undefined : 0}
+              onKeyDown={readOnly ? undefined : (e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
             >
               <Upload size={20} className="mb-2 text-slate-300" />
-              <p className="text-xs text-slate-400">Kéo thả hoặc nhấn để tải lên tài liệu</p>
-              <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>
+              <p className="text-xs text-slate-400">{readOnly ? "Chưa có tài liệu đính kèm." : "Kéo thả hoặc nhấn để tải lên tài liệu"}</p>
+              {!readOnly && <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>}
             </div>
           ) : (
             <ul className="space-y-2">
@@ -567,14 +577,16 @@ export function BoardTaskDialog({
                     >
                       <Download size={13} />
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAttachment(attachment.id)}
-                      className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                      title="Xóa tệp"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAttachment(attachment.id)}
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        title="Xóa tệp"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -597,34 +609,48 @@ export function BoardTaskDialog({
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
 
-          <button
-            type="button"
-            onClick={() => void handleDelete()}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Trash2 size={16} />
-            Xóa thẻ
-          </button>
+          {readOnly ? (
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                Đóng
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 size={16} />
+                Xóa thẻ
+              </button>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSubmit()}
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save size={16} />
-              Lưu thay đổi
-            </button>
-          </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSubmit()}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  Lưu thay đổi
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

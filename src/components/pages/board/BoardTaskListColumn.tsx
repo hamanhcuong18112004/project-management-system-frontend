@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, SquarePen } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
@@ -22,6 +22,7 @@ interface BoardTaskListColumnProps {
   tempDropPosition?: number | null;
   activeDragId?: string | null;
   activeTask?: BoardTask | null;
+  readOnly?: boolean;
 }
 
 export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
@@ -74,6 +75,7 @@ function BoardTaskListColumnBase({
   activeTask,
   dragHandlers,
   isOver,
+  readOnly,
 }: BoardTaskListColumnProps & {
   dragHandlers?: Record<string, unknown>;
   isOver?: boolean;
@@ -125,14 +127,26 @@ function BoardTaskListColumnBase({
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onOpenListSettings(list)}
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
-            title="Cài đặt danh sách"
-          >
-            <Pencil size={16} />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => onOpenListSettings(list)}
+              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+              title="Cài đặt danh sách"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setAddingTask(true)}
+              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+              title="Thêm thẻ"
+            >
+              <SquarePen size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,7 +162,7 @@ function BoardTaskListColumnBase({
               {showPlaceholder && tempDropPosition === index && activeTask ? (
                 <BoardTaskDropPlaceholder task={activeTask} />
               ) : null}
-              <SortableBoardTaskCard task={task} taskListId={list.id} onClick={onOpenTask} />
+              <SortableBoardTaskCard task={task} taskListId={list.id} onClick={onOpenTask} disableDrag={readOnly} />
             </Fragment>
           ))}
         </SortableContext>
@@ -189,7 +203,7 @@ function BoardTaskListColumnBase({
             </button>
           </div>
         </div>
-      ) : showEndPlaceholder ? null : (
+      ) : showEndPlaceholder ? null : readOnly ? null : (
         <button
           type="button"
           onClick={() => setAddingTask(true)}
@@ -206,7 +220,7 @@ function BoardTaskListColumnBase({
 export function BoardTaskListColumn(props: BoardTaskListColumnProps) {
   const { checkIsLocked } = useRealtime();
   const dragId = createTaskListDragId(props.list.id);
-  const disabled = checkIsLocked(dragId);
+  const disabled = props.readOnly || checkIsLocked(dragId);
 
   const {
     setNodeRef: setSortableNodeRef,

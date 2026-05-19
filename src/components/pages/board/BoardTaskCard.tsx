@@ -28,6 +28,7 @@ interface SortableBoardTaskCardProps {
   task: BoardTask;
   taskListId: string;
   onClick: (task: BoardTask) => void;
+  disableDrag?: boolean;
 }
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
@@ -195,10 +196,11 @@ export function SortableBoardTaskCard({
   task,
   taskListId,
   onClick,
+  disableDrag,
 }: SortableBoardTaskCardProps) {
   const { checkIsLocked } = useRealtime();
   const dragId = createTaskDragId(task.id);
-  const disabled = checkIsLocked(dragId);
+  const disabled = disableDrag || checkIsLocked(dragId);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
