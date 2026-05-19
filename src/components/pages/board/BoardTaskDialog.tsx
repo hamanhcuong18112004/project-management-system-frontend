@@ -146,6 +146,7 @@ export function BoardTaskDialog({
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fileDragOver, setFileDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -528,19 +529,61 @@ export function BoardTaskDialog({
               onChange={(e) => void handleFileUpload(e.target.files)}
             />
           </div>
-          {!attachmentsLoading && attachments.length === 0 ? (
-            <div
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-sky-300 hover:bg-sky-50/50"
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
-            >
-              <Upload size={20} className="mb-2 text-slate-300" />
-              <p className="text-xs text-slate-400">Kéo thả hoặc nhấn để tải lên tài liệu</p>
-              <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>
+
+          {/* Drop zone */}
+          <div
+            className={`relative rounded-2xl border-2 border-dashed transition ${fileDragOver ? "border-sky-400 bg-sky-50" : "border-slate-200"} ${attachments.length === 0 && !attachmentsLoading ? "" : "mb-3"}`}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("Files")) {
+                e.preventDefault();
+                e.stopPropagation();
+                setFileDragOver(true);
+              }
+            }}
+            onDragEnter={(e) => {
+              if (e.dataTransfer.types.includes("Files")) {
+                e.preventDefault();
+                setFileDragOver(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setFileDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setFileDragOver(false);
+              void handleFileUpload(e.dataTransfer.files);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+          >
+            <div className="flex cursor-pointer flex-col items-center justify-center py-6 text-center">
+              {uploading ? (
+                <>
+                  <Loader2 size={20} className="mb-2 animate-spin text-sky-500" />
+                  <p className="text-xs text-sky-600 font-medium">Đang tải lên...</p>
+                </>
+              ) : fileDragOver ? (
+                <>
+                  <Upload size={20} className="mb-2 text-sky-500" />
+                  <p className="text-xs text-sky-600 font-medium">Thả file vào đây để tải lên</p>
+                </>
+              ) : (
+                <>
+                  <Upload size={20} className="mb-2 text-slate-300" />
+                  <p className="text-xs text-slate-400">Kéo thả hoặc nhấn để tải lên tài liệu</p>
+                  <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>
+                </>
+              )}
             </div>
-          ) : (
+          </div>
+
+          {/* Attachment list */}
+          {attachments.length > 0 && (
             <ul className="space-y-2">
               {attachments.map((attachment) => (
                 <li key={attachment.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
