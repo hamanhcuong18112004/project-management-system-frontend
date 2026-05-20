@@ -10,7 +10,7 @@ type ServiceEnvelope<T> = {
 };
 
 export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE" | "ARCHIVED";
-export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+export type TaskPriority = "NONE" | "LOWEST" | "LOW" | "MEDIUM" | "HIGH" | "HIGHEST" | "URGENT";
 
 export interface BoardTask {
   id: string;
@@ -525,3 +525,12 @@ export async function updateChecklistItem(
 export async function deleteChecklistItem(itemId: string): Promise<void> {
   await apiClient.delete(`${SERVICE}/api/checklist-items/${itemId}`);
 }
+
+export async function getMyTasks(): Promise<BoardTask[]> {
+  const response = await apiClient.get<
+    ServiceEnvelope<Record<string, unknown>[]> | Record<string, unknown>[]
+  >(`${SERVICE}/api/tasks/my-tasks`);
+
+  return unwrapResponse(response.data).map(normalizeTask);
+}
+

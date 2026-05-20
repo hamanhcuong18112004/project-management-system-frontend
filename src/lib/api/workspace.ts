@@ -256,3 +256,23 @@ export async function rejectWorkspaceInvite(workspaceId: string, token: string, 
   const res = await apiClient.post<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/reject-invite?token=${token}&reason=${encodeURIComponent(reason)}`);
   unwrap(res);
 }
+
+export interface WorkspaceInviteResponse {
+  id: string;
+  email: string;
+  inviterId: string;
+  inviterName: string;
+  inviteToken: string;
+  status: string;
+  createdAt: string;
+  workspaceId: string;
+  workspaceName: string;
+  roleId: string;
+  roleName: string;
+}
+
+export async function getMyInvitations(): Promise<WorkspaceInviteResponse[]> {
+  const res = await apiClient.get<ApiResponse<WorkspaceInviteResponse[]>>(`${SERVICE}/api/workspaces/my-invitations`);
+  return unwrap(res) ?? [];
+}
+

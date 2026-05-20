@@ -17,6 +17,7 @@ import { getMyWorkspaces, type Workspace } from "@/lib/api/workspace";
 import { getBoardsByWorkspace, type BoardDetails } from "@/lib/api/board";
 import { getTaskListsByBoardId, type BoardTask } from "@/lib/api/task";
 import { notificationApi, type AppNotification } from "@/lib/api/notification";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 // ── Types ──
 
@@ -130,7 +131,7 @@ export default function DashboardPage() {
 
       // Quá hạn: dueDate < ngày hiện tại
       if (task.dueDate) {
-        const due = new Date(task.dueDate);
+        const due = parseServerDate(task.dueDate);
         due.setHours(0, 0, 0, 0);
         if (due < now) {
           overdue++;
@@ -140,9 +141,9 @@ export default function DashboardPage() {
 
       // Đang thực hiện: ngày hiện tại nằm trong khoảng createdAt đến dueDate
       if (task.createdAt && task.dueDate) {
-        const created = new Date(task.createdAt);
+        const created = parseServerDate(task.createdAt);
         created.setHours(0, 0, 0, 0);
-        const due = new Date(task.dueDate);
+        const due = parseServerDate(task.dueDate);
         due.setHours(0, 0, 0, 0);
         if (now >= created && now <= due) {
           inProgress++;
@@ -172,8 +173,8 @@ export default function DashboardPage() {
         return true;
       })
       .sort((a, b) => {
-        const dateA = new Date(a.dueDate!);
-        const dateB = new Date(b.dueDate!);
+        const dateA = parseServerDate(a.dueDate!);
+        const dateB = parseServerDate(b.dueDate!);
         // Sort by closest to now (absolute distance)
         return dateA.getTime() - dateB.getTime();
       })
@@ -293,19 +294,24 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {upcomingDeadlines.map((d, i) => {
-                const isOverdue = new Date(d.dueDate) < new Date();
-                const borderColor = isOverdue
-                  ? "border-red-400"
-                  : d.priority === "URGENT"
-                    ? "border-red-400"
-                    : d.priority === "HIGH"
-                      ? "border-orange-400"
-                      : d.priority === "MEDIUM"
-                        ? "border-yellow-400"
-                        : "border-blue-400";
+                const isOverdue = parseServerDate(d.dueDate) < new Date();
+                let borderAndBg = "border-zinc-300 bg-zinc-50/40";
+                if (isOverdue) {
+                  borderAndBg = "border-red-500 bg-red-50/40";
+                } else {
+                  switch (d.priority) {
+                    case "URGENT": borderAndBg = "border-red-500 bg-red-50/40"; break;
+                    case "HIGHEST": borderAndBg = "border-orange-500 bg-orange-50/40"; break;
+                    case "HIGH": borderAndBg = "border-amber-500 bg-amber-50/40"; break;
+                    case "MEDIUM": borderAndBg = "border-blue-500 bg-blue-50/40"; break;
+                    case "LOW": borderAndBg = "border-emerald-500 bg-emerald-50/40"; break;
+                    case "LOWEST": borderAndBg = "border-indigo-500 bg-indigo-50/40"; break;
+                    case "NONE": borderAndBg = "border-zinc-300 bg-zinc-50/40"; break;
+                  }
+                }
 
                 return (
-                  <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 bg-gray-50 ${borderColor}`}>
+                  <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 ${borderAndBg}`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
                       <p className="text-xs text-gray-500 mt-0.5">

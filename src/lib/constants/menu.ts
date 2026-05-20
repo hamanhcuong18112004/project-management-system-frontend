@@ -6,6 +6,7 @@ import {
   Calendar,
   BarChart3,
   Settings,
+  Mail,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { ROUTES } from "@/config";
@@ -32,16 +33,16 @@ export const MAIN_MENU: MenuItem[] = [
     href: ROUTES.projects,
     icon: FolderKanban,
   },
-//   {
-//     label: "Công việc",
-//     href: ROUTES.tasks,
-//     icon: CheckSquare,
-//   },
-//   {
-//     label: "Nhóm",
-//     href: ROUTES.team,
-//     icon: Users,
-//   },
+  {
+    label: "My Tasks",
+    href: ROUTES.tasks,
+    icon: CheckSquare,
+  },
+  {
+    label: "Lời mời",
+    href: ROUTES.invitations,
+    icon: Mail,
+  },
   {
     label: "Lịch",
     href: ROUTES.calendar,
@@ -53,6 +54,7 @@ export const MAIN_MENU: MenuItem[] = [
     icon: BarChart3,
   },
 ];
+
 
 export const BOTTOM_MENU: MenuItem[] = [
   {

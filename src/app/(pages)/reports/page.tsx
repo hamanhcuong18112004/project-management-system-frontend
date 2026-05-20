@@ -50,10 +50,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  URGENT: "Khẩn cấp",
-  HIGH: "Cao",
-  MEDIUM: "Trung bình",
+  NONE: "Không",
+  LOWEST: "Rất thấp",
   LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+  HIGHEST: "Rất cao",
+  URGENT: "Khẩn cấp",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -65,9 +68,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 const PRIORITY_COLORS: Record<string, string> = {
   URGENT: "#ef4444",
-  HIGH: "#f97316",
+  HIGHEST: "#f97316",
+  HIGH: "#fbbf24",
   MEDIUM: "#3b82f6",
   LOW: "#10b981",
+  LOWEST: "#6366f1",
+  NONE: "#94a3b8",
 };
 
 const TOOLTIP_STYLE = { borderRadius: 12, border: "1px solid #e2e8f0" };

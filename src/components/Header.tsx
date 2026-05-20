@@ -10,6 +10,7 @@ import { useRealtime } from "@/providers/RealtimeProvider";
 import { useNotifications } from "@/providers/NotificationProvider";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 const HEADER_TABS = MAIN_MENU.filter((item) => item.label !== "Trang chủ");
 
@@ -151,7 +152,7 @@ export function Header() {
                               </p>
                             )}
                             <span className="text-[10px] text-gray-400 mt-2 block font-medium">
-                              {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: vi })}
+                              {formatDistanceToNow(parseServerDate(n.createdAt), { addSuffix: true, locale: vi })}
                             </span>
                           </div>
                         </div>

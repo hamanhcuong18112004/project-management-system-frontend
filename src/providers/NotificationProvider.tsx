@@ -126,6 +126,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               duration: 3000,
               description: notification.message,
             });
+          } else if (notification.type === "TASK_DEADLINE_APPROACHING") {
+            toast.warning(notification.title || "Thẻ sắp hết hạn", {
+              duration: 5000,
+              description: notification.message,
+            });
           }
         } catch (e) {
           console.error("Error parsing notification message:", e);

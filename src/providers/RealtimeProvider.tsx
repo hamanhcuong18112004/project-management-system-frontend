@@ -140,10 +140,10 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
 
       socket.onmessage = (event) => {
         const payload = JSON.parse(event.data) as IncomingRealtimeMessage;
-        console.log("🚨 [DEBUG] Nhận được tin nhắn từ Backend:", payload);
+        console.log("[DEBUG] Nhận được tin nhắn từ Backend:", payload);
 
         if (payload.userId === currentUserId) {
-          console.log("🚨 [DEBUG] Tin nhắn bị bỏ qua do trùng ID người gửi!");
+          console.log("[DEBUG] Tin nhắn bị bỏ qua do trùng ID người gửi!");
           return;
         }
 
@@ -152,12 +152,13 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
             const next = new Map(prev);
             next.set(payload.itemId!, {
               id: payload.itemId!,
-              type: payload.itemType!,
+              type: payload.itemType as DragItemType,
               userId: payload.userId || "",
               username: payload.username || "Guest",
               x: payload.x || 0,
               y: payload.y || 0,
             });
+
             return next;
           });
         }

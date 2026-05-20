@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/task";
 import { toast } from "sonner";
 import { useRealtime } from "@/providers/RealtimeProvider";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 interface TaskCommentsProps {
   taskId: string;
@@ -84,7 +85,7 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
   };
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseServerDate(dateStr);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -331,7 +332,7 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
             </div>
             
             <div className="mt-1 flex items-center gap-3 px-1">
-              <span className="text-[10px] text-slate-400 cursor-default" title={new Date(comment.createdAt).toLocaleString("vi-VN")}>
+              <span className="text-[10px] text-slate-400 cursor-default" title={parseServerDate(comment.createdAt).toLocaleString("vi-VN")}>
                 {formatTime(comment.createdAt)}
               </span>
 

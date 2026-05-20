@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Info, Loader2, Plus } from "lucide-react";
+import { Info, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   createWorkspaceRole,
@@ -10,6 +10,7 @@ import {
   deleteWorkspace,
   deleteWorkspaceRole,
   getMyWorkspaces,
+  getMyInvitations,
   getMyPermissions,
   getWorkspaceById,
   inviteToWorkspace,
@@ -52,7 +53,8 @@ export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { lastNotification } = useNotifications();
+  const [searchQuery, setSearchQuery] = useState("");
+  const { lastNotification, notifications, markAsRead } = useNotifications();
 
   // Invitation state
   const [inviteData, setInviteData] = useState<{
@@ -200,7 +202,10 @@ export default function ProjectsPage() {
     ];
 
     if (lastNotification && refreshTypes.includes(lastNotification.type)) {
-      fetchWorkspaces();
+      const timer = setTimeout(() => {
+        fetchWorkspaces();
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [lastNotification, fetchWorkspaces]);
 
@@ -213,6 +218,79 @@ export default function ProjectsPage() {
     if (token && wsId) {
       const checkInvite = async () => {
         try {
+          // 1. Fetch user's invitations to check status of this token
+          const invites = await getMyInvitations();
+          const targetInvite = invites.find(inv => inv.inviteToken === token);
+
+          if (targetInvite) {
+            if (targetInvite.status === "ACCEPTED") {
+              // Check if they are actually a member now
+              const myWorkspaces = await getMyWorkspaces();
+              const alreadyMember = myWorkspaces.some(w => w.id === wsId);
+
+              if (alreadyMember) {
+                toast.info(`Bạn đã là thành viên của không gian làm việc "${targetInvite.workspaceName}"`);
+              } else {
+                toast.warning(`Lời mời này đã được chấp nhận trước đó, nhưng hiện tại bạn không còn là thành viên của "${targetInvite.workspaceName}".`);
+              }
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+              
+              router.push("/projects");
+              return;
+            } else if (targetInvite.status === "REJECTED") {
+              toast.warning(`Bạn đã từ chối lời mời tham gia "${targetInvite.workspaceName}"`);
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+
+              router.push("/projects");
+              return;
+            } else if (targetInvite.status === "EXPIRED") {
+              toast.error(`Lời mời tham gia "${targetInvite.workspaceName}" đã hết hạn`);
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+
+              router.push("/projects");
+              return;
+            }
+          }
+
+          // 2. Double check if user is already a member of this workspace
+          const myWorkspaces = await getMyWorkspaces();
+          const alreadyMember = myWorkspaces.some(w => w.id === wsId);
+          if (alreadyMember) {
+            toast.info(`Bạn đã là thành viên của không gian làm việc này`);
+            
+            // Mark corresponding notifications as read
+            const matching = notifications.filter(
+              (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+            );
+            for (const n of matching) {
+              void markAsRead(n.id);
+            }
+
+            router.push("/projects");
+            return;
+          }
+
           const ws = await getWorkspaceById(wsId);
           if (ws) {
             setInviteData({
@@ -229,19 +307,62 @@ export default function ProjectsPage() {
           }
         } catch (error) {
           console.error("Failed to fetch workspace for invitation", error);
+          router.push("/projects");
         }
       };
       checkInvite();
     }
-  }, [searchParams]);
+  }, [searchParams, notifications, markAsRead, router]);
+
+  // Handle search and workspaceId query params
+  useEffect(() => {
+    const searchParam = searchParams.get("search");
+    const wsIdParam = searchParams.get("workspaceId");
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    } else if (wsIdParam && workspaces.length > 0) {
+      const ws = workspaces.find((w) => w.id === wsIdParam);
+      if (ws) {
+        setSearchQuery(ws.name);
+      }
+    } else {
+      setSearchQuery("");
+    }
+  }, [searchParams, workspaces]);
+
+  const filteredWorkspaces = useMemo(() => {
+    const wsIdParam = searchParams.get("workspaceId");
+    if (wsIdParam) {
+      return workspaces.filter((ws) => ws.id === wsIdParam);
+    }
+
+    if (!searchQuery.trim()) {
+      return workspaces;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return workspaces
+      .map((ws) => {
+        const wsNameMatches = ws.name.toLowerCase().includes(query);
+        const filteredBoards = ws.boards?.filter((b) => b.name.toLowerCase().includes(query)) || [];
+        if (wsNameMatches || filteredBoards.length > 0) {
+          return {
+            ...ws,
+            boards: wsNameMatches ? ws.boards : filteredBoards,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as Workspace[];
+  }, [workspaces, searchQuery, searchParams]);
 
   const ownedWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.role === "OWNER"),
-    [workspaces],
+    () => filteredWorkspaces.filter((workspace) => workspace.role === "OWNER"),
+    [filteredWorkspaces],
   );
   const sharedWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.role !== "OWNER"),
-    [workspaces],
+    () => filteredWorkspaces.filter((workspace) => workspace.role !== "OWNER"),
+    [filteredWorkspaces],
   );
 
   const handleCreateWorkspace = async (data: CreateWorkspaceFormData) => {
@@ -476,6 +597,36 @@ export default function ProjectsPage() {
           </button>
         </div>
 
+        {workspaces.length > 0 && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div className="relative flex-1 max-w-md">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                placeholder="Tìm kiếm không gian hoặc bảng..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+              />
+            </div>
+            {(searchQuery || searchParams.get("workspaceId")) && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  if (searchParams.get("workspaceId") || searchParams.get("search")) {
+                    router.push("/projects");
+                  }
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 size={32} className="animate-spin text-blue-500" />
@@ -490,6 +641,23 @@ export default function ProjectsPage() {
               className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
             >
               Bắt đầu tạo ngay
+            </button>
+          </div>
+        ) : filteredWorkspaces.length === 0 ? (
+          <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+            <p className="text-slate-500 text-sm font-medium">
+              Không tìm thấy không gian làm việc hoặc bảng nào khớp với từ khóa tìm kiếm.
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                if (searchParams.get("workspaceId") || searchParams.get("search")) {
+                  router.push("/projects");
+                }
+              }}
+              className="mt-4 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+            >
+              Xem tất cả không gian làm việc
             </button>
           </div>
         ) : (

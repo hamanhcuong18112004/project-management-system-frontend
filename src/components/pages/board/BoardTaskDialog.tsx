@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   Download,
   File,
   FileImage,
@@ -39,6 +40,7 @@ import {
 import { TaskComments } from "./TaskComments";
 import { TaskChecklists } from "./TaskChecklists";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 interface BoardTaskDialogProps {
 
@@ -59,7 +61,17 @@ interface TaskFieldRowProps {
   children: ReactNode;
 }
 
-const PRIORITY_OPTIONS: TaskPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const PRIORITY_OPTIONS: TaskPriority[] = ["NONE", "LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST", "URGENT"];
+
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  NONE: "Không",
+  LOWEST: "Rất thấp",
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+  HIGHEST: "Rất cao",
+  URGENT: "Khẩn cấp",
+};
 
 function formatFileSize(bytes?: number | null) {
   if (!bytes) return "";
@@ -78,25 +90,47 @@ function getFileIcon(fileType?: string | null) {
   return <File size={16} className="text-slate-500" />;
 }
 
-function toDateInputValue(value?: string | null) {
+function parseTaskDueDate(value?: string | null) {
   if (!value) {
-    return "";
+    return { hasDueDate: false, date: "", time: "17:30", isAllDay: false };
+  }
+  const dateObj = parseServerDate(value);
+  if (Number.isNaN(dateObj.getTime())) {
+    return { hasDueDate: false, date: "", time: "17:30", isAllDay: false };
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
 
-  return date.toISOString().slice(0, 10);
+  const hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes();
+  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+  const isAllDay = (hours === 0 && minutes === 0);
+
+  return {
+    hasDueDate: true,
+    date: dateStr,
+    time: isAllDay ? "17:30" : timeStr,
+    isAllDay
+  };
 }
 
-function toDueDatePayload(value: string) {
-  if (!value) {
+function toDueDatePayload(hasDueDate: boolean, date: string, time: string, isAllDay: boolean) {
+  if (!hasDueDate || !date) {
     return null;
   }
-
-  return new Date(`${value}T00:00:00`).toISOString();
+  if (isAllDay) {
+    return `${date}T00:00:00Z`;
+  }
+  const t = time || "17:30";
+  const localDate = new Date(`${date}T${t}`);
+  if (Number.isNaN(localDate.getTime())) {
+    return `${date}T00:00:00Z`;
+  }
+  return localDate.toISOString();
 }
 
 function TaskFieldRow({
@@ -130,14 +164,20 @@ export function BoardTaskDialog({
   onDelete,
   readOnly,
 }: BoardTaskDialogProps) {
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("MEDIUM");
-  const [dueDate, setDueDate] = useState("");
+  const [status, setStatus] = useState<string>("TODO");
+  const [hasDueDate, setHasDueDate] = useState(false);
+  const [dueDateStr, setDueDateStr] = useState("");
+  const [dueTimeStr, setDueTimeStr] = useState("17:30");
+  const [isAllDay, setIsAllDay] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Members state
   const [members, setMembers] = useState<string[]>([]);
+  const [initialMembers, setInitialMembers] = useState<string[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberAssigning, setMemberAssigning] = useState<string | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
@@ -151,6 +191,8 @@ export function BoardTaskDialog({
   const [fileDragOver, setFileDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isAssigned = currentUserId ? members.includes(currentUserId) : false;
+
   useEffect(() => {
     if (!open || !task) {
       return;
@@ -159,12 +201,23 @@ export function BoardTaskDialog({
     setTitle(task.title);
     setDescription(task.description ?? "");
     setPriority(task.priority ?? "MEDIUM");
-    setDueDate(toDateInputValue(task.dueDate));
+    setStatus(task.status ?? "TODO");
+    const parsed = parseTaskDueDate(task.dueDate);
+    setHasDueDate(parsed.hasDueDate);
+    setDueDateStr(parsed.date);
+    setDueTimeStr(parsed.time);
+    setIsAllDay(parsed.isAllDay);
 
     setMembersLoading(true);
     getTaskMembers(task.id)
-      .then(setMembers)
-      .catch(() => setMembers([]))
+      .then((data) => {
+        setMembers(data);
+        setInitialMembers(data);
+      })
+      .catch(() => {
+        setMembers([]);
+        setInitialMembers([]);
+      })
       .finally(() => setMembersLoading(false));
 
     setAttachmentsLoading(true);
@@ -199,13 +252,25 @@ export function BoardTaskDialog({
     setSubmitting(true);
 
     try {
+      // Save member assignments/unassignments to database first
+      const toAdd = members.filter((id) => !initialMembers.includes(id));
+      const toRemove = initialMembers.filter((id) => !members.includes(id));
+
+      await Promise.all([
+        ...toAdd.map((userId) => assignTaskMember(task.id, userId)),
+        ...toRemove.map((userId) => unassignTaskMember(task.id, userId)),
+      ]);
+
       await onSave(task.id, {
         title: title.trim(),
         description,
         priority,
-        dueDate: toDueDatePayload(dueDate),
+        status: status as any,
+        dueDate: toDueDatePayload(hasDueDate, dueDateStr, dueTimeStr, isAllDay),
       });
       onClose();
+    } catch (error) {
+      console.error("Lỗi khi lưu task:", error);
     } finally {
       setSubmitting(false);
     }
@@ -222,24 +287,13 @@ export function BoardTaskDialog({
     }
   };
 
-  const handleAssignMember = async (userId: string) => {
-    if (!userId || memberAssigning || members.includes(userId)) return;
-    setMemberAssigning(userId);
-    try {
-      await assignTaskMember(task.id, userId);
-      setMembers((prev) => [...prev, userId]);
-    } finally {
-      setMemberAssigning(null);
-    }
+  const handleAssignMember = (userId: string) => {
+    if (!userId || members.includes(userId)) return;
+    setMembers((prev) => [...prev, userId]);
   };
 
-  const handleUnassignMember = async (userId: string) => {
-    try {
-      await unassignTaskMember(task.id, userId);
-      setMembers((prev) => prev.filter((id) => id !== userId));
-    } catch {
-      // ignore
-    }
+  const handleUnassignMember = (userId: string) => {
+    setMembers((prev) => prev.filter((id) => id !== userId));
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -336,7 +390,7 @@ export function BoardTaskDialog({
               >
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {PRIORITY_LABELS[option]}
                   </option>
                 ))}
               </select>
@@ -348,15 +402,98 @@ export function BoardTaskDialog({
             </div>
           </TaskFieldRow>
 
-          <TaskFieldRow label="Hạn xử lý" icon={<CalendarDays size={15} />}>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              disabled={readOnly}
-              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
-            />
+          <TaskFieldRow label="Hạn xử lý" icon={<CalendarDays size={15} />} alignTop={true}>
+            <div className="space-y-3">
+              {/* Toggle to enable/disable deadline */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!hasDueDate}
+                    onChange={(e) => {
+                      setHasDueDate(!e.target.checked);
+                      if (e.target.checked) {
+                        setDueDateStr("");
+                      } else {
+                        const today = new Date();
+                        const y = today.getFullYear();
+                        const m = String(today.getMonth() + 1).padStart(2, '0');
+                        const d = String(today.getDate()).padStart(2, '0');
+                        setDueDateStr(`${y}-${m}-${d}`);
+                        setDueTimeStr("17:30");
+                        setIsAllDay(false);
+                      }
+                    }}
+                    disabled={readOnly}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">Không có hạn xử lý</span>
+                </label>
+              </div>
+
+              {hasDueDate && (
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition-all">
+                  {/* Date & Time selection */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex-1 min-w-[140px]">
+                      <input
+                        type="date"
+                        value={dueDateStr}
+                        onChange={(e) => setDueDateStr(e.target.value)}
+                        disabled={readOnly}
+                        required
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
+                      />
+                    </div>
+
+                    {!isAllDay && (
+                      <div className="flex-1 min-w-[120px]">
+                        <input
+                          type="time"
+                          value={dueTimeStr}
+                          onChange={(e) => setDueTimeStr(e.target.value)}
+                          disabled={readOnly}
+                          required
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* All day toggle */}
+                  <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isAllDay}
+                        onChange={(e) => setIsAllDay(e.target.checked)}
+                        disabled={readOnly}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
+                      />
+                      <span className="text-xs font-semibold text-slate-500">Cả ngày</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </TaskFieldRow>
+
+          {isAssigned && (
+            <TaskFieldRow label="Hoàn thành" icon={<CheckCircle2 size={15} className={status === "DONE" ? "text-emerald-500" : "text-slate-400"} />}>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={status === "DONE"}
+                  disabled={readOnly}
+                  onChange={(e) => setStatus(e.target.checked ? "DONE" : "TODO")}
+                  className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500 transition"
+                />
+                <span className={`text-sm font-semibold transition ${status === "DONE" ? "text-emerald-600" : "text-slate-700"}`}>
+                  Xác nhận hoàn thành công việc
+                </span>
+              </label>
+            </TaskFieldRow>
+          )}
         </div>
 
         {/* Members section */}

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { acceptWorkspaceInvite, rejectWorkspaceInvite } from "@/lib/api/workspace";
 import { Loader2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 interface WorkspaceInvitationModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
   inviterName,
   inviteToken,
 }) => {
+  const { notifications, markAsRead } = useNotifications();
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [showRejectReason, setShowRejectReason] = useState(false);
@@ -46,6 +48,19 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
     try {
       await acceptWorkspaceInvite(workspaceId, inviteToken);
       toast.success(`Bạn đã tham gia không gian làm việc "${workspaceName}"`);
+      
+      // Mark matching notifications as read
+      try {
+        const matching = notifications.filter(
+          (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === inviteToken || n.workspaceId === workspaceId)
+        );
+        for (const n of matching) {
+          await markAsRead(n.id);
+        }
+      } catch (err) {
+        console.error("Failed to mark notification as read", err);
+      }
+
       if (onAccept) {
         onAccept();
       }
@@ -74,6 +89,19 @@ export const WorkspaceInvitationModal: React.FC<WorkspaceInvitationModalProps> =
     try {
       await rejectWorkspaceInvite(workspaceId, inviteToken, reason);
       toast.info(`Bạn đã từ chối lời mời tham gia "${workspaceName}"`);
+
+      // Mark matching notifications as read
+      try {
+        const matching = notifications.filter(
+          (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === inviteToken || n.workspaceId === workspaceId)
+        );
+        for (const n of matching) {
+          await markAsRead(n.id);
+        }
+      } catch (err) {
+        console.error("Failed to mark notification as read", err);
+      }
+
       onClose();
     } catch (error: any) {
       toast.error(error.message || "Không thể từ chối lời mời");

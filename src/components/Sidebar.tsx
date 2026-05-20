@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, LogOut, Settings, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 
 import { toast } from "sonner";
@@ -25,12 +25,13 @@ export function Sidebar() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [workspacesExpanded, setWorkspacesExpanded] = useState(true);
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceNavItem[]>([]);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, refreshToken, logout } = useAuthStore();
   const { isCollapsed, toggle } = useSidebarStore();
   const { lastNotification } = useNotifications();
-
 
   const isActive = (href: string) => {
     if (href === ROUTES.dashboard) {
@@ -48,7 +49,7 @@ export function Sidebar() {
         workspaces.map((workspace: { id: string; name: string }) => ({
           id: workspace.id,
           name: workspace.name,
-          href: `/projects/${workspace.id}`,
+          href: `/projects?workspaceId=${workspace.id}`,
         })),
       );
     } catch {
@@ -56,9 +57,28 @@ export function Sidebar() {
     }
   }, []);
 
+  const loadPendingInvitesCount = useCallback(async () => {
+    try {
+      const mod = await import("../lib/api/workspace");
+      const invites = await mod.getMyInvitations();
+      const pendingCount = invites.filter((inv: any) => inv.status === "PENDING").length;
+      setPendingInvitesCount(pendingCount);
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   useEffect(() => {
     loadWorkspaces();
-  }, [loadWorkspaces]);
+    loadPendingInvitesCount();
+  }, [loadWorkspaces, loadPendingInvitesCount]);
+
+  useEffect(() => {
+    window.addEventListener("invitations-updated", loadPendingInvitesCount);
+    return () => {
+      window.removeEventListener("invitations-updated", loadPendingInvitesCount);
+    };
+  }, [loadPendingInvitesCount]);
 
   useEffect(() => {
     const refreshTypes = [
@@ -69,9 +89,13 @@ export function Sidebar() {
     ];
 
     if (lastNotification && refreshTypes.includes(lastNotification.type)) {
-      loadWorkspaces();
+      const timer = setTimeout(() => {
+        loadWorkspaces();
+        loadPendingInvitesCount();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [lastNotification, loadWorkspaces]);
+  }, [lastNotification, loadWorkspaces, loadPendingInvitesCount]);
 
   const handleLogout = async () => {
     try {
@@ -135,7 +159,7 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 title={isCollapsed ? item.label : undefined}
-                className={`group flex items-center gap-3 rounded-xl py-2.5 transition-all duration-200 ${isCollapsed ? "justify-center px-0" : "px-3"} ${active
+                className={`group flex items-center gap-3 rounded-xl py-2.5 transition-all duration-200 relative ${isCollapsed ? "justify-center px-0" : "px-3"} ${active
                   ? "bg-blue-50 text-blue-700"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
@@ -148,7 +172,17 @@ export function Sidebar() {
                     }`}
                 />
                 {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {item.href === ROUTES.invitations && pendingInvitesCount > 0 && (
+                  isCollapsed ? (
+                    <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+                  ) : (
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md shadow-red-500/20">
+                      {pendingInvitesCount}
+                    </span>
+                  )
+                )}
               </Link>
+
 
             );
           })}
@@ -177,14 +211,14 @@ export function Sidebar() {
           {workspacesExpanded && !isCollapsed && (
             <div className="mt-1 space-y-1">
               {workspaceItems.map((workspace) => {
-                const active = pathname === workspace.href;
+                const active = pathname === "/projects" && searchParams.get("workspaceId") === workspace.id;
 
                 return (
                   <Link
                     key={workspace.id}
                     href={workspace.href}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${active
-                      ? "bg-blue-50 text-blue-700"
+                      ? "bg-blue-50 text-blue-700 font-semibold"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                   >
@@ -218,31 +252,32 @@ export function Sidebar() {
 
 
         <div className={`flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 py-3 ${isCollapsed ? "justify-center px-0" : "px-3"}`}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600">
-            <span className="text-sm font-semibold text-white">
-              {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
-            </span>
-          </div>
-          {!isCollapsed && (
-            <>
+          <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600">
+              <span className="text-sm font-semibold text-white">
+                {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
+              </span>
+            </div>
+            {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-900">
                   {user?.fullName || "User"}
                 </p>
                 <p className="truncate text-xs text-slate-500">{user?.email || ""}</p>
               </div>
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="rounded-md p-1.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
-                title="Đăng xuất"
-              >
-                <LogOut size={16} />
-              </button>
-            </>
+            )}
+          </Link>
+          {!isCollapsed && (
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="rounded-md p-1.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
+              title="Đăng xuất"
+            >
+              <LogOut size={16} />
+            </button>
           )}
         </div>
-
       </div>
     </aside>
   );

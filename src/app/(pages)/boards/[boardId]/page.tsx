@@ -237,7 +237,10 @@ export default function BoardDetailPage() {
   useEffect(() => {
     const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED"];
     if (lastNotification && refreshTypes.includes(lastNotification.type) && lastNotification.boardId === boardId) {
-      setBoardVersion((v) => v + 1);
+      const timer = setTimeout(() => {
+        setBoardVersion((v) => v + 1);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [lastNotification, boardId, setBoardVersion]);
 

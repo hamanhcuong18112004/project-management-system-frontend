@@ -15,6 +15,7 @@ import type { BoardTask, TaskPriority } from "@/lib/api/task";
 import { useRealtime } from "@/providers/RealtimeProvider";
 import { createTaskDragId } from "./boardState";
 import { isTaskOverdue } from "./taskCardMeta";
+import { parseServerDate, formatTaskDueDate } from "@/lib/helper/formatTime";
 
 interface BoardTaskCardBaseProps {
   task: BoardTask;
@@ -32,10 +33,23 @@ interface SortableBoardTaskCardProps {
 }
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
+  NONE: "bg-zinc-100 text-zinc-600 border border-zinc-200",
+  LOWEST: "bg-blue-50 text-blue-600 border border-blue-100",
   LOW: "bg-slate-100 text-slate-700",
   MEDIUM: "bg-amber-100 text-amber-700",
   HIGH: "bg-rose-100 text-rose-700",
+  HIGHEST: "bg-orange-100 text-orange-700",
   URGENT: "bg-red-100 text-red-700",
+};
+
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  NONE: "Không",
+  LOWEST: "Rất thấp",
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+  HIGHEST: "Rất cao",
+  URGENT: "Khẩn cấp",
 };
 
 function formatDueDate(value?: string | null) {
@@ -47,7 +61,7 @@ function formatDueDate(value?: string | null) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(parseServerDate(value));
 }
 
 function BoardTaskCardBase({
@@ -57,9 +71,8 @@ function BoardTaskCardBase({
   className = "",
   ghost = false,
 }: BoardTaskCardBaseProps) {
-  const dueDate = formatDueDate(task.dueDate);
+  const formattedDueDate = formatTaskDueDate(task.dueDate, task.status);
   const createdAt = formatDueDate(task.createdAt);
-  const overdue = isTaskOverdue(task);
   const priorityClass = PRIORITY_STYLES[task.priority || "MEDIUM"];
   const attachmentCount = Number(task.attachmentCount || 0);
   const commentCount = Number(task.commentCount || 0);
@@ -68,7 +81,7 @@ function BoardTaskCardBase({
   const memberCount = Number(task.memberCount || 0);
   const progressPercent = checklistTotal > 0 ? Math.round((checklistChecked / checklistTotal) * 100) : -1;
   const hasMeta = Boolean(
-    dueDate || createdAt || attachmentCount > 0 || commentCount > 0 || checklistTotal > 0 || memberCount > 0,
+    task.dueDate || createdAt || attachmentCount > 0 || commentCount > 0 || checklistTotal > 0 || memberCount > 0,
   );
 
   return (
@@ -102,7 +115,7 @@ function BoardTaskCardBase({
             <span
               className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${priorityClass}`}
             >
-              {task.priority}
+              {PRIORITY_LABELS[task.priority] || task.priority}
             </span>
           ) : null}
         </div>
@@ -135,14 +148,12 @@ function BoardTaskCardBase({
               {createdAt}
             </span>
           ) : null}
-          {dueDate ? (
+          {task.dueDate && formattedDueDate.text ? (
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-                overdue ? "bg-red-100 font-semibold text-red-700" : "bg-orange-50 text-orange-600"
-              }`}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${formattedDueDate.badgeClass}`}
             >
               <Clock3 size={12} />
-              {dueDate}
+              {formattedDueDate.text}
             </span>
           ) : null}
           {attachmentCount > 0 ? (

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Shield, Trash2, UserPlus, X } from "lucide-react";
+import { Shield, Trash2, UserPlus, X, Users } from "lucide-react";
+
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/error";
 import {
