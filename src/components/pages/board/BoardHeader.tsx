@@ -12,6 +12,7 @@ interface BoardHeaderProps {
   onOpenMembers: () => void;
   onJoinBoard?: () => void;
   joiningBoard?: boolean;
+  canManage?: boolean;
 }
 
 export function BoardHeader({
@@ -22,6 +23,7 @@ export function BoardHeader({
   onOpenMembers,
   onJoinBoard,
   joiningBoard = false,
+  canManage,
 }: BoardHeaderProps) {
   const router = useRouter();
   const isCurrentUserMember = currentUserId
@@ -30,7 +32,7 @@ export function BoardHeader({
   const canJoin =
     !isCurrentUserMember &&
     (board.visibility === "WORKSPACE" || board.visibility === "PUBLIC");
-  const canManageBoard = currentUserRole === "OWNER" || currentUserRole === "ADMIN";
+  const canManageBoard = canManage ?? (currentUserRole === "OWNER" || currentUserRole === "ADMIN");
   const memberInitials =
     board.members?.slice(0, 3).map((member, index) => ({
       id: member.userId || member.id || `member-${index}`,

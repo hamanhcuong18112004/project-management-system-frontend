@@ -23,6 +23,9 @@ interface BoardTaskListColumnProps {
   activeDragId?: string | null;
   activeTask?: BoardTask | null;
   readOnly?: boolean;
+  canCreateTask?: boolean;
+  canUpdateList?: boolean;
+  canDeleteList?: boolean;
 }
 
 export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
@@ -76,10 +79,17 @@ function BoardTaskListColumnBase({
   dragHandlers,
   isOver,
   readOnly,
+  canCreateTask,
+  canUpdateList,
+  canDeleteList,
 }: BoardTaskListColumnProps & {
   dragHandlers?: Record<string, unknown>;
   isOver?: boolean;
 }) {
+  // If explicit granular permission is not passed, fall back to readOnly
+  const showCreateTask = canCreateTask ?? !readOnly;
+  const showUpdateList = canUpdateList ?? !readOnly;
+  const showDeleteList = canDeleteList ?? !readOnly;
   const [addingTask, setAddingTask] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
@@ -127,7 +137,7 @@ function BoardTaskListColumnBase({
         </div>
 
         <div className="flex items-center gap-1">
-          {!readOnly && (
+          {showUpdateList && (
             <button
               type="button"
               onClick={() => onOpenListSettings(list)}
@@ -137,7 +147,7 @@ function BoardTaskListColumnBase({
               <Pencil size={16} />
             </button>
           )}
-          {!readOnly && (
+          {showCreateTask && (
             <button
               type="button"
               onClick={() => setAddingTask(true)}
@@ -203,7 +213,7 @@ function BoardTaskListColumnBase({
             </button>
           </div>
         </div>
-      ) : showEndPlaceholder ? null : readOnly ? null : (
+      ) : showEndPlaceholder ? null : showCreateTask ? (
         <button
           type="button"
           onClick={() => setAddingTask(true)}
@@ -212,7 +222,7 @@ function BoardTaskListColumnBase({
           <Plus size={16} />
           Thêm thẻ
         </button>
-      )}
+      ) : null}
     </section>
   );
 }

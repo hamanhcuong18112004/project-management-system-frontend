@@ -22,9 +22,10 @@ import {
 
 interface TaskChecklistsProps {
   taskId: string;
+  canUpdate?: boolean;
 }
 
-export function TaskChecklists({ taskId }: TaskChecklistsProps) {
+export function TaskChecklists({ taskId, canUpdate = true }: TaskChecklistsProps) {
   const [checklists, setChecklists] = useState<TaskChecklistData[]>([]);
   const [loading, setLoading] = useState(false);
   const [creatingChecklist, setCreatingChecklist] = useState(false);
@@ -138,25 +139,21 @@ export function TaskChecklists({ taskId }: TaskChecklistsProps) {
 
   return (
     <div className="border-t border-slate-100 px-5 py-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <CheckSquare size={15} />
-          <span>Checklist</span>
+          <span>Công việc phụ</span>
           {loading && <Loader2 size={13} className="animate-spin text-slate-400" />}
-          {totalItems > 0 && (
-            <span className="ml-1 text-xs font-normal text-slate-400">
-              {checkedItems}/{totalItems} ({progressPercent}%)
-            </span>
-          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowNewChecklist(true)}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-        >
-          <Plus size={12} />
-          Thêm checklist
-        </button>
+        {canUpdate && (
+          <button
+            type="button"
+            onClick={() => setShowNewChecklist(true)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
+          >
+            Thêm danh sách
+          </button>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -223,25 +220,21 @@ export function TaskChecklists({ taskId }: TaskChecklistsProps) {
               className="rounded-2xl border border-slate-100 bg-white p-3"
             >
               {/* Checklist header */}
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <h5 className="text-xs font-bold text-slate-800 truncate">
-                    {checklist.title}
-                  </h5>
-                  {cTotal > 0 && (
-                    <span className="text-[10px] text-slate-400">
-                      {cChecked}/{cTotal}
-                    </span>
-                  )}
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <CheckSquare size={15} className="text-sky-600" />
+                  <span>{checklist.title}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleDeleteChecklist(checklist.id)}
-                  className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                  title="Xóa checklist"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {canUpdate && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteChecklist(checklist.id)}
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    title="Xóa danh sách này"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
 
               {/* Progress */}
@@ -263,8 +256,9 @@ export function TaskChecklists({ taskId }: TaskChecklistsProps) {
                   >
                     <button
                       type="button"
+                      disabled={!canUpdate}
                       onClick={() => void handleToggleItem(checklist.id, item)}
-                      className="shrink-0 text-slate-400 transition hover:text-sky-600"
+                      className={`shrink-0 transition ${canUpdate ? "text-slate-400 hover:text-sky-600" : "cursor-default text-slate-300"}`}
                     >
                       {item.completed ? (
                         <CheckSquare size={16} className="text-emerald-500" />
@@ -272,70 +266,75 @@ export function TaskChecklists({ taskId }: TaskChecklistsProps) {
                         <Square size={16} />
                       )}
                     </button>
-                    <span
-                      className={`flex-1 text-xs ${item.completed ? "text-slate-400 line-through" : "text-slate-700"}`}
-                    >
+                    <div className="min-w-0 flex-1 py-1 text-sm text-slate-700">
                       {item.content}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteItem(checklist.id, item.id)}
-                      className="shrink-0 rounded-lg p-1 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500"
-                      title="Xóa"
-                    >
-                      <X size={12} />
-                    </button>
+                    </div>
+                    {canUpdate && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteItem(checklist.id, item.id)}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
 
               {/* Add item */}
-              {addingItemTo === checklist.id ? (
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    value={newItemContent}
-                    onChange={(e) => setNewItemContent(e.target.value)}
-                    placeholder="Nội dung mục mới"
-                    className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleAddItem(checklist.id);
-                      if (e.key === "Escape") {
-                        setAddingItemTo(null);
-                        setNewItemContent("");
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleAddItem(checklist.id)}
-                    className="rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-500"
-                  >
-                    Thêm
-                  </button>
+              {canUpdate && (
+                addingItemTo === checklist.id ? (
+                  <div className="mt-3 pl-7">
+                    <div className="flex items-start gap-2">
+                      <textarea
+                        value={newItemContent}
+                        onChange={(e) => setNewItemContent(e.target.value)}
+                        placeholder="Nhập nội dung mục..."
+                        className="w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-sky-400"
+                        rows={2}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            void handleAddItem(checklist.id);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleAddItem(checklist.id)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-500"
+                      >
+                        Thêm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingItemTo(null);
+                          setNewItemContent("");
+                        }}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={() => {
-                      setAddingItemTo(null);
+                      setAddingItemTo(checklist.id);
                       setNewItemContent("");
                     }}
-                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
+                    className="ml-7 mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
                   >
-                    Hủy
+                    <Plus size={14} />
+                    Thêm mục
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingItemTo(checklist.id);
-                    setNewItemContent("");
-                  }}
-                  className="mt-2 flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-sky-600"
-                >
-                  <Plus size={12} />
-                  Thêm mục
-                </button>
+                )
               )}
             </div>
           );

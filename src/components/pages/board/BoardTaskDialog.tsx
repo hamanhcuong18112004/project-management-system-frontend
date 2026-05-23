@@ -52,6 +52,11 @@ interface BoardTaskDialogProps {
   onSave: (taskId: string, payload: UpdateTaskPayload) => Promise<void> | void;
   onDelete: (task: BoardTask) => Promise<void> | void;
   readOnly?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
+  canAssign?: boolean;
+  canManageAttachment?: boolean;
+  canComment?: boolean;
 }
 
 interface TaskFieldRowProps {
@@ -163,7 +168,19 @@ export function BoardTaskDialog({
   onSave,
   onDelete,
   readOnly,
+  canUpdate,
+  canDelete,
+  canAssign,
+  canManageAttachment,
+  canComment,
 }: BoardTaskDialogProps) {
+  // Effective permissions: if canUpdate/canDelete are explicitly provided, use them;
+  // otherwise fall back to !readOnly
+  const effectiveCanUpdate = canUpdate ?? !readOnly;
+  const effectiveCanDelete = canDelete ?? !readOnly;
+  const effectiveCanAssign = canAssign ?? effectiveCanUpdate;
+  const effectiveCanManageAttachment = canManageAttachment ?? effectiveCanUpdate;
+  const effectiveCanComment = canComment ?? effectiveCanUpdate;
   const currentUserId = useAuthStore((state) => state.user?.id);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -336,9 +353,9 @@ export function BoardTaskDialog({
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
               Task Detail
             </p>
-            <h3 className="mt-2 text-xl font-bold text-slate-900">{readOnly ? "Xem thẻ" : "Chỉnh sửa thẻ"}</h3>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">{effectiveCanUpdate ? "Chỉnh sửa thẻ" : "Xem thẻ"}</h3>
             <p className="mt-1 text-sm text-slate-500">
-              {readOnly ? "Bạn chỉ có quyền xem thẻ này." : "Cập nhật nội dung, trạng thái và hạn xử lý cho task này."}
+              {effectiveCanUpdate ? "Cập nhật nội dung, trạng thái và hạn xử lý cho task này." : "Bạn chỉ có quyền xem thẻ này."}
             </p>
           </div>
 
@@ -364,7 +381,7 @@ export function BoardTaskDialog({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Nhập tiêu đề task"
-              disabled={readOnly}
+              disabled={!effectiveCanUpdate}
               className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
@@ -375,7 +392,7 @@ export function BoardTaskDialog({
               onChange={(event) => setDescription(event.target.value)}
               rows={4}
               placeholder="Thêm mô tả ngắn gọn cho task"
-              disabled={readOnly}
+              disabled={!effectiveCanUpdate}
               className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
@@ -385,7 +402,7 @@ export function BoardTaskDialog({
               <select
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                disabled={readOnly}
+                disabled={!effectiveCanUpdate}
                 className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 {PRIORITY_OPTIONS.map((option) => (
@@ -424,7 +441,7 @@ export function BoardTaskDialog({
                         setIsAllDay(false);
                       }
                     }}
-                    disabled={readOnly}
+                    disabled={!effectiveCanUpdate}
                     className="h-4.5 w-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
                   />
                   <span className="text-sm font-semibold text-slate-700">Không có hạn xử lý</span>
@@ -440,7 +457,7 @@ export function BoardTaskDialog({
                         type="date"
                         value={dueDateStr}
                         onChange={(e) => setDueDateStr(e.target.value)}
-                        disabled={readOnly}
+                        disabled={!effectiveCanUpdate}
                         required
                         className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
                       />
@@ -452,7 +469,7 @@ export function BoardTaskDialog({
                           type="time"
                           value={dueTimeStr}
                           onChange={(e) => setDueTimeStr(e.target.value)}
-                          disabled={readOnly}
+                          disabled={!effectiveCanUpdate}
                           required
                           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
                         />
@@ -467,7 +484,7 @@ export function BoardTaskDialog({
                         type="checkbox"
                         checked={isAllDay}
                         onChange={(e) => setIsAllDay(e.target.checked)}
-                        disabled={readOnly}
+                        disabled={!effectiveCanUpdate}
                         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
                       />
                       <span className="text-xs font-semibold text-slate-500">Cả ngày</span>
@@ -484,7 +501,7 @@ export function BoardTaskDialog({
                 <input
                   type="checkbox"
                   checked={status === "DONE"}
-                  disabled={readOnly}
+                  disabled={!effectiveCanUpdate}
                   onChange={(e) => setStatus(e.target.checked ? "DONE" : "TODO")}
                   className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500 transition"
                 />
@@ -530,7 +547,7 @@ export function BoardTaskDialog({
                         ) : null}
                       </div>
                     </div>
-                    {!readOnly && (
+                    {effectiveCanAssign && (
                       <button
                         type="button"
                         onClick={() => void handleUnassignMember(userId)}
@@ -547,7 +564,7 @@ export function BoardTaskDialog({
           )}
 
           {/* Board member searchable dropdown */}
-          {!readOnly && boardMembers.length > 0 ? (
+          {effectiveCanAssign && boardMembers.length > 0 ? (
             (() => {
               const unassigned = boardMembers.filter((m) => {
                 const uid = m.userId || m.id;
@@ -681,32 +698,30 @@ export function BoardTaskDialog({
           <div
             className={`relative rounded-2xl border-2 border-dashed transition ${fileDragOver ? "border-sky-400 bg-sky-50" : "border-slate-200"} ${attachments.length === 0 && !attachmentsLoading ? "" : "mb-3"}`}
             onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("Files")) {
-                e.preventDefault();
-                e.stopPropagation();
-                setFileDragOver(true);
-              }
-            }}
-            onDragEnter={(e) => {
+              if (!effectiveCanManageAttachment) return;
               if (e.dataTransfer.types.includes("Files")) {
                 e.preventDefault();
                 setFileDragOver(true);
               }
             }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              setFileDragOver(false);
-            }}
+            onDragLeave={() => setFileDragOver(false)}
             onDrop={(e) => {
+              if (!effectiveCanManageAttachment) return;
               e.preventDefault();
               e.stopPropagation();
               setFileDragOver(false);
               void handleFileUpload(e.dataTransfer.files);
             }}
-            onClick={() => fileInputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+            onClick={() => {
+              if (effectiveCanManageAttachment) fileInputRef.current?.click();
+            }}
+            role={effectiveCanManageAttachment ? "button" : undefined}
+            tabIndex={effectiveCanManageAttachment ? 0 : -1}
+            onKeyDown={(e) => { 
+              if (effectiveCanManageAttachment && (e.key === "Enter" || e.key === " ")) {
+                fileInputRef.current?.click();
+              }
+            }}
           >
             <div className="flex cursor-pointer flex-col items-center justify-center py-6 text-center">
               {uploading ? (
@@ -757,7 +772,7 @@ export function BoardTaskDialog({
                     >
                       <Download size={13} />
                     </a>
-                    {!readOnly && (
+                    {effectiveCanManageAttachment && (
                       <button
                         type="button"
                         onClick={() => void handleDeleteAttachment(attachment.id)}
@@ -775,7 +790,7 @@ export function BoardTaskDialog({
         </div>
 
         {/* Checklist section */}
-        <TaskChecklists taskId={task.id} />
+        <TaskChecklists taskId={task.id} canUpdate={effectiveCanUpdate} />
 
         {/* Comments section */}
         <TaskComments 
@@ -783,13 +798,14 @@ export function BoardTaskDialog({
           currentUserId={useAuthStore.getState().user?.id}
           userFullName={useAuthStore.getState().user?.fullName || useAuthStore.getState().user?.email || "Người dùng"} 
           userAvatarUrl={useAuthStore.getState().user?.avatarUrl || ""}
+          canComment={effectiveCanComment}
         />
 
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
 
-          {readOnly ? (
+          {!effectiveCanUpdate && !effectiveCanDelete ? (
             <div className="ml-auto">
               <button
                 type="button"
@@ -801,15 +817,17 @@ export function BoardTaskDialog({
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Trash2 size={16} />
-                Xóa thẻ
-              </button>
+              {effectiveCanDelete ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Trash2 size={16} />
+                  Xóa thẻ
+                </button>
+              ) : <div />}
 
               <div className="flex gap-2">
                 <button
@@ -817,17 +835,19 @@ export function BoardTaskDialog({
                   onClick={onClose}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
                 >
-                  Hủy
+                  {effectiveCanUpdate ? "Hủy" : "Đóng"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSubmit()}
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save size={16} />
-                  Lưu thay đổi
-                </button>
+                {effectiveCanUpdate && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSubmit()}
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save size={16} />
+                    Lưu thay đổi
+                  </button>
+                )}
               </div>
             </>
           )}
