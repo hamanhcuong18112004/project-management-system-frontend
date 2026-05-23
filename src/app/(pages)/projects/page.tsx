@@ -157,15 +157,33 @@ export default function ProjectsPage() {
 
       const orphanWorkspaces: Workspace[] = (
         await Promise.all(
-          orphanWorkspaceIds.map((id) => getWorkspaceById(id).catch(() => null)),
+          orphanWorkspaceIds.map(async (id) => {
+            try {
+              const ws = await getWorkspaceById(id);
+              return ws;
+            } catch {
+              return {
+                id,
+                name: "Không gian làm việc (Khách)",
+                description: "Bạn là thành viên của một số bảng trong Không gian làm việc này.",
+                ownerId: "",
+                visibility: "PRIVATE" as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                role: "MEMBER" as const,
+                boards: [],
+                members: [],
+              };
+            }
+          }),
         )
-      ).filter(Boolean) as Workspace[];
+      ) as Workspace[];
 
       const orphanEntries: Workspace[] = orphanWorkspaces.map((workspace) => ({
         ...workspace,
         boards: boardsByWorkspace.get(workspace.id) ?? [],
         members: workspace.members || [],
-        role: "MEMBER" as WorkspaceRoleCode,
+        role: undefined,
       }));
 
       const combined = [...safeData, ...orphanEntries];

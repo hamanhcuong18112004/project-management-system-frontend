@@ -91,12 +91,15 @@ export function WorkspaceRow({
             <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
               <Layout size={16} /> Bảng ({boards.length})
             </button>
-            <button
-              onClick={() => setShowMembersModal(true)}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-            >
-              <Users size={16} /> Thành viên ({members.length})
-            </button>
+            
+            {(isOwner || workspace.role) && (
+              <button
+                onClick={() => setShowMembersModal(true)}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              >
+                <Users size={16} /> Thành viên ({members.length})
+              </button>
+            )}
 
             {(isOwner || workspace.permissions?.includes("ws:update") || workspace.permissions?.includes("role:view")) && (
               <>
