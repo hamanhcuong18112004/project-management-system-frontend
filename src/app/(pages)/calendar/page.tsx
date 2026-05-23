@@ -8,8 +8,9 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from "lu
 import { useCalendarTask } from "@/hooks/useCalendarTask";
 import { BoardTaskDialog } from "@/components/pages/board";
 import { type BoardTask } from "@/lib/api/task";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 const PRIORITY_COLORS = {
   URGENT: "#e11d48", // rose-600
@@ -32,16 +33,40 @@ export default function CalendarPage() {
 
   const [selectedTask, setSelectedTask] = useState<BoardTask | null>(null);
 
+  const user = useAuthStore((state) => state.user);
+
   const events = tasks
-    .filter((task) => task.dueDate)
-    .map((task) => ({
-      id: task.id,
-      title: task.title,
-      start: task.dueDate!,
-      className: `priority-${(task.priority || "MEDIUM").toLowerCase()} ${task.status === "DONE" ? "task-done" : ""}`,
-      extendedProps: { ...task },
-      editable: true, // Enable dragging for individual events
-    }));
+    .filter((task) => {
+      // Yêu cầu 1: lịch của ai hiện của người đó (là thành viên trong task thì hiển thị)
+      if (!user?.id) return false;
+      const isMember = task.assigneeIds && task.assigneeIds.includes(user.id);
+      return task.dueDate && isMember;
+    })
+    .map((task) => {
+      // Yêu cầu 2: nếu thời gian của task dài 2 ngày hoặc hơn thì task sẽ được nối dài ra 2 ô từ ngày tạo đến ngày kết thúc
+      let start = task.dueDate!;
+      let end: string | undefined = undefined;
+
+      if (task.createdAt && task.dueDate) {
+        const startDate = new Date(task.createdAt);
+        const endDate = new Date(task.dueDate);
+        const diffDays = differenceInCalendarDays(endDate, startDate) + 1;
+        if (diffDays >= 2) {
+          start = task.createdAt;
+          end = task.dueDate;
+        }
+      }
+
+      return {
+        id: task.id,
+        title: task.title,
+        start,
+        end,
+        className: `priority-${(task.priority || "MEDIUM").toLowerCase()} ${task.status === "DONE" ? "task-done" : ""}`,
+        extendedProps: { ...task },
+        editable: true, // Enable dragging for individual events
+      };
+    });
 
   const handleEventClick = (info: any) => {
     setSelectedTask(info.event.extendedProps);

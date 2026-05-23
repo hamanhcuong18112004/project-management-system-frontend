@@ -19,6 +19,7 @@ export interface BoardTask {
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string | null;
+  createdAt?: string | null;
   position?: number | null;
   archived?: boolean;
   attachmentCount?: number;
@@ -115,6 +116,7 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
     status: (raw.status as TaskStatus | undefined) || "TODO",
     priority: (raw.priority as TaskPriority | undefined) || "MEDIUM",
     dueDate: (raw.dueDate as string | null | undefined) ?? null,
+    createdAt: (raw.createdAt as string | null | undefined) ?? null,
     position:
       typeof raw.position === "number"
         ? raw.position
