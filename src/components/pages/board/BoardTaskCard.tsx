@@ -15,6 +15,7 @@ import type { BoardTask, TaskPriority } from "@/lib/api/task";
 import { useRealtime } from "@/providers/RealtimeProvider";
 import { createTaskDragId } from "./boardState";
 import { isTaskOverdue } from "./taskCardMeta";
+import { parseServerDate, formatTaskDueDate } from "@/lib/helper/formatTime";
 
 interface BoardTaskCardBaseProps {
   task: BoardTask;
@@ -28,20 +29,27 @@ interface SortableBoardTaskCardProps {
   task: BoardTask;
   taskListId: string;
   onClick: (task: BoardTask) => void;
+  disableDrag?: boolean;
 }
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
+  NONE: "bg-zinc-100 text-zinc-600 border border-zinc-200",
+  LOWEST: "bg-blue-50 text-blue-600 border border-blue-100",
   LOW: "bg-slate-100 text-slate-700",
   MEDIUM: "bg-amber-100 text-amber-700",
   HIGH: "bg-rose-100 text-rose-700",
+  HIGHEST: "bg-orange-100 text-orange-700",
   URGENT: "bg-red-100 text-red-700",
 };
 
-const STATUS_STYLES: Record<NonNullable<BoardTask["status"]>, string> = {
-  TODO: "bg-slate-100 text-slate-700",
-  IN_PROGRESS: "bg-sky-100 text-sky-700",
-  DONE: "bg-emerald-100 text-emerald-700",
-  ARCHIVED: "bg-zinc-200 text-zinc-700",
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  NONE: "Không",
+  LOWEST: "Rất thấp",
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+  HIGHEST: "Rất cao",
+  URGENT: "Khẩn cấp",
 };
 
 function formatDueDate(value?: string | null) {
@@ -53,7 +61,7 @@ function formatDueDate(value?: string | null) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(parseServerDate(value));
 }
 
 function BoardTaskCardBase({
@@ -63,17 +71,17 @@ function BoardTaskCardBase({
   className = "",
   ghost = false,
 }: BoardTaskCardBaseProps) {
-  const dueDate = formatDueDate(task.dueDate);
-  const overdue = isTaskOverdue(task);
+  const formattedDueDate = formatTaskDueDate(task.dueDate, task.status);
+  const createdAt = formatDueDate(task.createdAt);
   const priorityClass = PRIORITY_STYLES[task.priority || "MEDIUM"];
-  const status = task.status || "TODO";
-  const statusClass = STATUS_STYLES[status];
   const attachmentCount = Number(task.attachmentCount || 0);
   const commentCount = Number(task.commentCount || 0);
-  const checklistCount = Number(task.checklistCount || 0);
+  const checklistTotal = Number(task.checklistTotal || 0);
+  const checklistChecked = Number(task.checklistChecked || 0);
   const memberCount = Number(task.memberCount || 0);
+  const progressPercent = checklistTotal > 0 ? Math.round((checklistChecked / checklistTotal) * 100) : -1;
   const hasMeta = Boolean(
-    dueDate || attachmentCount > 0 || commentCount > 0 || checklistCount > 0 || memberCount > 0,
+    task.dueDate || createdAt || attachmentCount > 0 || commentCount > 0 || checklistTotal > 0 || memberCount > 0,
   );
 
   return (
@@ -103,31 +111,49 @@ function BoardTaskCardBase({
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <span
-            className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${statusClass}`}
-          >
-            {status}
-          </span>
           {task.priority ? (
             <span
               className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${priorityClass}`}
             >
-              {task.priority}
+              {PRIORITY_LABELS[task.priority] || task.priority}
             </span>
           ) : null}
         </div>
         </div>
 
+        {/* Progress bar for checklist */}
+        {progressPercent >= 0 ? (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+              <span className="flex items-center gap-1">
+                <CheckSquare size={10} />
+                {checklistChecked}/{checklistTotal}
+              </span>
+              <span className="font-semibold">{progressPercent}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${progressPercent === 100 ? "bg-emerald-500" : "bg-sky-500"}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
         {hasMeta ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-          {dueDate ? (
+          {createdAt ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-600">
+              <CalendarDays size={12} />
+              {createdAt}
+            </span>
+          ) : null}
+          {task.dueDate && formattedDueDate.text ? (
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-                overdue ? "bg-red-100 font-semibold text-red-700" : "bg-slate-100"
-              }`}
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${formattedDueDate.badgeClass}`}
             >
-              {overdue ? <Clock3 size={12} /> : <CalendarDays size={12} />}
-              {dueDate}
+              <Clock3 size={12} />
+              {formattedDueDate.text}
             </span>
           ) : null}
           {attachmentCount > 0 ? (
@@ -140,12 +166,6 @@ function BoardTaskCardBase({
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
               <MessageSquare size={12} />
               {commentCount}
-            </span>
-          ) : null}
-          {checklistCount > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1">
-              <CheckSquare size={12} />
-              {checklistCount}
             </span>
           ) : null}
           {memberCount > 0 ? (
@@ -187,10 +207,11 @@ export function SortableBoardTaskCard({
   task,
   taskListId,
   onClick,
+  disableDrag,
 }: SortableBoardTaskCardProps) {
   const { checkIsLocked } = useRealtime();
   const dragId = createTaskDragId(task.id);
-  const disabled = checkIsLocked(dragId);
+  const disabled = disableDrag || checkIsLocked(dragId);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({

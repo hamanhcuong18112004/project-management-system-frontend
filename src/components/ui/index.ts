@@ -6,3 +6,6 @@ export type { CardProps } from "./Card";
 
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
+
+export * from "./Dialog";
+export * from "./Textarea";

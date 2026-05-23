@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Layout, Settings, Sparkles, Users } from "lucide-react";
-import type { Workspace } from "@/lib/api/workspace";
+import type { SaveRolePayload, Workspace } from "@/lib/api/workspace";
 import { BoardCard, CreateBoardCard } from "./BoardCard";
 import { MembersModal } from "./MembersModal";
 import { SettingsModal } from "./SettingsModal";
@@ -15,26 +15,34 @@ type WorkspaceSettingsFormData = {
 
 interface WorkspaceRowProps {
   workspace: Workspace;
+  currentUserId?: string;
   onNavigateBoard: (board: NonNullable<Workspace["boards"]>[number]) => void;
   onCreateBoard: (workspace: Workspace) => void;
-  onInviteMember: (workspaceId: string, email: string) => void;
-  onRemoveMember: (workspaceId: string, memberId: string) => void;
+  onInviteMember: (workspaceId: string, email: string, roleId: string) => Promise<void>;
+  onRemoveMember: (workspaceId: string, memberId: string) => Promise<void>;
   onUpdateMemberRole: (
     workspaceId: string,
     memberId: string,
-    role: string,
-  ) => void;
+    roleId: string,
+  ) => Promise<void>;
+  onCreateRole: (workspaceId: string, payload: SaveRolePayload) => Promise<void>;
+  onUpdateRole: (workspaceId: string, roleId: string, payload: SaveRolePayload) => Promise<void>;
+  onDeleteRole: (workspaceId: string, roleId: string) => Promise<void>;
   onUpdateWorkspace: (data: WorkspaceSettingsFormData) => Promise<void>;
   onDeleteWorkspace: (workspaceId: string) => void;
 }
 
 export function WorkspaceRow({
   workspace,
+  currentUserId,
   onNavigateBoard,
   onCreateBoard,
   onInviteMember,
   onRemoveMember,
   onUpdateMemberRole,
+  onCreateRole,
+  onUpdateRole,
+  onDeleteRole,
   onUpdateWorkspace,
   onDeleteWorkspace,
 }: WorkspaceRowProps) {
@@ -45,7 +53,7 @@ export function WorkspaceRow({
   const boards = workspace.boards || [];
   const members = workspace.members || [];
   const isOwner = workspace.role === "OWNER";
-  const initial = workspace.name.charAt(0).toUpperCase();
+  const initial = (workspace?.name || "?").charAt(0).toUpperCase();
 
   const handleUpdateSubmit = async (data: WorkspaceSettingsFormData) => {
     try {
@@ -90,7 +98,7 @@ export function WorkspaceRow({
               <Users size={16} /> Thành viên ({members.length})
             </button>
 
-            {isOwner && (
+            {(isOwner || workspace.permissions?.includes("ws:update") || workspace.permissions?.includes("role:view")) && (
               <>
                 <button
                   onClick={() => setShowSettingsModal(true)}
@@ -98,21 +106,23 @@ export function WorkspaceRow({
                 >
                   <Settings size={16} /> Cài đặt
                 </button>
-                <button className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 transition hover:bg-violet-100">
-                  <Sparkles size={16} /> Nâng cấp
-                </button>
+                {isOwner && (
+                  <button className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 transition hover:bg-violet-100">
+                    <Sparkles size={16} /> Nâng cấp
+                  </button>
+                )}
               </>
             )}
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {boards.map((board) => (
-            <div key={board.id}>
+          {boards.map((board, i) => (
+            <div key={`${board.id}-${i}`}>
               <BoardCard board={board} onClick={onNavigateBoard} />
             </div>
           ))}
-          {isOwner && (
+          {(isOwner || workspace.permissions?.includes("board:create")) && (
             <div>
               <CreateBoardCard onClick={() => onCreateBoard(workspace)} />
             </div>
@@ -124,9 +134,13 @@ export function WorkspaceRow({
         open={showMembersModal}
         onClose={() => setShowMembersModal(false)}
         workspace={workspace}
+        currentUserId={currentUserId}
         onInviteMember={onInviteMember}
         onRemoveMember={onRemoveMember}
         onUpdateMemberRole={onUpdateMemberRole}
+        onCreateRole={onCreateRole}
+        onUpdateRole={onUpdateRole}
+        onDeleteRole={onDeleteRole}
       />
 
       <SettingsModal

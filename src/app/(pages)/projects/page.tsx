@@ -1,18 +1,26 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Info, Loader2, Plus } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Info, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
+  createWorkspaceRole,
   createWorkspace,
   deleteWorkspace,
+  deleteWorkspaceRole,
   getMyWorkspaces,
+  getMyInvitations,
+  getMyPermissions,
   getWorkspaceById,
   inviteToWorkspace,
+  removeWorkspaceMember,
   updateWorkspace,
+  updateWorkspaceMemberRole,
+  updateWorkspaceRole,
   type Board,
-  type Role,
+  type SaveRolePayload,
+  type WorkspaceRoleCode,
   type Workspace,
 } from "@/lib/api/workspace";
 import { createBoard, getBoardsByWorkspace, getBoardsByUser } from "@/lib/api/board";
@@ -23,6 +31,9 @@ import {
   type CreateBoardFormData,
 } from "@/components/pages/workspace";
 import { WorkspaceRow } from "@/components/pages/workspace/WorkspaceRow";
+import { ConfirmModal } from "@/components/common/ConfirmModal";
+import { WorkspaceInvitationModal } from "@/components/modals/WorkspaceInvitationModal";
+import { useNotifications } from "@/providers/NotificationProvider";
 
 type CreateWorkspaceFormData = {
   name: string;
@@ -39,8 +50,20 @@ type WorkspaceSettingsFormData = {
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { lastNotification, notifications, markAsRead } = useNotifications();
+
+  // Invitation state
+  const [inviteData, setInviteData] = useState<{
+    token: string;
+    workspaceId: string;
+    inviterName: string;
+    workspaceName: string;
+  } | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -54,7 +77,7 @@ export default function ProjectsPage() {
     typeof window !== "undefined"
       ? window.localStorage.getItem("auth-storage")
         ? JSON.parse(window.localStorage.getItem("auth-storage") || "{}").state
-            ?.user?.id
+          ?.user?.id
         : undefined
       : undefined;
 
@@ -93,16 +116,23 @@ export default function ProjectsPage() {
       // Build base workspace list
       const knownWorkspaceIds = new Set(data.map((w) => w.id));
 
-      const safeData = data.map((workspace) => {
-        let role: Role = "MEMBER";
+      const safeData = await Promise.all(data.map(async (workspace) => {
+        let role: WorkspaceRoleCode = "MEMBER";
+        let permissions: string[] = [];
+
+        try {
+          permissions = await getMyPermissions(workspace.id);
+        } catch (e) {
+          console.error(`Failed to fetch permissions for workspace ${workspace.id}`, e);
+        }
 
         if (userId && Array.isArray(workspace.members)) {
           const foundMember = workspace.members.find(
             (member) => member.userId === userId,
           );
 
-          if (foundMember?.role) {
-            role = foundMember.role as Role;
+          if (foundMember?.role?.code) {
+            role = foundMember.role.code;
           }
         }
 
@@ -111,8 +141,9 @@ export default function ProjectsPage() {
           boards: boardsByWorkspace.get(workspace.id) || workspace.boards || [],
           members: workspace.members || [],
           role,
+          permissions,
         };
-      });
+      }));
 
       // For direct boards in workspaces the user is NOT a member of,
       // fetch workspace info and append synthetic workspace entries
@@ -134,10 +165,15 @@ export default function ProjectsPage() {
         ...workspace,
         boards: boardsByWorkspace.get(workspace.id) ?? [],
         members: workspace.members || [],
-        role: "MEMBER" as Role,
+        role: "MEMBER" as WorkspaceRoleCode,
       }));
 
-      setWorkspaces([...safeData, ...orphanEntries]);
+      const combined = [...safeData, ...orphanEntries];
+      const uniqueWorkspaces = Array.from(
+        new Map(combined.map((w) => [w.id, w])).values(),
+      );
+
+      setWorkspaces(uniqueWorkspaces);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
@@ -154,13 +190,179 @@ export default function ProjectsPage() {
     fetchWorkspaces();
   }, [fetchWorkspaces]);
 
+  // Listen for real-time notifications to refresh list
+  useEffect(() => {
+    const refreshTypes = [
+      "WORKSPACE_MEMBER_JOINED",
+      "BOARD_CREATED",
+      "BOARD_UPDATED",
+      "WORKSPACE_CREATED",
+      "WORKSPACE_DELETED",
+      "BOARD_MEMBER_ADDED",
+    ];
+
+    if (lastNotification && refreshTypes.includes(lastNotification.type)) {
+      const timer = setTimeout(() => {
+        fetchWorkspaces();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [lastNotification, fetchWorkspaces]);
+
+  // Handle invitation query params
+  useEffect(() => {
+    const token = searchParams.get("inviteToken");
+    const wsId = searchParams.get("workspaceId");
+    const invName = searchParams.get("inviterName");
+
+    if (token && wsId) {
+      const checkInvite = async () => {
+        try {
+          // 1. Fetch user's invitations to check status of this token
+          const invites = await getMyInvitations();
+          const targetInvite = invites.find(inv => inv.inviteToken === token);
+
+          if (targetInvite) {
+            if (targetInvite.status === "ACCEPTED") {
+              // Check if they are actually a member now
+              const myWorkspaces = await getMyWorkspaces();
+              const alreadyMember = myWorkspaces.some(w => w.id === wsId);
+
+              if (alreadyMember) {
+                toast.info(`Bạn đã là thành viên của không gian làm việc "${targetInvite.workspaceName}"`);
+              } else {
+                toast.warning(`Lời mời này đã được chấp nhận trước đó, nhưng hiện tại bạn không còn là thành viên của "${targetInvite.workspaceName}".`);
+              }
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+              
+              router.push("/projects");
+              return;
+            } else if (targetInvite.status === "REJECTED") {
+              toast.warning(`Bạn đã từ chối lời mời tham gia "${targetInvite.workspaceName}"`);
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+
+              router.push("/projects");
+              return;
+            } else if (targetInvite.status === "EXPIRED") {
+              toast.error(`Lời mời tham gia "${targetInvite.workspaceName}" đã hết hạn`);
+              
+              // Mark corresponding notifications as read
+              const matching = notifications.filter(
+                (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+              );
+              for (const n of matching) {
+                void markAsRead(n.id);
+              }
+
+              router.push("/projects");
+              return;
+            }
+          }
+
+          // 2. Double check if user is already a member of this workspace
+          const myWorkspaces = await getMyWorkspaces();
+          const alreadyMember = myWorkspaces.some(w => w.id === wsId);
+          if (alreadyMember) {
+            toast.info(`Bạn đã là thành viên của không gian làm việc này`);
+            
+            // Mark corresponding notifications as read
+            const matching = notifications.filter(
+              (n) => !n.read && n.type === "WORKSPACE_INVITE" && (n.inviteToken === token || n.workspaceId === wsId)
+            );
+            for (const n of matching) {
+              void markAsRead(n.id);
+            }
+
+            router.push("/projects");
+            return;
+          }
+
+          const ws = await getWorkspaceById(wsId);
+          if (ws) {
+            setInviteData({
+              token,
+              workspaceId: wsId,
+              inviterName: invName || "Ai đó",
+              workspaceName: ws.name,
+            });
+            setShowInviteModal(true);
+          } else {
+            console.warn("Workspace not found or deleted");
+            // Clear query params since invitation is invalid
+            router.push("/projects");
+          }
+        } catch (error) {
+          console.error("Failed to fetch workspace for invitation", error);
+          router.push("/projects");
+        }
+      };
+      checkInvite();
+    }
+  }, [searchParams, notifications, markAsRead, router]);
+
+  // Handle search and workspaceId query params
+  useEffect(() => {
+    const searchParam = searchParams.get("search");
+    const wsIdParam = searchParams.get("workspaceId");
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    } else if (wsIdParam && workspaces.length > 0) {
+      const ws = workspaces.find((w) => w.id === wsIdParam);
+      if (ws) {
+        setSearchQuery(ws.name);
+      }
+    } else {
+      setSearchQuery("");
+    }
+  }, [searchParams, workspaces]);
+
+  const filteredWorkspaces = useMemo(() => {
+    const wsIdParam = searchParams.get("workspaceId");
+    if (wsIdParam) {
+      return workspaces.filter((ws) => ws.id === wsIdParam);
+    }
+
+    if (!searchQuery.trim()) {
+      return workspaces;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return workspaces
+      .map((ws) => {
+        const wsNameMatches = ws.name.toLowerCase().includes(query);
+        const filteredBoards = ws.boards?.filter((b) => b.name.toLowerCase().includes(query)) || [];
+        if (wsNameMatches || filteredBoards.length > 0) {
+          return {
+            ...ws,
+            boards: wsNameMatches ? ws.boards : filteredBoards,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as Workspace[];
+  }, [workspaces, searchQuery, searchParams]);
+
   const ownedWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.role === "OWNER"),
-    [workspaces],
+    () => filteredWorkspaces.filter((workspace) => workspace.role === "OWNER"),
+    [filteredWorkspaces],
   );
   const sharedWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.role !== "OWNER"),
-    [workspaces],
+    () => filteredWorkspaces.filter((workspace) => workspace.role !== "OWNER"),
+    [filteredWorkspaces],
   );
 
   const handleCreateWorkspace = async (data: CreateWorkspaceFormData) => {
@@ -179,15 +381,9 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDeleteWorkspace = async (workspaceId: string) => {
-    if (
-      !confirm(
-        "Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất.",
-      )
-    ) {
-      return;
-    }
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
 
+  const handleDeleteWorkspace = async (workspaceId: string) => {
     try {
       await deleteWorkspace(workspaceId);
       toast.success("Đã xóa không gian làm việc");
@@ -215,27 +411,47 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleInviteMember = async (workspaceId: string, email: string) => {
-    await inviteToWorkspace(workspaceId, email);
+  const handleInviteMember = async (workspaceId: string, email: string, roleId: string) => {
+    await inviteToWorkspace(workspaceId, email, roleId);
     toast.info(`Đã gửi lời mời tới email ${email}`);
     fetchWorkspaces();
   };
 
-  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
-    if (!confirm("Xóa thành viên này khỏi không gian làm việc?")) {
-      return;
-    }
+  const [memberToRemove, setMemberToRemove] = useState<{ workspaceId: string, memberId: string } | null>(null);
 
-    toast.info(`Xóa member ${memberId} khỏi workspace ${workspaceId} (Cần API)`);
-    fetchWorkspaces();
+  const handleRemoveMember = async (workspaceId: string, memberId: string) => {
+    setMemberToRemove({ workspaceId, memberId });
   };
 
   const handleUpdateMemberRole = async (
     workspaceId: string,
     memberId: string,
-    role: string,
+    roleId: string,
   ) => {
-    toast.info(`Cập nhật role member ${memberId} thành ${role} (Cần API)`);
+    await updateWorkspaceMemberRole(workspaceId, memberId, roleId);
+    toast.success("Cập nhật vai trò thành viên thành công");
+    fetchWorkspaces();
+  };
+
+  const handleCreateRole = async (workspaceId: string, payload: SaveRolePayload) => {
+    await createWorkspaceRole(workspaceId, payload);
+    toast.success("Đã tạo role mới");
+    fetchWorkspaces();
+  };
+
+  const handleUpdateRole = async (
+    workspaceId: string,
+    roleId: string,
+    payload: SaveRolePayload,
+  ) => {
+    await updateWorkspaceRole(workspaceId, roleId, payload);
+    toast.success("Đã cập nhật role");
+    fetchWorkspaces();
+  };
+
+  const handleDeleteRole = async (workspaceId: string, roleId: string) => {
+    await deleteWorkspaceRole(workspaceId, roleId);
+    toast.success("Đã xóa role");
     fetchWorkspaces();
   };
 
@@ -276,15 +492,15 @@ export default function ProjectsPage() {
         currentWorkspaces.map((workspace) =>
           workspace.id === selectedWorkspaceForBoard.id
             ? {
-                ...workspace,
-                boards: [
-                  ...(workspace.boards || []).filter(
-                    (board) => board.id !== createdBoard.id,
-                  ),
-                  createdBoard,
-                ],
-                updatedAt: new Date().toISOString(),
-              }
+              ...workspace,
+              boards: [
+                ...(workspace.boards || []).filter(
+                  (board) => board.id !== createdBoard.id,
+                ),
+                createdBoard,
+              ],
+              updatedAt: new Date().toISOString(),
+            }
             : workspace,
         ),
       );
@@ -337,17 +553,21 @@ export default function ProjectsPage() {
         </div>
 
         <div className="space-y-8">
-          {items.map((workspace) => (
+          {items.map((workspace, i) => (
             <WorkspaceRow
-              key={workspace.id}
+              key={`${workspace.id}-${i}`}
               workspace={workspace}
+              currentUserId={userId}
               onNavigateBoard={handleNavigateBoard}
               onCreateBoard={handleOpenCreateBoard}
               onInviteMember={handleInviteMember}
               onRemoveMember={handleRemoveMember}
               onUpdateMemberRole={handleUpdateMemberRole}
+              onCreateRole={handleCreateRole}
+              onUpdateRole={handleUpdateRole}
+              onDeleteRole={handleDeleteRole}
               onUpdateWorkspace={handleUpdateWorkspace}
-              onDeleteWorkspace={handleDeleteWorkspace}
+              onDeleteWorkspace={setWorkspaceToDelete}
             />
           ))}
         </div>
@@ -377,6 +597,36 @@ export default function ProjectsPage() {
           </button>
         </div>
 
+        {workspaces.length > 0 && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div className="relative flex-1 max-w-md">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                placeholder="Tìm kiếm không gian hoặc bảng..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+              />
+            </div>
+            {(searchQuery || searchParams.get("workspaceId")) && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  if (searchParams.get("workspaceId") || searchParams.get("search")) {
+                    router.push("/projects");
+                  }
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 size={32} className="animate-spin text-blue-500" />
@@ -391,6 +641,23 @@ export default function ProjectsPage() {
               className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
             >
               Bắt đầu tạo ngay
+            </button>
+          </div>
+        ) : filteredWorkspaces.length === 0 ? (
+          <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+            <p className="text-slate-500 text-sm font-medium">
+              Không tìm thấy không gian làm việc hoặc bảng nào khớp với từ khóa tìm kiếm.
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                if (searchParams.get("workspaceId") || searchParams.get("search")) {
+                  router.push("/projects");
+                }
+              }}
+              className="mt-4 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+            >
+              Xem tất cả không gian làm việc
             </button>
           </div>
         ) : (
@@ -422,6 +689,56 @@ export default function ProjectsPage() {
         onSubmit={handleCreateBoard}
         isLoading={isSubmittingBoard}
       />
+
+      <ConfirmModal
+        open={!!workspaceToDelete}
+        title="Xóa không gian làm việc"
+        description="Bạn có chắc chắn muốn xóa không gian làm việc này? Toàn bộ dữ liệu bên trong sẽ bị mất."
+        confirmText="Xóa Workspace"
+        isDanger={true}
+        onClose={() => setWorkspaceToDelete(null)}
+        onConfirm={async () => {
+          if (workspaceToDelete) {
+            await handleDeleteWorkspace(workspaceToDelete);
+            setWorkspaceToDelete(null);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        open={!!memberToRemove}
+        title="Xóa thành viên"
+        description="Bạn có chắc chắn muốn xóa thành viên này khỏi không gian làm việc?"
+        confirmText="Xóa thành viên"
+        isDanger={true}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={async () => {
+          if (memberToRemove) {
+            await removeWorkspaceMember(memberToRemove.workspaceId, memberToRemove.memberId);
+            toast.success("Đã xóa thành viên khỏi workspace");
+            fetchWorkspaces();
+            setMemberToRemove(null);
+          }
+        }}
+      />
+
+      {inviteData && (
+        <WorkspaceInvitationModal
+          isOpen={showInviteModal}
+          onClose={() => {
+            setShowInviteModal(false);
+            // Clear query params
+            router.push("/projects");
+          }}
+          onAccept={() => {
+            fetchWorkspaces();
+          }}
+          workspaceId={inviteData.workspaceId}
+          workspaceName={inviteData.workspaceName}
+          inviterName={inviteData.inviterName}
+          inviteToken={inviteData.token}
+        />
+      )}
     </div>
   );
 }

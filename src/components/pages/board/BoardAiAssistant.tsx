@@ -52,9 +52,12 @@ function isOverdue(value: string | null | undefined): boolean {
 function priorityLabel(priority: string): string {
   switch (priority?.toUpperCase()) {
     case "URGENT": return "Khẩn cấp";
+    case "HIGHEST": return "Rất cao";
     case "HIGH":   return "Cao";
     case "MEDIUM": return "Trung bình";
     case "LOW":    return "Thấp";
+    case "LOWEST": return "Rất thấp";
+    case "NONE":   return "Không";
     default:       return priority || "—";
   }
 }
@@ -62,9 +65,12 @@ function priorityLabel(priority: string): string {
 function priorityClass(priority: string): string {
   switch (priority?.toUpperCase()) {
     case "URGENT": return "bg-rose-100 text-rose-700";
-    case "HIGH":   return "bg-orange-100 text-orange-700";
-    case "MEDIUM": return "bg-amber-100 text-amber-700";
+    case "HIGHEST": return "bg-orange-100 text-orange-700";
+    case "HIGH":   return "bg-yellow-100 text-yellow-800";
+    case "MEDIUM": return "bg-blue-100 text-blue-700";
     case "LOW":    return "bg-emerald-100 text-emerald-700";
+    case "LOWEST": return "bg-indigo-100 text-indigo-700";
+    case "NONE":   return "bg-zinc-100 text-zinc-600";
     default:       return "bg-slate-100 text-slate-600";
   }
 }
@@ -223,12 +229,26 @@ export function BoardAiAssistant({
 
     try {
       const recommendation = await getWorkspaceTaskRecommendations(workspaceId, limit);
-      setResult(recommendation);
+
+      // Check if the AI returned an error in the summary
+      if (
+        recommendation.recommendedTasks.length === 0 &&
+        recommendation.summary &&
+        (recommendation.summary.toLowerCase().includes("khong the") ||
+         recommendation.summary.toLowerCase().includes("không thể"))
+      ) {
+        setError(
+          "AI không thể tải dữ liệu task. Hãy đảm bảo các service (board-service, task-service) đang hoạt động.",
+        );
+        setResult(null);
+      } else {
+        setResult(recommendation);
+      }
     } catch (requestError) {
       setError(
         getApiErrorMessage(
           requestError,
-          "Không thể lấy gợi ý từ AI. Hãy đảm bảo Ollama đang chạy.",
+          "Không thể lấy gợi ý từ AI. Hãy đảm bảo AI service và Ollama đang chạy.",
         ),
       );
     } finally {

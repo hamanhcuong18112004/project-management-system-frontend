@@ -11,6 +11,7 @@ import { type BoardTask } from "@/lib/api/task";
 import { format, differenceInCalendarDays } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 const PRIORITY_COLORS = {
   URGENT: "#e11d48", // rose-600
@@ -44,16 +45,16 @@ export default function CalendarPage() {
     })
     .map((task) => {
       // Yêu cầu 2: nếu thời gian của task dài 2 ngày hoặc hơn thì task sẽ được nối dài ra 2 ô từ ngày tạo đến ngày kết thúc
-      let start = task.dueDate!;
+      let start = parseServerDate(task.dueDate!).toISOString();
       let end: string | undefined = undefined;
 
       if (task.createdAt && task.dueDate) {
-        const startDate = new Date(task.createdAt);
-        const endDate = new Date(task.dueDate);
+        const startDate = parseServerDate(task.createdAt);
+        const endDate = parseServerDate(task.dueDate);
         const diffDays = differenceInCalendarDays(endDate, startDate) + 1;
         if (diffDays >= 2) {
-          start = task.createdAt;
-          end = task.dueDate;
+          start = startDate.toISOString();
+          end = endDate.toISOString();
         }
       }
 
@@ -79,21 +80,19 @@ export default function CalendarPage() {
     if (!newDate) return;
 
     try {
-      // Keep the original time if possible, or use the new date's time
-      const formattedDate = format(newDate, "yyyy-MM-dd'T'HH:mm:ss");
+      const formattedDate = format(newDate, "yyyy-MM-dd'T'HH:mm:ss'Z'");
       await handleUpdateTask(task.id, { dueDate: formattedDate });
     } catch (error) {
-      info.revert(); // Undo UI change if API fails
+      info.revert();
     }
   };
 
   const renderEventContent = (eventInfo: any) => {
     const { title, dueDate, priority, status } = eventInfo.event.extendedProps;
-    const timeStr = dueDate ? format(new Date(dueDate), "HH:mm") : "";
+    const timeStr = dueDate ? format(parseServerDate(dueDate), "HH:mm") : "";
     const isDone = status === "DONE";
     
-    // Choose icon based on status then priority
-    const statusIcon = isDone ? "✅" : (priority === "URGENT" ? "🔥" : priority === "HIGH" ? "⚡" : "•");
+    const statusIcon = isDone ? "✅" : (priority === "URGENT" ? "🔥" : (priority === "HIGHEST" || priority === "HIGH") ? "⚡" : "•");
 
     return (
       <div className={`flex h-full w-full flex-col justify-center overflow-hidden px-2 py-1 leading-tight text-white ${isDone ? "opacity-60" : ""}`}>
@@ -111,27 +110,28 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 p-4 lg:p-8 overflow-hidden font-sans">
-      {/* Header */}
-      <div className="mb-6 flex shrink-0 flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-200">
-            <CalendarIcon size={28} />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Lịch Công Việc</h1>
-            <p className="text-sm font-medium text-slate-500 italic">Quản lý tiến độ - Nâng tầm hiệu suất</p>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <CalendarIcon className="text-blue-600" size={26} />
+            Lịch Công Việc
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Quản lý tiến độ - Nâng tầm hiệu suất
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-lg border border-slate-100">
+        {/* Navigation / Actions */}
+        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm border border-slate-200">
           <button
             onClick={prevMonth}
             className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-all"
           >
             <ChevronLeft size={20} />
           </button>
-          <div className="min-w-[150px] text-center font-bold text-slate-800 px-2 capitalize text-lg">
+          <div className="min-w-[150px] text-center font-bold text-slate-800 px-2 capitalize text-sm md:text-base">
             {format(currentDate, "MMMM yyyy", { locale: vi })}
           </div>
           <button
@@ -140,10 +140,10 @@ export default function CalendarPage() {
           >
             <ChevronRight size={20} />
           </button>
-          <div className="mx-2 h-6 w-px bg-slate-100" />
+          <div className="mx-2 h-6 w-px bg-slate-200" />
           <button
             onClick={goToToday}
-            className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-xl shadow-md"
+            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-xl shadow-sm"
           >
             Hôm nay
           </button>
@@ -151,7 +151,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar Body */}
-      <div className="relative flex-1 min-h-0 rounded-[2rem] border border-slate-200 bg-white shadow-2xl overflow-hidden">
+      <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden p-4 min-h-[600px] h-[calc(100vh-240px)]">
         {loading && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm">
             <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
@@ -167,8 +167,8 @@ export default function CalendarPage() {
             events={events}
             eventClick={handleEventClick}
             eventContent={renderEventContent}
-            eventDrop={handleEventDrop} // Handle drag and drop
-            editable={true} // Enable editing/dragging
+            eventDrop={handleEventDrop}
+            editable={true}
             height="100%"
             locale="vi"
             dayMaxEvents={3}
@@ -183,7 +183,9 @@ export default function CalendarPage() {
         task={selectedTask}
         listName={selectedTask?.taskListName || "Calendar"}
         onClose={() => setSelectedTask(null)}
-        onSave={handleUpdateTask}
+        onSave={async (id, payload) => {
+          await handleUpdateTask(id, payload);
+        }}
         onDelete={handleDeleteTask}
       />
 
@@ -196,14 +198,14 @@ export default function CalendarPage() {
         }
         
         .calendar-header-cell {
-          background: #f1f5f9;
-          padding: 12px 0 !important;
+          background: #f8fafc;
+          padding: 10px 0 !important;
           border: none !important;
         }
 
         .calendar-header-cell .fc-col-header-cell-cushion {
-          font-size: 10px;
-          font-weight: 800;
+          font-size: 11px;
+          font-weight: 700;
           color: #64748b;
           text-transform: uppercase;
           text-decoration: none !important;
@@ -213,7 +215,7 @@ export default function CalendarPage() {
           font-size: 12px;
           font-weight: 700;
           color: #64748b;
-          padding: 10px 14px !important;
+          padding: 8px 12px !important;
           text-decoration: none !important;
         }
 
@@ -223,9 +225,9 @@ export default function CalendarPage() {
 
         .calendar-container .fc-event {
           margin: 1px 3px !important;
-          border-radius: 8px !important;
+          border-radius: 6px !important;
           border: none !important;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
           cursor: pointer;
         }
 
@@ -236,9 +238,12 @@ export default function CalendarPage() {
 
         /* Priority Colors */
         .priority-urgent { background-color: #e11d48 !important; }
-        .priority-high { background-color: #f97316 !important; }
+        .priority-highest { background-color: #f97316 !important; }
+        .priority-high { background-color: #fbbf24 !important; }
         .priority-medium { background-color: #3b82f6 !important; }
         .priority-low { background-color: #16a34a !important; }
+        .priority-lowest { background-color: #6366f1 !important; }
+        .priority-none { background-color: #94a3b8 !important; }
 
         .calendar-container .fc-theme-standard td, 
         .calendar-container .fc-theme-standard th {

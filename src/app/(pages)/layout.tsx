@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Header, Sidebar } from "@/components";
-import { useAuthStore } from "@/lib/stores/useAuthStore";
+import { useAuthStore, useSidebarStore } from "@/lib/stores";
 
 export default function PagesLayout({
   children,
@@ -11,7 +11,9 @@ export default function PagesLayout({
   children: React.ReactNode;
 }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isCollapsed } = useSidebarStore();
   const router = useRouter();
+
   const pathname = usePathname();
   const [hydrated, setHydrated] = useState(
     () => useAuthStore.persist?.hasHydrated?.() ?? false,
@@ -46,13 +48,13 @@ export default function PagesLayout({
     <div className="flex min-h-screen min-w-0">
       <Sidebar />
 
-      <div className="ml-64 flex min-w-0 flex-1 flex-col transition-all duration-300">
+      <div className={`${isCollapsed ? "ml-20" : "ml-64"} flex min-w-0 flex-1 flex-col transition-all duration-300`}>
+
         <Header />
 
         <main
-          className={`mt-16 flex-1 ${
-            isBoardRoute ? "min-w-0 overflow-hidden bg-slate-100" : "min-w-0 bg-gray-50 p-6"
-          }`}
+          className={`mt-16 flex-1 ${isBoardRoute ? "min-w-0 overflow-hidden bg-slate-100" : "min-w-0 bg-gray-50 p-6"
+            }`}
         >
           <div className={isBoardRoute ? "h-full min-w-0" : "mx-auto max-w-7xl"}>
             {children}

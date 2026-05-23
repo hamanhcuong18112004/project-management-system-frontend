@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   Download,
   File,
   FileImage,
@@ -24,7 +25,6 @@ import type {
   BoardTask,
   TaskAttachment,
   TaskPriority,
-  TaskStatus,
   UpdateTaskPayload,
 } from "@/lib/api/task";
 import type { BoardMemberSummary } from "@/lib/api/board";
@@ -38,7 +38,9 @@ import {
 } from "@/lib/api/task";
 
 import { TaskComments } from "./TaskComments";
+import { TaskChecklists } from "./TaskChecklists";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
+import { parseServerDate } from "@/lib/helper/formatTime";
 
 interface BoardTaskDialogProps {
 
@@ -49,6 +51,7 @@ interface BoardTaskDialogProps {
   onClose: () => void;
   onSave: (taskId: string, payload: UpdateTaskPayload) => Promise<void> | void;
   onDelete: (task: BoardTask) => Promise<void> | void;
+  readOnly?: boolean;
 }
 
 interface TaskFieldRowProps {
@@ -58,8 +61,17 @@ interface TaskFieldRowProps {
   children: ReactNode;
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ["TODO", "IN_PROGRESS", "DONE", "ARCHIVED"];
-const PRIORITY_OPTIONS: TaskPriority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const PRIORITY_OPTIONS: TaskPriority[] = ["NONE", "LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST", "URGENT"];
+
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  NONE: "Không",
+  LOWEST: "Rất thấp",
+  LOW: "Thấp",
+  MEDIUM: "Trung bình",
+  HIGH: "Cao",
+  HIGHEST: "Rất cao",
+  URGENT: "Khẩn cấp",
+};
 
 function formatFileSize(bytes?: number | null) {
   if (!bytes) return "";
@@ -78,25 +90,47 @@ function getFileIcon(fileType?: string | null) {
   return <File size={16} className="text-slate-500" />;
 }
 
-function toDateInputValue(value?: string | null) {
+function parseTaskDueDate(value?: string | null) {
   if (!value) {
-    return "";
+    return { hasDueDate: false, date: "", time: "17:30", isAllDay: false };
+  }
+  const dateObj = parseServerDate(value);
+  if (Number.isNaN(dateObj.getTime())) {
+    return { hasDueDate: false, date: "", time: "17:30", isAllDay: false };
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
 
-  return date.toISOString().slice(0, 10);
+  const hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes();
+  const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+  const isAllDay = (hours === 0 && minutes === 0);
+
+  return {
+    hasDueDate: true,
+    date: dateStr,
+    time: isAllDay ? "17:30" : timeStr,
+    isAllDay
+  };
 }
 
-function toDueDatePayload(value: string) {
-  if (!value) {
+function toDueDatePayload(hasDueDate: boolean, date: string, time: string, isAllDay: boolean) {
+  if (!hasDueDate || !date) {
     return null;
   }
-
-  return new Date(`${value}T00:00:00`).toISOString();
+  if (isAllDay) {
+    return `${date}T00:00:00Z`;
+  }
+  const t = time || "17:30";
+  const localDate = new Date(`${date}T${t}`);
+  if (Number.isNaN(localDate.getTime())) {
+    return `${date}T00:00:00Z`;
+  }
+  return localDate.toISOString();
 }
 
 function TaskFieldRow({
@@ -128,16 +162,22 @@ export function BoardTaskDialog({
   onClose,
   onSave,
   onDelete,
+  readOnly,
 }: BoardTaskDialogProps) {
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<TaskStatus>("TODO");
   const [priority, setPriority] = useState<TaskPriority>("MEDIUM");
-  const [dueDate, setDueDate] = useState("");
+  const [status, setStatus] = useState<string>("TODO");
+  const [hasDueDate, setHasDueDate] = useState(false);
+  const [dueDateStr, setDueDateStr] = useState("");
+  const [dueTimeStr, setDueTimeStr] = useState("17:30");
+  const [isAllDay, setIsAllDay] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Members state
   const [members, setMembers] = useState<string[]>([]);
+  const [initialMembers, setInitialMembers] = useState<string[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberAssigning, setMemberAssigning] = useState<string | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
@@ -148,7 +188,10 @@ export function BoardTaskDialog({
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [fileDragOver, setFileDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAssigned = currentUserId ? members.includes(currentUserId) : false;
 
   useEffect(() => {
     if (!open || !task) {
@@ -157,14 +200,24 @@ export function BoardTaskDialog({
 
     setTitle(task.title);
     setDescription(task.description ?? "");
-    setStatus(task.status ?? "TODO");
     setPriority(task.priority ?? "MEDIUM");
-    setDueDate(toDateInputValue(task.dueDate));
+    setStatus(task.status ?? "TODO");
+    const parsed = parseTaskDueDate(task.dueDate);
+    setHasDueDate(parsed.hasDueDate);
+    setDueDateStr(parsed.date);
+    setDueTimeStr(parsed.time);
+    setIsAllDay(parsed.isAllDay);
 
     setMembersLoading(true);
     getTaskMembers(task.id)
-      .then(setMembers)
-      .catch(() => setMembers([]))
+      .then((data) => {
+        setMembers(data);
+        setInitialMembers(data);
+      })
+      .catch(() => {
+        setMembers([]);
+        setInitialMembers([]);
+      })
       .finally(() => setMembersLoading(false));
 
     setAttachmentsLoading(true);
@@ -199,14 +252,25 @@ export function BoardTaskDialog({
     setSubmitting(true);
 
     try {
+      // Save member assignments/unassignments to database first
+      const toAdd = members.filter((id) => !initialMembers.includes(id));
+      const toRemove = initialMembers.filter((id) => !members.includes(id));
+
+      await Promise.all([
+        ...toAdd.map((userId) => assignTaskMember(task.id, userId)),
+        ...toRemove.map((userId) => unassignTaskMember(task.id, userId)),
+      ]);
+
       await onSave(task.id, {
         title: title.trim(),
         description,
-        status,
         priority,
-        dueDate: toDueDatePayload(dueDate),
+        status: status as any,
+        dueDate: toDueDatePayload(hasDueDate, dueDateStr, dueTimeStr, isAllDay),
       });
       onClose();
+    } catch (error) {
+      console.error("Lỗi khi lưu task:", error);
     } finally {
       setSubmitting(false);
     }
@@ -223,24 +287,13 @@ export function BoardTaskDialog({
     }
   };
 
-  const handleAssignMember = async (userId: string) => {
-    if (!userId || memberAssigning || members.includes(userId)) return;
-    setMemberAssigning(userId);
-    try {
-      await assignTaskMember(task.id, userId);
-      setMembers((prev) => [...prev, userId]);
-    } finally {
-      setMemberAssigning(null);
-    }
+  const handleAssignMember = (userId: string) => {
+    if (!userId || members.includes(userId)) return;
+    setMembers((prev) => [...prev, userId]);
   };
 
-  const handleUnassignMember = async (userId: string) => {
-    try {
-      await unassignTaskMember(task.id, userId);
-      setMembers((prev) => prev.filter((id) => id !== userId));
-    } catch {
-      // ignore
-    }
+  const handleUnassignMember = (userId: string) => {
+    setMembers((prev) => prev.filter((id) => id !== userId));
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -283,9 +336,9 @@ export function BoardTaskDialog({
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
               Task Detail
             </p>
-            <h3 className="mt-2 text-xl font-bold text-slate-900">Chỉnh sửa thẻ</h3>
+            <h3 className="mt-2 text-xl font-bold text-slate-900">{readOnly ? "Xem thẻ" : "Chỉnh sửa thẻ"}</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Cập nhật nội dung, trạng thái và hạn xử lý cho task này.
+              {readOnly ? "Bạn chỉ có quyền xem thẻ này." : "Cập nhật nội dung, trạng thái và hạn xử lý cho task này."}
             </p>
           </div>
 
@@ -311,7 +364,8 @@ export function BoardTaskDialog({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Nhập tiêu đề task"
-              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+              disabled={readOnly}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
           </TaskFieldRow>
 
@@ -321,29 +375,9 @@ export function BoardTaskDialog({
               onChange={(event) => setDescription(event.target.value)}
               rows={4}
               placeholder="Thêm mô tả ngắn gọn cho task"
-              className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+              disabled={readOnly}
+              className="w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
             />
-          </TaskFieldRow>
-
-          <TaskFieldRow label="Trạng thái">
-            <div className="relative">
-              <select
-                value={status}
-                onChange={(event) => setStatus(event.target.value as TaskStatus)}
-                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400"
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-            </div>
           </TaskFieldRow>
 
           <TaskFieldRow label="Ưu tiên" icon={<Flag size={15} />}>
@@ -351,11 +385,12 @@ export function BoardTaskDialog({
               <select
                 value={priority}
                 onChange={(event) => setPriority(event.target.value as TaskPriority)}
-                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400"
+                disabled={readOnly}
+                className="w-full appearance-none rounded-2xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-sm text-slate-900 outline-none transition focus:border-sky-400 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 {PRIORITY_OPTIONS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {PRIORITY_LABELS[option]}
                   </option>
                 ))}
               </select>
@@ -367,14 +402,98 @@ export function BoardTaskDialog({
             </div>
           </TaskFieldRow>
 
-          <TaskFieldRow label="Hạn xử lý" icon={<CalendarDays size={15} />}>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-400"
-            />
+          <TaskFieldRow label="Hạn xử lý" icon={<CalendarDays size={15} />} alignTop={true}>
+            <div className="space-y-3">
+              {/* Toggle to enable/disable deadline */}
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!hasDueDate}
+                    onChange={(e) => {
+                      setHasDueDate(!e.target.checked);
+                      if (e.target.checked) {
+                        setDueDateStr("");
+                      } else {
+                        const today = new Date();
+                        const y = today.getFullYear();
+                        const m = String(today.getMonth() + 1).padStart(2, '0');
+                        const d = String(today.getDate()).padStart(2, '0');
+                        setDueDateStr(`${y}-${m}-${d}`);
+                        setDueTimeStr("17:30");
+                        setIsAllDay(false);
+                      }
+                    }}
+                    disabled={readOnly}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">Không có hạn xử lý</span>
+                </label>
+              </div>
+
+              {hasDueDate && (
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition-all">
+                  {/* Date & Time selection */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex-1 min-w-[140px]">
+                      <input
+                        type="date"
+                        value={dueDateStr}
+                        onChange={(e) => setDueDateStr(e.target.value)}
+                        disabled={readOnly}
+                        required
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
+                      />
+                    </div>
+
+                    {!isAllDay && (
+                      <div className="flex-1 min-w-[120px]">
+                        <input
+                          type="time"
+                          value={dueTimeStr}
+                          onChange={(e) => setDueTimeStr(e.target.value)}
+                          disabled={readOnly}
+                          required
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400 font-medium"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* All day toggle */}
+                  <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isAllDay}
+                        onChange={(e) => setIsAllDay(e.target.checked)}
+                        disabled={readOnly}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 transition"
+                      />
+                      <span className="text-xs font-semibold text-slate-500">Cả ngày</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
           </TaskFieldRow>
+
+          {isAssigned && (
+            <TaskFieldRow label="Hoàn thành" icon={<CheckCircle2 size={15} className={status === "DONE" ? "text-emerald-500" : "text-slate-400"} />}>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={status === "DONE"}
+                  disabled={readOnly}
+                  onChange={(e) => setStatus(e.target.checked ? "DONE" : "TODO")}
+                  className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500 transition"
+                />
+                <span className={`text-sm font-semibold transition ${status === "DONE" ? "text-emerald-600" : "text-slate-700"}`}>
+                  Xác nhận hoàn thành công việc
+                </span>
+              </label>
+            </TaskFieldRow>
+          )}
         </div>
 
         {/* Members section */}
@@ -411,14 +530,16 @@ export function BoardTaskDialog({
                         ) : null}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void handleUnassignMember(userId)}
-                      className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                      title="Bỏ gán"
-                    >
-                      <UserMinus size={13} />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUnassignMember(userId)}
+                        className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        title="Bỏ gán"
+                      >
+                        <UserMinus size={13} />
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -426,7 +547,7 @@ export function BoardTaskDialog({
           )}
 
           {/* Board member searchable dropdown */}
-          {boardMembers.length > 0 ? (
+          {!readOnly && boardMembers.length > 0 ? (
             (() => {
               const unassigned = boardMembers.filter((m) => {
                 const uid = m.userId || m.id;
@@ -523,7 +644,7 @@ export function BoardTaskDialog({
               );
             })()
           ) : (
-            <p className="text-xs text-slate-400">Board này chưa có thành viên nào.</p>
+            <p className="text-xs text-slate-400">{readOnly ? null : "Board này chưa có thành viên nào."}</p>
           )}
         </div>
 
@@ -535,15 +656,17 @@ export function BoardTaskDialog({
               <span>Tài liệu đính kèm</span>
               {attachmentsLoading && <Loader2 size={13} className="animate-spin text-slate-400" />}
             </div>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-              Tải lên
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                Tải lên
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -553,19 +676,61 @@ export function BoardTaskDialog({
               onChange={(e) => void handleFileUpload(e.target.files)}
             />
           </div>
-          {!attachmentsLoading && attachments.length === 0 ? (
-            <div
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-sky-300 hover:bg-sky-50/50"
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
-            >
-              <Upload size={20} className="mb-2 text-slate-300" />
-              <p className="text-xs text-slate-400">Kéo thả hoặc nhấn để tải lên tài liệu</p>
-              <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>
+
+          {/* Drop zone */}
+          <div
+            className={`relative rounded-2xl border-2 border-dashed transition ${fileDragOver ? "border-sky-400 bg-sky-50" : "border-slate-200"} ${attachments.length === 0 && !attachmentsLoading ? "" : "mb-3"}`}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("Files")) {
+                e.preventDefault();
+                e.stopPropagation();
+                setFileDragOver(true);
+              }
+            }}
+            onDragEnter={(e) => {
+              if (e.dataTransfer.types.includes("Files")) {
+                e.preventDefault();
+                setFileDragOver(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setFileDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setFileDragOver(false);
+              void handleFileUpload(e.dataTransfer.files);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+          >
+            <div className="flex cursor-pointer flex-col items-center justify-center py-6 text-center">
+              {uploading ? (
+                <>
+                  <Loader2 size={20} className="mb-2 animate-spin text-sky-500" />
+                  <p className="text-xs text-sky-600 font-medium">Đang tải lên...</p>
+                </>
+              ) : fileDragOver ? (
+                <>
+                  <Upload size={20} className="mb-2 text-sky-500" />
+                  <p className="text-xs text-sky-600 font-medium">Thả file vào đây để tải lên</p>
+                </>
+              ) : (
+                <>
+                  <Upload size={20} className="mb-2 text-slate-300" />
+                  <p className="text-xs text-slate-400">Kéo thả hoặc nhấn để tải lên tài liệu</p>
+                  <p className="mt-1 text-[10px] text-slate-300">Hỗ trợ: hình ảnh, PDF, Word, Excel, ZIP, ...</p>
+                </>
+              )}
             </div>
-          ) : (
+          </div>
+
+          {/* Attachment list */}
+          {attachments.length > 0 && (
             <ul className="space-y-2">
               {attachments.map((attachment) => (
                 <li key={attachment.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
@@ -592,20 +757,25 @@ export function BoardTaskDialog({
                     >
                       <Download size={13} />
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAttachment(attachment.id)}
-                      className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                      title="Xóa tệp"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAttachment(attachment.id)}
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        title="Xóa tệp"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+
+        {/* Checklist section */}
+        <TaskChecklists taskId={task.id} />
 
         {/* Comments section */}
         <TaskComments 
@@ -619,34 +789,48 @@ export function BoardTaskDialog({
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
 
-          <button
-            type="button"
-            onClick={() => void handleDelete()}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Trash2 size={16} />
-            Xóa thẻ
-          </button>
+          {readOnly ? (
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                Đóng
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 size={16} />
+                Xóa thẻ
+              </button>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSubmit()}
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save size={16} />
-              Lưu thay đổi
-            </button>
-          </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSubmit()}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  Lưu thay đổi
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

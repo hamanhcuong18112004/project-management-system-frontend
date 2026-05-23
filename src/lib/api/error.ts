@@ -23,24 +23,22 @@ export function getApiErrorMessage(
     fallback = "Đã có lỗi xảy ra. Vui lòng thử lại.",
 ): string {
     if (axios.isAxiosError(error)) {
-        const payload = error.response?.data as BackendErrorPayload | undefined;
-        const nestedMessage = payload?.data?.message;
-        const nestedError = payload?.data?.error;
-        const serverMessage = payload?.message;
+        const payload = error.response?.data as any;
+        
+        // 1. Ưu tiên message cấp cao nhất (format mới: { status, code, message, data, error })
+        if (typeof payload?.message === "string" && payload.message.trim()) {
+            let msg = payload.message.trim();
+            
+            // Loại bỏ các tiền tố như "403 FORBIDDEN" nếu có (do Spring mặc định đôi khi thêm vào)
+            msg = msg.replace(/^[0-9]{3}\s+[A-Z_]+\s+["']?/, "").replace(/["']?$/, "");
+            
+            return msg;
+        }
 
+        // 2. Fallback cho format cũ hoặc nested data
+        const nestedMessage = payload?.data?.message || payload?.data?.error;
         if (typeof nestedMessage === "string" && nestedMessage.trim()) {
             return nestedMessage;
-        }
-
-        if (typeof nestedError === "string" && nestedError.trim()) {
-            return nestedError;
-        }
-
-        if (typeof serverMessage === "string" && serverMessage.trim()) {
-            if (serverMessage.trim().toLowerCase() === "success") {
-                return fallback;
-            }
-            return serverMessage;
         }
     }
 
@@ -56,6 +54,6 @@ export function getApiErrorCode(error: unknown): string | null {
         return null;
     }
 
-    const payload = error.response?.data as BackendErrorPayload | undefined;
-    return payload?.errors?.code ?? payload?.error?.code ?? null;
+    const payload = error.response?.data as any;
+    return payload?.error?.code ?? payload?.errors?.code ?? null;
 }
