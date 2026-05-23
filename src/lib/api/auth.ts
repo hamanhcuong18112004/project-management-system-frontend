@@ -179,3 +179,17 @@ export async function getMyProfile(): Promise<UserData> {
     );
     return unwrap(res);
 }
+
+/**
+ * POST /users/bulk
+ * Returns profiles for a list of user IDs.
+ */
+export async function getUsersProfiles(userIds: string[]): Promise<UserData[]> {
+    if (userIds.length === 0) return [];
+    
+    const res = await apiClient.post<ApiResponse<UserData[]>>(
+        `${service}/users/bulk`,
+        userIds
+    );
+    return unwrap(res);
+}

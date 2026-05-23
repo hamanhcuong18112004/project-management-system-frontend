@@ -72,6 +72,7 @@ import {
   type UpdateTaskPayload,
 } from "@/lib/api/task";
 import { getMyWorkspaces, getWorkspaceById, getWorkspaceMembers, getMyPermissions, type Member, type Workspace } from "@/lib/api/workspace";
+import { getUsersProfiles, type UserData } from "@/lib/api/auth";
 import { useRealtime, type DragItemType } from "@/providers/RealtimeProvider";
 import { useNotifications } from "@/providers/NotificationProvider";
 
@@ -153,6 +154,7 @@ export default function BoardDetailPage() {
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [joiningBoard, setJoiningBoard] = useState(false);
   const [wsMembers, setWsMembers] = useState<Member[]>([]);
+  const [fetchedUsers, setFetchedUsers] = useState<Record<string, UserData>>({});
   const [workspacePermissions, setWorkspacePermissions] = useState<string[]>([]);
   const [selectedTaskList, setSelectedTaskList] = useState<BoardTaskList | null>(null);
   const [addingList, setAddingList] = useState(false);
@@ -361,20 +363,41 @@ export default function BoardDetailPage() {
     );
   }, [board]);
 
-  // Enrich board.members with fullName/email from workspace members
+  // Fetch missing users that are not in the workspace
+  useEffect(() => {
+    if (!board) return;
+    const missingIds = (board.members || [])
+      .map(m => m.userId || m.id)
+      .filter(uid => uid && !wsMembers.find(w => w.userId === uid) && !fetchedUsers[uid as string]);
+    
+    if (missingIds.length > 0) {
+      getUsersProfiles(missingIds as string[]).then(users => {
+        setFetchedUsers(prev => {
+          const next = { ...prev };
+          users.forEach(u => {
+            if (u && u.id) next[u.id] = u;
+          });
+          return next;
+        });
+      }).catch(() => { /* ignore */ });
+    }
+  }, [board, wsMembers, fetchedUsers]);
+
+  // Enrich board.members with fullName/email from workspace members or fetchedUsers
   const enrichedBoardMembers = useMemo(() => {
     if (!board) return [];
     return (board.members || []).map((m) => {
       const uid = m.userId || m.id;
       const ws = wsMembers.find((w) => w.userId === uid);
+      const fetched = uid ? fetchedUsers[uid] : undefined;
       return {
         ...m,
         userId: uid,
-        fullName: m.fullName || ws?.fullName,
-        email: m.email || ws?.email,
+        fullName: m.fullName || ws?.fullName || fetched?.fullName,
+        email: m.email || ws?.email || fetched?.email,
       };
     });
-  }, [board?.members, wsMembers]);
+  }, [board?.members, wsMembers, fetchedUsers]);
 
   // Current user's role in this board
   const currentUserBoardRole = useMemo(() => {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Settings } from "lucide-react";
+import { Bell, Search, Settings, Trash2 } from "lucide-react";
 import { useAuthStore, useSidebarStore } from "@/lib/stores";
 import { MAIN_MENU } from "@/lib/constants/menu";
 import { useRealtime } from "@/providers/RealtimeProvider";
@@ -121,6 +121,8 @@ export function Header() {
                             if (!n.read) markAsRead(n.id);
                             if (n.type === "WORKSPACE_INVITE" && n.inviteToken && n.workspaceId) {
                               router.push(`/projects?inviteToken=${n.inviteToken}&workspaceId=${n.workspaceId}&inviterName=${encodeURIComponent(n.fullName || '')}`);
+                            } else if (n.boardId) {
+                              router.push(`/boards/${n.boardId}`);
                             }
                           }}
                           className={`group p-4 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50' : ''} ${!n.read ? 'bg-blue-50/30' : ''}`}
@@ -138,7 +140,7 @@ export function Header() {
                                 }}
                                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-500 rounded text-gray-400 transition-all"
                               >
-                                <Settings size={12} />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">
