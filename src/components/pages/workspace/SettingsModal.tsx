@@ -33,9 +33,13 @@ export function SettingsModal({
 
   if (!open || !workspace) return null;
 
+  const isOwner = workspace.role === "OWNER";
+  const canUpdate = isOwner || workspace.permissions?.includes("ws:update");
+  const canDelete = isOwner || workspace.permissions?.includes("ws:delete");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !canUpdate) return;
     onUpdateWorkspace({ id: workspace.id, name: name.trim(), description: description.trim() });
   };
 
@@ -67,7 +71,8 @@ export function SettingsModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100"
+              disabled={!canUpdate}
+              className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
               required
             />
           </div>
@@ -80,30 +85,39 @@ export function SettingsModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={!canUpdate}
               rows={4}
-              className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 resize-none"
+              className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-100 resize-none disabled:bg-gray-50 disabled:text-gray-500"
             />
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-5 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => onDeleteWorkspace(workspace.id)}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-            >
-              <Trash2 size={16} /> Xóa không gian làm việc
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isLoading && <span className="animate-spin mr-1">⌛</span>}
-              <Save size={16} /> Lưu thay đổi
-            </button>
-          </div>
+          {(canUpdate || canDelete) && (
+            <div className="flex items-center justify-between pt-5 border-t border-gray-100">
+              {canDelete ? (
+                <button
+                  type="button"
+                  onClick={() => onDeleteWorkspace(workspace.id)}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={16} /> Xóa không gian làm việc
+                </button>
+              ) : (
+                <div />
+              )}
+              {canUpdate && (
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isLoading && <span className="animate-spin mr-1">⌛</span>}
+                  <Save size={16} /> Lưu thay đổi
+                </button>
+              )}
+            </div>
+          )}
         </form>
       </div>
     </div>

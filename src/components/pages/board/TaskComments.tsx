@@ -18,6 +18,7 @@ interface TaskCommentsProps {
   currentUserId?: string;
   userFullName?: string;
   userAvatarUrl?: string;
+  canComment?: boolean;
 }
 
 const REACTIONS = [
@@ -32,7 +33,7 @@ const REACTIONS = [
 
 const COMMON_EMOJIS = ["😀", "😂", "🥰", "😍", "🤩", "😘", "😜", "🤑", "🤔", "🙄", "😭", "😤", "😡", "😱", "🥳", "😇", "👍", "👎", "❤️", "🔥", "✨", "🎉", "🙏", "💪", "🚀", "💡", "✅", "❌", "💯", "🌟"];
 
-export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUrl }: TaskCommentsProps) {
+export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUrl, canComment = true }: TaskCommentsProps) {
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
@@ -338,33 +339,35 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
 
               <div className="relative group/react">
                 <button 
-                  onClick={() => handleReact(comment.id, myReaction || "LIKE")}
-                  className={`text-[10px] font-bold transition ${reactionColor}`}
+                  onClick={() => canComment && handleReact(comment.id, myReaction || "LIKE")}
+                  className={`text-[10px] font-bold transition ${canComment ? reactionColor : "text-slate-400 cursor-default"}`}
                 >
                   {reactionLabel}
                 </button>
-                <div className="absolute bottom-full left-0 mb-2 hidden group-hover/react:flex items-center gap-1 rounded-full bg-white p-1 shadow-[0_4px_15px_rgba(0,0,0,0.15)] border border-slate-100 z-10 animate-in fade-in slide-in-from-bottom-2 duration-300 before:absolute before:top-full before:left-0 before:right-0 before:h-2 before:content-['']">
-                  {REACTIONS.map((r, idx) => (
-                    <button
-                      key={r.type}
-                      onClick={() => handleReact(comment.id, r.type)}
-                      className="hover:scale-150 hover:-translate-y-2 transition-all duration-200 p-1.5 text-xl group/emoji relative"
-                      title={r.label}
-                      style={{ transitionDelay: `${idx * 30}ms` }}
-                    >
-                      <span>{r.emoji}</span>
-                    </button>
-                  ))}
-                </div>
+                {canComment && (
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover/react:flex items-center gap-1 rounded-full bg-white p-1 shadow-[0_4px_15px_rgba(0,0,0,0.15)] border border-slate-100 z-10 animate-in fade-in slide-in-from-bottom-2 duration-300 before:absolute before:top-full before:left-0 before:right-0 before:h-2 before:content-['']">
+                    {REACTIONS.map((r, idx) => (
+                      <button
+                        key={r.type}
+                        onClick={() => handleReact(comment.id, r.type)}
+                        className="hover:scale-150 hover:-translate-y-2 transition-all duration-200 p-1.5 text-xl group/emoji relative"
+                        title={r.label}
+                        style={{ transitionDelay: `${idx * 30}ms` }}
+                      >
+                        <span>{r.emoji}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {!isReply && (
+              {canComment && !isReply && (
                 <button onClick={() => setReplyTo(comment)} className="text-[10px] font-bold text-slate-500 hover:text-slate-700 transition">
                   Trả lời
                 </button>
               )}
 
-              {isMe && (
+              {canComment && isMe && (
                 <button onClick={() => setCommentToDelete(comment.id)} className="opacity-0 group-hover:opacity-100 text-[10px] font-bold text-rose-400 hover:text-rose-600 transition">
                   Xóa
                 </button>
@@ -398,9 +401,11 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
         {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
       </div>
 
-      <div className="mb-6">
-        <CommentForm />
-      </div>
+      {canComment && (
+        <div className="mb-6">
+          <CommentForm />
+        </div>
+      )}
 
       {loading ? (
         <div className="py-10 text-center">

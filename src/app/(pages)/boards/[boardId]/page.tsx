@@ -71,7 +71,7 @@ import {
   type BoardTaskList,
   type UpdateTaskPayload,
 } from "@/lib/api/task";
-import { getMyWorkspaces, getWorkspaceById, getWorkspaceMembers, type Member, type Workspace } from "@/lib/api/workspace";
+import { getMyWorkspaces, getWorkspaceById, getWorkspaceMembers, getMyPermissions, type Member, type Workspace } from "@/lib/api/workspace";
 import { useRealtime, type DragItemType } from "@/providers/RealtimeProvider";
 import { useNotifications } from "@/providers/NotificationProvider";
 
@@ -153,6 +153,7 @@ export default function BoardDetailPage() {
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [joiningBoard, setJoiningBoard] = useState(false);
   const [wsMembers, setWsMembers] = useState<Member[]>([]);
+  const [workspacePermissions, setWorkspacePermissions] = useState<string[]>([]);
   const [selectedTaskList, setSelectedTaskList] = useState<BoardTaskList | null>(null);
   const [addingList, setAddingList] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
@@ -266,6 +267,18 @@ export default function BoardDetailPage() {
         }
       });
 
+    getMyPermissions(board.workspaceId)
+      .then((perms) => {
+        if (!cancelled) {
+          setWorkspacePermissions(perms);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspacePermissions([]);
+        }
+      });
+
     // Try new /members endpoint first; fall back to getMyWorkspaces for enrichment
     getWorkspaceMembers(board.workspaceId)
       .then((members) => {
@@ -370,8 +383,33 @@ export default function BoardDetailPage() {
     return member?.role?.toUpperCase() || undefined;
   }, [userId, enrichedBoardMembers]);
 
-  // True when the current user is NOT a member of this board (workspace member viewing only)
+  // Helper: check if user is workspace OWNER (bypass all permission checks)
+  const isWorkspaceOwner = useMemo(() => {
+    const currentWorkspaceMember = wsMembers.find((m) => m.userId === userId);
+    return currentWorkspaceMember?.role?.code === "OWNER";
+  }, [wsMembers, userId]);
+
+  // Helper: check a specific permission from workspace permissions list
+  const hasPermission = (perm: string): boolean => {
+    if (isWorkspaceOwner) return true;
+    // If permissions haven't loaded yet, be permissive (don't block prematurely)
+    if (workspacePermissions.length === 0) return !!currentUserBoardRole;
+    return workspacePermissions.includes(perm);
+  };
+
+  // True when user has NO board role at all (not a member)
   const isReadOnly = !currentUserBoardRole;
+
+  // Granular permission flags
+  const canCreateList = !isReadOnly && hasPermission("list:create");
+  const canUpdateList = !isReadOnly && hasPermission("list:update");
+  const canDeleteList = !isReadOnly && hasPermission("list:delete");
+  const canCreateTask = !isReadOnly && hasPermission("task:create");
+  const canUpdateTask = !isReadOnly && hasPermission("task:update");
+  const canDeleteTask = !isReadOnly && hasPermission("task:delete");
+  const canAssignTask = !isReadOnly && hasPermission("task:assign");
+  const canManageTaskAttachment = !isReadOnly && hasPermission("task:attachment");
+  const canCommentTask = !isReadOnly && hasPermission("task:comment");
 
   const activeTask = activeDragId ? findTaskByDragId(taskLists, activeDragId) : null;
   const activeTaskList = activeDragId
@@ -889,6 +927,11 @@ export default function BoardDetailPage() {
     }
   };
 
+  const canManageBoard = useMemo(() => {
+    if (isWorkspaceOwner) return true;
+    return workspacePermissions.includes("board:update");
+  }, [isWorkspaceOwner, workspacePermissions]);
+
   if (loading && !board) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-slate-100 text-slate-700">
@@ -930,6 +973,7 @@ export default function BoardDetailPage() {
             onOpenMembers={handleOpenMembers}
             onJoinBoard={() => void handleJoinBoard()}
             joiningBoard={joiningBoard}
+            canManage={canManageBoard}
           />
 
           <div className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden px-6 py-6">
@@ -967,6 +1011,9 @@ export default function BoardDetailPage() {
                       activeDragId={activeDragId}
                       activeTask={activeDragType === "task" ? activeTask : null}
                       readOnly={isReadOnly}
+                      canCreateTask={canCreateTask}
+                      canUpdateList={canUpdateList}
+                      canDeleteList={canDeleteList}
                     />
                   ))}
 
@@ -977,6 +1024,13 @@ export default function BoardDetailPage() {
                           <Plus size={16} />
                         </span>
                         Tham gia board để thêm danh sách
+                      </div>
+                    ) : !canCreateList ? (
+                      <div className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-400">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-300">
+                          <Plus size={16} />
+                        </span>
+                        Không có quyền thêm danh sách
                       </div>
                     ) : addingList ? (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50/85 p-3">
@@ -1058,6 +1112,11 @@ export default function BoardDetailPage() {
         onSave={(taskId, payload) => handleSaveTask(taskId, payload)}
         onDelete={(task) => setDeleteContext({ type: 'TASK', task })}
         readOnly={isReadOnly}
+        canUpdate={canUpdateTask}
+        canDelete={canDeleteTask}
+        canAssign={canAssignTask}
+        canManageAttachment={canManageTaskAttachment}
+        canComment={canCommentTask}
       />
       <BoardMembersDialog
         open={membersDialogOpen}
