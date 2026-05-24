@@ -384,7 +384,7 @@ export default function BoardDetailPage() {
   }, [board, wsMembers, fetchedUsers]);
 
   // Enrich board.members with fullName/email from workspace members or fetchedUsers
-  const enrichedBoardMembers = useMemo(() => {
+  const enrichedBoardMembers = useMemo<BoardMemberSummary[]>(() => {
     if (!board) return [];
     return (board.members || []).map((m) => {
       const uid = m.userId || m.id;
@@ -393,7 +393,7 @@ export default function BoardDetailPage() {
       return {
         ...m,
         userId: uid,
-        fullName: m.fullName || ws?.fullName || fetched?.fullName,
+        fullName: m.fullName || ws?.fullName || fetched?.fullName || undefined,
         email: m.email || ws?.email || fetched?.email,
       };
     });
