@@ -38,17 +38,65 @@ export default function DraftsPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load drafts from Redis
+  // Load drafts from Redis & LocalStorage
   const loadDrafts = async () => {
     setLoading(true);
+    
+    // Read local drafts from localStorage
+    const localDrafts: TaskDraft[] = [];
+    if (typeof window !== "undefined") {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("workspace_task_draft_")) {
+          const val = localStorage.getItem(key);
+          if (val) {
+            try {
+              if (val.startsWith("{")) {
+                const parsed = JSON.parse(val);
+                localDrafts.push({
+                  id: parsed.id || key,
+                  title: parsed.title || "",
+                  description: parsed.description || "Bản nháp cục bộ",
+                  listId: parsed.listId || key.replace("workspace_task_draft_", ""),
+                  updatedAt: parsed.updatedAt || Date.now(),
+                  isLocalOnly: true
+                } as any);
+              } else {
+                localDrafts.push({
+                  id: key,
+                  title: val,
+                  description: "Bản nháp cục bộ (Chưa đồng bộ)",
+                  listId: key.replace("workspace_task_draft_", ""),
+                  updatedAt: Date.now(),
+                  isLocalOnly: true
+                } as any);
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }
+        }
+      }
+    }
+
     try {
       const data = await getAllDrafts();
-      setDrafts(data);
+      
+      const mergedDrafts = [...data];
+      localDrafts.forEach(local => {
+        const exists = mergedDrafts.some(r => r.id === local.id);
+        if (!exists) {
+          mergedDrafts.push(local);
+        }
+      });
+
+      setDrafts(mergedDrafts);
       setIsOnline(true);
     } catch (error) {
       console.error("Lỗi khi tải bản nháp từ Redis:", error);
       setIsOnline(false);
-      toast.error("Không thể kết nối đến máy chủ Redis. Đang chạy ở chế độ offline.");
+      setDrafts(localDrafts);
+      toast.error("Không thể kết nối đến máy chủ Redis. Đang hiển thị bản nháp ngoại tuyến.");
     } finally {
       setLoading(false);
     }
@@ -147,12 +195,11 @@ export default function DraftsPage() {
       return;
     }
 
-    if (!isOnline) {
-      toast.error("Không thể gửi dữ liệu lên Redis Server khi ngoại tuyến. Bản nháp của bạn đã được sao lưu an toàn tại thiết bị.");
-      return;
-    }
-
     setIsSubmitting(true);
+
+    const draft = drafts.find(d => d.id === editingId);
+    const isLocal = draft && (draft as any).isLocalOnly;
+
     const payload: TaskDraft = {
       title,
       description,
@@ -161,18 +208,45 @@ export default function DraftsPage() {
     };
 
     try {
-      if (editingId) {
-        await updateDraft(editingId, payload);
-        toast.success("Đã cập nhật bản nháp thành công trên Redis");
+      if (!isOnline) {
+        // Save to localStorage offline
+        if (typeof window !== "undefined") {
+          const targetListId = listId.trim() || (editingId ? editingId.replace("board_list_", "") : "unknown");
+          const localDraftObj = {
+            id: `board_list_${targetListId}`,
+            title,
+            description,
+            listId: targetListId,
+            assigneeId: assigneeId.trim() || undefined,
+            updatedAt: Date.now()
+          };
+          localStorage.setItem(`workspace_task_draft_${targetListId}`, JSON.stringify(localDraftObj));
+          toast.success("Đã cập nhật bản nháp cục bộ ngoại tuyến thành công");
+        }
       } else {
-        await createDraft(payload);
-        toast.success("Đã lưu bản nháp mới thành công vào Redis");
+        // Online: save to Redis
+        if (editingId) {
+          if (isLocal && typeof window !== "undefined") {
+            const oldListId = editingId.replace("board_list_", "");
+            localStorage.removeItem(`workspace_task_draft_${oldListId}`);
+          }
+          if (editingId.startsWith("board_list_")) {
+            payload.id = editingId;
+            await createDraft(payload);
+          } else {
+            await updateDraft(editingId, payload);
+          }
+          toast.success("Đã cập nhật bản nháp thành công trên Redis");
+        } else {
+          await createDraft(payload);
+          toast.success("Đã lưu bản nháp mới thành công vào Redis");
+        }
       }
       resetForm();
       await loadDrafts();
     } catch (error) {
       console.error("Lỗi khi lưu bản nháp:", error);
-      toast.error("Có lỗi xảy ra khi lưu trữ dữ liệu lên Redis. Vui lòng kiểm tra kết nối mạng.");
+      toast.error("Có lỗi xảy ra khi lưu trữ dữ liệu. Vui lòng kiểm tra kết nối mạng.");
     } finally {
       setIsSubmitting(false);
     }
@@ -180,28 +254,41 @@ export default function DraftsPage() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isOnline) {
+    
+    const draft = drafts.find(d => d.id === id);
+    const isLocal = draft && (draft as any).isLocalOnly;
+
+    if (!isLocal && !isOnline) {
       toast.error("Không thể thực hiện tác vụ xóa trên Redis khi ngoại tuyến.");
       return;
     }
-    if (!confirm("Bạn có chắc chắn muốn xóa bản nháp này khỏi Redis không?")) {
+    if (!confirm("Bạn có chắc chắn muốn xóa bản nháp này không?")) {
       return;
     }
 
     try {
-      await deleteDraft(id);
-      toast.success("Đã xóa bản nháp thành công khỏi Redis");
+      if (isLocal) {
+        if (typeof window !== "undefined") {
+          const listIdVal = id.replace("board_list_", "");
+          localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+          toast.success("Đã xóa bản nháp cục bộ thành công");
+        }
+      } else {
+        await deleteDraft(id);
+        toast.success("Đã xóa bản nháp thành công khỏi Redis");
+      }
+      
       if (editingId === id) {
         resetForm();
       }
       await loadDrafts();
     } catch (error) {
       console.error("Lỗi khi xóa bản nháp:", error);
-      toast.error("Không thể xóa bản nháp khỏi Redis");
+      toast.error("Không thể xóa bản nháp");
     }
   };
 
-  // Convert draft to an official task and delete from Redis
+  // Convert draft to an official task and delete from Redis/LocalStorage
   const handlePublish = async (draft: TaskDraft, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!draft.listId) {
@@ -214,7 +301,7 @@ export default function DraftsPage() {
       return;
     }
 
-    if (!confirm(`Bạn có chắc chắn muốn chuyển bản nháp "${draft.title}" thành công việc chính thức? (Bản nháp sẽ được xóa khỏi Redis sau khi tạo thành công)`)) {
+    if (!confirm(`Bạn có chắc chắn muốn chuyển bản nháp "${draft.title}" thành công việc chính thức? (Bản nháp sẽ được xóa sau khi tạo thành công)`)) {
       return;
     }
 
@@ -230,10 +317,16 @@ export default function DraftsPage() {
 
       toast.success("Đã tạo công việc chính thức thành công trên bảng!");
 
-      // 2. Xóa bản nháp khỏi Redis
-      await deleteDraft(draft.id!);
+      // 2. Xóa bản nháp khỏi Redis hoặc LocalStorage
+      if ((draft as any).isLocalOnly) {
+        if (typeof window !== "undefined") {
+          const listIdVal = draft.id!.replace("board_list_", "");
+          localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+        }
+      } else {
+        await deleteDraft(draft.id!);
+      }
       
-      // 3. Làm mới danh sách bản nháp và reset form nếu đang sửa bản nháp này
       if (editingId === draft.id) {
         resetForm();
       }
@@ -359,6 +452,11 @@ export default function DraftsPage() {
                       {draft.listId && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 border border-blue-100 text-blue-700">
                           List ID: {draft.listId}
+                        </span>
+                      )}
+                      {(draft as any).isLocalOnly && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 border border-amber-200 text-amber-700">
+                          Ngoại tuyến (Chưa sync)
                         </span>
                       )}
                       {draft.assigneeId && (

@@ -150,7 +150,14 @@ function BoardTaskListColumnBase({
     // Save to localStorage immediately
     if (typeof window !== "undefined") {
       if (taskTitle.trim()) {
-        localStorage.setItem(`workspace_task_draft_${list.id}`, taskTitle);
+        const localDraftObj = {
+          id: `board_list_${list.id}`,
+          title: taskTitle.trim(),
+          description: `Bản nháp tự động lưu từ cột "${list.name}"`,
+          listId: list.id,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(`workspace_task_draft_${list.id}`, JSON.stringify(localDraftObj));
       } else {
         localStorage.removeItem(`workspace_task_draft_${list.id}`);
       }
