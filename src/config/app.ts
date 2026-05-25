@@ -20,7 +20,7 @@ export const ROUTES = {
     team: "/team",
     calendar: "/calendar",
     reports: "/reports",
-    settings: "/settings",
+    settings: "/profile",
     profile: "/profile",
     invitations: "/invitations",
     drafts: "/drafts",
