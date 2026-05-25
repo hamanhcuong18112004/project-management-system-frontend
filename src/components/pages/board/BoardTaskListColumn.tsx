@@ -14,6 +14,7 @@ import {
   SortableBoardTaskCard,
 } from "./BoardTaskCard";
 import { toast } from "sonner";
+import { getDraftById, createDraft, deleteDraft } from "@/lib/api/redisDraft";
 
 interface BoardTaskListColumnProps {
   list: BoardTaskList;
@@ -108,20 +109,45 @@ function BoardTaskListColumnBase({
     tempDropPosition >= list.tasks.length &&
     Boolean(activeTask);
 
-  // Load saved draft from localStorage when box opens
-  useEffect(() => {
-    if (addingTask && typeof window !== "undefined") {
-      const savedDraft = localStorage.getItem(`workspace_task_draft_${list.id}`);
-      if (savedDraft) {
-        setTaskTitle(savedDraft);
-        toast.info(`Đã tự động khôi phục bản nháp công việc ở cột "${list.name}"`);
-      }
-    }
-  }, [addingTask, list.id, list.name]);
-
-  // Auto-save input value to localStorage as the user types
+  // Load saved draft when box opens
   useEffect(() => {
     if (!addingTask) return;
+
+    const loadInitialDraft = async () => {
+      let draftLoaded = false;
+
+      // 1. Try to load from Redis first if online
+      if (typeof window !== "undefined" && window.navigator.onLine) {
+        try {
+          const draft = await getDraftById(`board_list_${list.id}`);
+          if (draft && draft.title) {
+            setTaskTitle(draft.title);
+            toast.info(`Đã khôi phục bản nháp từ Redis Cache cho cột "${list.name}"`);
+            draftLoaded = true;
+          }
+        } catch (error) {
+          // Silent catch for 404 / no draft on Redis
+        }
+      }
+
+      // 2. Fall back to LocalStorage if not loaded from Redis
+      if (!draftLoaded && typeof window !== "undefined") {
+        const savedDraft = localStorage.getItem(`workspace_task_draft_${list.id}`);
+        if (savedDraft) {
+          setTaskTitle(savedDraft);
+          toast.info(`Đã khôi phục bản nháp từ bộ nhớ máy cho cột "${list.name}"`);
+        }
+      }
+    };
+
+    void loadInitialDraft();
+  }, [addingTask, list.id, list.name]);
+
+  // Auto-save input value to localStorage immediately, and debounce sync to Redis
+  useEffect(() => {
+    if (!addingTask) return;
+
+    // Save to localStorage immediately
     if (typeof window !== "undefined") {
       if (taskTitle.trim()) {
         localStorage.setItem(`workspace_task_draft_${list.id}`, taskTitle);
@@ -129,7 +155,61 @@ function BoardTaskListColumnBase({
         localStorage.removeItem(`workspace_task_draft_${list.id}`);
       }
     }
-  }, [taskTitle, list.id, addingTask]);
+
+    // Debounced delete from Redis if title is empty
+    if (!taskTitle.trim()) {
+      const delayDebounceFn = setTimeout(async () => {
+        if (typeof window !== "undefined" && window.navigator.onLine) {
+          try {
+            await deleteDraft(`board_list_${list.id}`);
+          } catch (error) {
+            // Ignore 404
+          }
+        }
+      }, 1000);
+      return () => clearTimeout(delayDebounceFn);
+    }
+
+    // Debounced create/update draft on Redis
+    const delayDebounceFn = setTimeout(async () => {
+      if (typeof window !== "undefined" && window.navigator.onLine) {
+        try {
+          await createDraft({
+            id: `board_list_${list.id}`,
+            title: taskTitle.trim(),
+            description: `Bản nháp tự động lưu từ cột "${list.name}"`,
+            listId: list.id,
+          });
+        } catch (error) {
+          console.error("Lỗi tự động lưu Redis:", error);
+        }
+      }
+    }, 1000); // 1s debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [taskTitle, list.id, addingTask, list.name]);
+
+  // Synchronize local draft to Redis when coming back online
+  useEffect(() => {
+    if (!addingTask || !taskTitle.trim()) return;
+
+    const handleOnline = async () => {
+      try {
+        await createDraft({
+          id: `board_list_${list.id}`,
+          title: taskTitle.trim(),
+          description: `Bản nháp tự động lưu từ cột "${list.name}"`,
+          listId: list.id,
+        });
+        toast.success(`Đã đồng bộ bản nháp cột "${list.name}" lên Redis Cache`);
+      } catch (error) {
+        console.error("Lỗi đồng bộ Redis khi trực tuyến:", error);
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [addingTask, taskTitle, list.id, list.name]);
 
   const submitTask = async () => {
     if (!taskTitle.trim() || creatingTask) {
@@ -145,9 +225,21 @@ function BoardTaskListColumnBase({
 
     try {
       await onCreateTask(list, taskTitle.trim());
+      
+      // Clean up LocalStorage
       if (typeof window !== "undefined") {
         localStorage.removeItem(`workspace_task_draft_${list.id}`);
       }
+
+      // Clean up Redis
+      if (typeof window !== "undefined" && window.navigator.onLine) {
+        try {
+          await deleteDraft(`board_list_${list.id}`);
+        } catch (error) {
+          // Ignore
+        }
+      }
+
       setTaskTitle("");
       setAddingTask(false);
     } catch (error) {
@@ -241,6 +333,9 @@ function BoardTaskListColumnBase({
               onClick={() => {
                 if (typeof window !== "undefined") {
                   localStorage.removeItem(`workspace_task_draft_${list.id}`);
+                }
+                if (typeof window !== "undefined" && window.navigator.onLine) {
+                  void deleteDraft(`board_list_${list.id}`).catch(() => {});
                 }
                 setTaskTitle("");
                 setAddingTask(false);
