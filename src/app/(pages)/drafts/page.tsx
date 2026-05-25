@@ -36,6 +36,7 @@ export default function DraftsPage() {
   const [listId, setListId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load drafts from Redis
   const loadDrafts = async () => {
@@ -100,11 +101,15 @@ export default function DraftsPage() {
           console.error("Lỗi phân tích bản nháp dự phòng:", e);
         }
       }
+      setIsLoaded(true);
+    } else {
+      setIsLoaded(true);
     }
   }, []);
 
   // Auto-save progress to LocalStorage
   useEffect(() => {
+    if (!isLoaded) return;
     if (typeof window !== "undefined") {
       if (title.trim() || description.trim() || listId.trim() || assigneeId.trim()) {
         const backup = { title, description, listId, assigneeId, editingId };
@@ -113,7 +118,7 @@ export default function DraftsPage() {
         localStorage.removeItem("task_draft_local_backup");
       }
     }
-  }, [title, description, listId, assigneeId, editingId]);
+  }, [title, description, listId, assigneeId, editingId, isLoaded]);
 
   const resetForm = () => {
     setEditingId(null);

@@ -121,6 +121,7 @@ function BoardTaskListColumnBase({
 
   // Auto-save input value to localStorage as the user types
   useEffect(() => {
+    if (!addingTask) return;
     if (typeof window !== "undefined") {
       if (taskTitle.trim()) {
         localStorage.setItem(`workspace_task_draft_${list.id}`, taskTitle);
@@ -128,7 +129,7 @@ function BoardTaskListColumnBase({
         localStorage.removeItem(`workspace_task_draft_${list.id}`);
       }
     }
-  }, [taskTitle, list.id]);
+  }, [taskTitle, list.id, addingTask]);
 
   const submitTask = async () => {
     if (!taskTitle.trim() || creatingTask) {
@@ -238,6 +239,9 @@ function BoardTaskListColumnBase({
             <button
               type="button"
               onClick={() => {
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem(`workspace_task_draft_${list.id}`);
+                }
                 setTaskTitle("");
                 setAddingTask(false);
               }}
