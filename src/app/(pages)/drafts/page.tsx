@@ -3,16 +3,15 @@
 import React, { useEffect, useState } from "react";
 import { 
   FileText, 
-  Plus, 
   Trash2, 
   Edit3, 
   Sparkles, 
   Loader2, 
   Clock, 
-  AlertCircle, 
   FolderPlus,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  WifiOff
 } from "lucide-react";
 import { 
   getAllDrafts, 
@@ -34,23 +33,85 @@ export default function DraftsPage() {
   const [assigneeId, setAssigneeId] = useState("");
   const [listId, setListId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
+  // Load drafts from Redis
   const loadDrafts = async () => {
     setLoading(true);
     try {
       const data = await getAllDrafts();
       setDrafts(data);
+      setIsOnline(true);
     } catch (error) {
       console.error("Lỗi khi tải bản nháp từ Redis:", error);
-      toast.error("Không thể tải danh sách bản nháp từ Redis");
+      setIsOnline(false);
+      toast.error("Không thể kết nối đến máy chủ Redis. Đang chạy ở chế độ offline.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Monitor network status
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(window.navigator.onLine);
+      
+      const handleOnline = () => {
+        setIsOnline(true);
+        toast.success("Mạng đã được kết nối lại. Đang đồng bộ hóa dữ liệu từ Redis...");
+        void loadDrafts();
+      };
+      
+      const handleOffline = () => {
+        setIsOnline(false);
+        toast.warning("Bạn đang ngoại tuyến. Các bản nháp mới soạn thảo sẽ được lưu trữ an toàn trong bộ nhớ tạm của thiết bị.");
+      };
+
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
+  }, []);
+
+  // Restore draft backup on mount
   useEffect(() => {
     void loadDrafts();
+
+    if (typeof window !== "undefined") {
+      const backupStr = localStorage.getItem("task_draft_local_backup");
+      if (backupStr) {
+        try {
+          const backup = JSON.parse(backupStr);
+          if (backup.title || backup.description) {
+            setTitle(backup.title || "");
+            setDescription(backup.description || "");
+            setListId(backup.listId || "");
+            setAssigneeId(backup.assigneeId || "");
+            setEditingId(backup.editingId || null);
+            toast.info("Đã tự động khôi phục lại bản nháp chưa lưu gần nhất trên thiết bị của bạn.");
+          }
+        } catch (e) {
+          console.error("Lỗi phân tích bản nháp dự phòng:", e);
+        }
+      }
+    }
   }, []);
+
+  // Auto-save progress to LocalStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (title.trim() || description.trim() || listId.trim() || assigneeId.trim()) {
+        const backup = { title, description, listId, assigneeId, editingId };
+        localStorage.setItem("task_draft_local_backup", JSON.stringify(backup));
+      } else {
+        localStorage.removeItem("task_draft_local_backup");
+      }
+    }
+  }, [title, description, listId, assigneeId, editingId]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -58,6 +119,9 @@ export default function DraftsPage() {
     setDescription("");
     setAssigneeId("");
     setListId("");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("task_draft_local_backup");
+    }
   };
 
   const handleEditClick = (draft: TaskDraft) => {
@@ -73,6 +137,11 @@ export default function DraftsPage() {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
       toast.warning("Vui lòng nhập đầy đủ tiêu đề và nội dung mô tả bản nháp");
+      return;
+    }
+
+    if (!isOnline) {
+      toast.error("Không thể gửi dữ liệu lên Redis Server khi ngoại tuyến. Bản nháp của bạn đã được sao lưu an toàn tại thiết bị.");
       return;
     }
 
@@ -96,7 +165,7 @@ export default function DraftsPage() {
       await loadDrafts();
     } catch (error) {
       console.error("Lỗi khi lưu bản nháp:", error);
-      toast.error("Lỗi lưu bản nháp vào Redis");
+      toast.error("Có lỗi xảy ra khi lưu trữ dữ liệu lên Redis. Vui lòng kiểm tra kết nối mạng.");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,6 +173,10 @@ export default function DraftsPage() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isOnline) {
+      toast.error("Không thể thực hiện tác vụ xóa trên Redis khi ngoại tuyến.");
+      return;
+    }
     if (!confirm("Bạn có chắc chắn muốn xóa bản nháp này khỏi Redis không?")) {
       return;
     }
@@ -151,13 +224,22 @@ export default function DraftsPage() {
             Quản lý các bản nháp công việc được lưu trữ tức thời trên cơ sở dữ liệu bộ nhớ đệm **Redis**.
           </p>
         </div>
-        <button 
-          onClick={() => void loadDrafts()}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 transition"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Làm mới
-        </button>
+        <div className="flex items-center gap-3">
+          {!isOnline && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-xs">
+              <WifiOff size={14} className="animate-bounce" />
+              Ngoại tuyến
+            </div>
+          )}
+          <button 
+            onClick={() => void loadDrafts()}
+            disabled={!isOnline}
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 text-slate-700 transition"
+          >
+            <RefreshCw size={14} className={loading && isOnline ? "animate-spin" : ""} />
+            Làm mới
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
