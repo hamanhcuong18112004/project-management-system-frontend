@@ -482,10 +482,10 @@ export default function DraftsPage() {
             <div>
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FolderPlus className="text-indigo-500" size={18} />
-                {editingId ? "Cập nhật bản nháp" : "Tạo bản nháp mới"}
+                {editingId ? "Hiệu Chỉnh Bản Nháp" : "Soạn Thảo Bản Nháp"}
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                {editingId ? "Thay đổi nội dung sẽ được cập nhật đồng bộ tức thời lên Redis." : "Lưu trữ dữ liệu tạm thời lên bộ nhớ đệm tốc độ cao Redis."}
+                {editingId ? "Nội dung thay đổi sẽ tự động đồng bộ và lưu trữ tức thời." : "Bản nháp sẽ được lưu trữ tự động trên đám mây và thiết bị của bạn."}
               </p>
             </div>
 
@@ -556,7 +556,7 @@ export default function DraftsPage() {
                     <Loader2 className="animate-spin" size={14} />
                   ) : (
                     <>
-                      {editingId ? "Cập nhật lên Redis" : "Lưu nháp vào Redis"}
+                      {editingId ? "Lưu thay đổi" : "Lưu bản nháp"}
                       <ArrowRight size={14} />
                     </>
                   )}
