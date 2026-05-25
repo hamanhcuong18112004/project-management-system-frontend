@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import { Pencil, Plus, SquarePen } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { Pencil, Plus, SquarePen, WifiOff } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
@@ -13,6 +13,7 @@ import {
   BoardTaskDropPlaceholder,
   SortableBoardTaskCard,
 } from "./BoardTaskCard";
+import { toast } from "sonner";
 
 interface BoardTaskListColumnProps {
   list: BoardTaskList;
@@ -107,8 +108,35 @@ function BoardTaskListColumnBase({
     tempDropPosition >= list.tasks.length &&
     Boolean(activeTask);
 
+  // Load saved draft from localStorage when box opens
+  useEffect(() => {
+    if (addingTask && typeof window !== "undefined") {
+      const savedDraft = localStorage.getItem(`workspace_task_draft_${list.id}`);
+      if (savedDraft) {
+        setTaskTitle(savedDraft);
+        toast.info(`Đã tự động khôi phục bản nháp công việc ở cột "${list.name}"`);
+      }
+    }
+  }, [addingTask, list.id, list.name]);
+
+  // Auto-save input value to localStorage as the user types
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (taskTitle.trim()) {
+        localStorage.setItem(`workspace_task_draft_${list.id}`, taskTitle);
+      } else {
+        localStorage.removeItem(`workspace_task_draft_${list.id}`);
+      }
+    }
+  }, [taskTitle, list.id]);
+
   const submitTask = async () => {
     if (!taskTitle.trim() || creatingTask) {
+      return;
+    }
+
+    if (typeof window !== "undefined" && !window.navigator.onLine) {
+      toast.warning("Mất kết nối mạng. Bản nháp của bạn đã được sao lưu an toàn tại thiết bị.");
       return;
     }
 
@@ -116,8 +144,14 @@ function BoardTaskListColumnBase({
 
     try {
       await onCreateTask(list, taskTitle.trim());
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`workspace_task_draft_${list.id}`);
+      }
       setTaskTitle("");
       setAddingTask(false);
+    } catch (error) {
+      console.error("Lỗi khi tạo task:", error);
+      toast.error("Không thể tạo thẻ công việc. Bản nháp vẫn được lưu trữ tạm thời.");
     } finally {
       setCreatingTask(false);
     }

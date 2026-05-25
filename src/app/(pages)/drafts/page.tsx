@@ -11,7 +11,8 @@ import {
   FolderPlus,
   RefreshCw,
   ArrowRight,
-  WifiOff
+  WifiOff,
+  Plus
 } from "lucide-react";
 import { 
   getAllDrafts, 
@@ -20,6 +21,7 @@ import {
   deleteDraft, 
   type TaskDraft 
 } from "@/lib/api/redisDraft";
+import { createTask } from "@/lib/api/task";
 import { toast } from "sonner";
 
 export default function DraftsPage() {
@@ -194,6 +196,49 @@ export default function DraftsPage() {
     }
   };
 
+  // Convert draft to an official task and delete from Redis
+  const handlePublish = async (draft: TaskDraft, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!draft.listId) {
+      toast.error("Bản nháp này chưa có List ID (Mã cột công việc). Vui lòng cập nhật List ID trước khi chuyển thành công việc chính thức.");
+      return;
+    }
+
+    if (!isOnline) {
+      toast.error("Không thể kết nối đến máy chủ khi ngoại tuyến.");
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc chắn muốn chuyển bản nháp "${draft.title}" thành công việc chính thức? (Bản nháp sẽ được xóa khỏi Redis sau khi tạo thành công)`)) {
+      return;
+    }
+
+    try {
+      // 1. Tạo công việc chính thức qua task-service
+      await createTask({
+        title: draft.title,
+        description: draft.description || "",
+        taskListId: draft.listId,
+        status: "TODO",
+        priority: "MEDIUM"
+      });
+
+      toast.success("Đã tạo công việc chính thức thành công trên bảng!");
+
+      // 2. Xóa bản nháp khỏi Redis
+      await deleteDraft(draft.id!);
+      
+      // 3. Làm mới danh sách bản nháp và reset form nếu đang sửa bản nháp này
+      if (editingId === draft.id) {
+        resetForm();
+      }
+      await loadDrafts();
+    } catch (err: any) {
+      console.error("Lỗi khi chuyển bản nháp thành công việc:", err);
+      toast.error(err.message || "Không thể tạo công việc. Vui lòng kiểm tra lại List ID.");
+    }
+  };
+
   const formatTime = (timestamp?: number) => {
     if (!timestamp) return "Vừa xong";
     try {
@@ -280,6 +325,15 @@ export default function DraftsPage() {
                       </div>
                       <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition shrink-0">
                         <button
+                          onClick={(e) => handlePublish(draft, e)}
+                          disabled={!isOnline}
+                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition flex items-center gap-1 shadow-sm shadow-emerald-500/10"
+                          title="Tạo công việc chính thức từ bản nháp này"
+                        >
+                          <Plus size={11} />
+                          Publish
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleEditClick(draft); }}
                           className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600 transition"
                           title="Sửa"
@@ -359,7 +413,7 @@ export default function DraftsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">List ID (Không bắt buộc)</label>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">List ID (Không bắt buộc để lưu nháp, bắt buộc để tạo task)</label>
                   <input
                     type="text"
                     placeholder="Mã cột chứa..."
