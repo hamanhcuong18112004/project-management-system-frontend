@@ -361,10 +361,10 @@ export default function DraftsPage() {
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shadow-sm">
               <Sparkles size={24} className="animate-pulse" />
             </div>
-            Task Drafts (Redis Cache)
+            Hộp Nháp Công Việc
           </h1>
           <p className="text-sm text-slate-500 mt-2">
-            Quản lý các bản nháp công việc được lưu trữ tức thời trên cơ sở dữ liệu bộ nhớ đệm **Redis**.
+            Lưu trữ tức thì và đồng bộ thông minh các công việc chưa hoàn tất cả khi trực tuyến lẫn ngoại tuyến.
           </p>
         </div>
         <div className="flex items-center gap-3">

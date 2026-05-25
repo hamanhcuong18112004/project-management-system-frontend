@@ -40,7 +40,7 @@ export const MAIN_MENU: MenuItem[] = [
     icon: CheckSquare,
   },
   {
-    label: "Redis Drafts",
+    label: "Hộp nháp công việc",
     href: ROUTES.drafts,
     icon: FileText,
   },
