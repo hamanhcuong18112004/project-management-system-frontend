@@ -150,6 +150,12 @@ apiClient.interceptors.response.use(
         }
 
         const status = error.response?.status;
+        if (status === 429) {
+            if (typeof window !== "undefined") {
+                toast.error("Bạn đã thực hiện quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.");
+            }
+            return Promise.reject(error);
+        }
         const isUnauthorized = status === 401 || status === 403;
         const requestIsAuthEndpoint = shouldSkipRefresh(originalRequest.url);
 
@@ -230,6 +236,34 @@ apiClient.interceptors.response.use(
                 isRefreshing = false;
                 console.log(`🏁 [REFRESH END] isRefreshing = false`);
             }
+        }
+
+        // ============================================
+        // Transient Network / Server Error Retry logic
+        // ============================================
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MIN = 3000;
+        const RETRY_DELAY_MAX = 5000;
+
+        const isNetworkError = !error.response;
+        const isServerError = error.response && error.response.status >= 500;
+        const isRetryable = isNetworkError || isServerError;
+
+        if (isRetryable && (!originalRequest._retryCount || originalRequest._retryCount < MAX_RETRIES)) {
+            originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+            const delay = Math.floor(Math.random() * (RETRY_DELAY_MAX - RETRY_DELAY_MIN + 1)) + RETRY_DELAY_MIN;
+            
+            console.warn(
+                `[API RETRY] Request failed: ${requestUrl}. Error: ${error.message || "Network/Server Error"}. ` +
+                `Attempt ${originalRequest._retryCount} of ${MAX_RETRIES}. Retrying in ${(delay / 1000).toFixed(1)}s...`
+            );
+
+            if (typeof window !== "undefined") {
+                toast.info(`Lỗi kết nối. Đang thử lại yêu cầu (${originalRequest._retryCount}/${MAX_RETRIES}) sau ${(delay / 1000).toFixed(1)} giây...`);
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return apiClient(originalRequest);
         }
 
         return Promise.reject(error);

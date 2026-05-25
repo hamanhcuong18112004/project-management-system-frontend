@@ -1,19 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { 
-  FileText, 
-  Trash2, 
-  Edit3, 
-  Sparkles, 
-  Loader2, 
-  Clock, 
-  FolderPlus,
-  RefreshCw,
-  ArrowRight,
-  WifiOff,
-  Plus
-} from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { 
   getAllDrafts, 
   createDraft, 
@@ -21,8 +9,16 @@ import {
   deleteDraft, 
   type TaskDraft 
 } from "@/lib/api/redisDraft";
-import { createTask } from "@/lib/api/task";
+import { createTask, getTaskListsByBoardId, type BoardTaskList } from "@/lib/api/task";
+import { getMyWorkspaces, type Workspace } from "@/lib/api/workspace";
+import { getBoardsByWorkspace, type BoardDetails } from "@/lib/api/board";
 import { toast } from "sonner";
+
+// Import Refactored Smaller Components
+import { ConfirmModal } from "@/components/pages/drafts/ConfirmModal";
+import { DraftsHeader } from "@/components/pages/drafts/DraftsHeader";
+import { DraftCard } from "@/components/pages/drafts/DraftCard";
+import { DraftForm } from "@/components/pages/drafts/DraftForm";
 
 export default function DraftsPage() {
   const [drafts, setDrafts] = useState<TaskDraft[]>([]);
@@ -37,6 +33,63 @@ export default function DraftsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Dropdown States
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("");
+  const [showManualListId, setShowManualListId] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">("idle");
+
+  // Metadata Cache States
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [boardsMap, setBoardsMap] = useState<Record<string, BoardDetails[]>>({});
+  const [columnsMap, setColumnsMap] = useState<Record<string, BoardTaskList[]>>({});
+  const [listLookup, setListLookup] = useState<Record<string, {
+    workspaceName: string;
+    boardName: string;
+    listName: string;
+    workspaceId: string;
+    boardId: string;
+  }>>({});
+  const [metadataLoading, setMetadataLoading] = useState(false);
+
+  // Custom Confirmation Dialog State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: "danger" | "success" | "info";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (options: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: "danger" | "success" | "info";
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: options.title,
+      message: options.message,
+      confirmText: options.confirmText,
+      cancelText: options.cancelText,
+      type: options.type,
+      onConfirm: () => {
+        void options.onConfirm();
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   // Load drafts from Redis & LocalStorage
   const loadDrafts = async () => {
@@ -58,6 +111,7 @@ export default function DraftsPage() {
                   title: parsed.title || "",
                   description: parsed.description || "Bản nháp cục bộ",
                   listId: parsed.listId || key.replace("workspace_task_draft_", ""),
+                  assigneeId: parsed.assigneeId || undefined,
                   updatedAt: parsed.updatedAt || Date.now(),
                   isLocalOnly: true
                 } as any);
@@ -102,6 +156,94 @@ export default function DraftsPage() {
     }
   };
 
+  // Load Workspaces, Boards and Columns Metadata
+  const loadMetadata = async () => {
+    if (typeof window !== "undefined" && !window.navigator.onLine) {
+      // Offline: load from cache
+      const cached = localStorage.getItem("metadata_cache");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setWorkspaces(parsed.workspaces || []);
+          setBoardsMap(parsed.boardsMap || {});
+          setColumnsMap(parsed.columnsMap || {});
+          setListLookup(parsed.listLookup || {});
+        } catch (e) {
+          console.error("Lỗi phân tích metadata cache:", e);
+        }
+      }
+      return;
+    }
+
+    setMetadataLoading(true);
+    try {
+      const fetchedWorkspaces = await getMyWorkspaces();
+      setWorkspaces(fetchedWorkspaces);
+
+      const tempBoardsMap: Record<string, BoardDetails[]> = {};
+      const tempColumnsMap: Record<string, BoardTaskList[]> = {};
+      const tempLookup: Record<string, {
+        workspaceName: string;
+        boardName: string;
+        listName: string;
+        workspaceId: string;
+        boardId: string;
+      }> = {};
+
+      // Load boards and columns in parallel
+      await Promise.all(
+        fetchedWorkspaces.map(async (ws) => {
+          try {
+            const boards = await getBoardsByWorkspace(ws.id);
+            tempBoardsMap[ws.id] = boards;
+
+            await Promise.all(
+              boards.map(async (board) => {
+                try {
+                  const lists = await getTaskListsByBoardId(board.id);
+                  tempColumnsMap[board.id] = lists;
+
+                  lists.forEach((list) => {
+                    tempLookup[list.id] = {
+                      workspaceName: ws.name,
+                      boardName: board.name,
+                      listName: list.name,
+                      workspaceId: ws.id,
+                      boardId: board.id,
+                    };
+                  });
+                } catch (err) {
+                  console.error(`Lỗi tải cột của bảng ${board.id}:`, err);
+                }
+              })
+            );
+          } catch (err) {
+            console.error(`Lỗi tải bảng của workspace ${ws.id}:`, err);
+          }
+        })
+      );
+
+      setBoardsMap(tempBoardsMap);
+      setColumnsMap(tempColumnsMap);
+      setListLookup(tempLookup);
+
+      // Cache to localstorage
+      localStorage.setItem(
+        "metadata_cache",
+        JSON.stringify({
+          workspaces: fetchedWorkspaces,
+          boardsMap: tempBoardsMap,
+          columnsMap: tempColumnsMap,
+          listLookup: tempLookup,
+        })
+      );
+    } catch (err) {
+      console.error("Lỗi tải metadata:", err);
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
   // Monitor network status
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -111,6 +253,7 @@ export default function DraftsPage() {
         setIsOnline(true);
         toast.success("Mạng đã được kết nối lại. Đang đồng bộ hóa dữ liệu từ Redis...");
         void loadDrafts();
+        void loadMetadata();
       };
       
       const handleOffline = () => {
@@ -128,9 +271,10 @@ export default function DraftsPage() {
     }
   }, []);
 
-  // Restore draft backup on mount
+  // Restore draft backup on mount & load initial metadata
   useEffect(() => {
     void loadDrafts();
+    void loadMetadata();
 
     if (typeof window !== "undefined") {
       const backupStr = localStorage.getItem("task_draft_local_backup");
@@ -143,6 +287,19 @@ export default function DraftsPage() {
             setListId(backup.listId || "");
             setAssigneeId(backup.assigneeId || "");
             setEditingId(backup.editingId || null);
+            
+            // Resolve workspace & board dropdowns if backup has listId
+            if (backup.listId) {
+              const cached = localStorage.getItem("metadata_cache");
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                const lookup = parsed.listLookup || {};
+                if (lookup[backup.listId]) {
+                  setSelectedWorkspaceId(lookup[backup.listId].workspaceId);
+                  setSelectedBoardId(lookup[backup.listId].boardId);
+                }
+              }
+            }
             toast.info("Đã tự động khôi phục lại bản nháp chưa lưu gần nhất trên thiết bị của bạn.");
           }
         } catch (e) {
@@ -155,7 +312,83 @@ export default function DraftsPage() {
     }
   }, []);
 
-  // Auto-save progress to LocalStorage
+  // Auto-save form content (Title, Description, List ID, Assignee) in real-time
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    // We only auto-save if title is not empty
+    if (!title.trim()) return;
+
+    setSaveStatus("saving");
+
+    const delayDebounceFn = setTimeout(async () => {
+      const payload: TaskDraft = {
+        title: title.trim(),
+        description: description.trim(),
+        assigneeId: assigneeId.trim() || undefined,
+        listId: listId.trim() || undefined,
+      };
+
+      try {
+        if (!isOnline) {
+          // Offline auto-save to localStorage
+          const targetListId = listId.trim() || (editingId ? editingId.replace("board_list_", "").replace("draft_temp_", "") : `temp_${Date.now()}`);
+          const draftId = editingId || `board_list_${targetListId}`;
+          
+          const localDraftObj = {
+            id: draftId,
+            title: title.trim(),
+            description: description.trim(),
+            listId: listId.trim() || undefined,
+            assigneeId: assigneeId.trim() || undefined,
+            updatedAt: Date.now(),
+            isLocalOnly: true
+          };
+
+          localStorage.setItem(`workspace_task_draft_${targetListId}`, JSON.stringify(localDraftObj));
+          
+          if (!editingId) {
+            setEditingId(draftId);
+          }
+          void loadDrafts();
+        } else {
+          // Online auto-save to Redis
+          if (editingId) {
+            // Check if editing a local draft
+            const draftObj = drafts.find(d => d.id === editingId);
+            const isLocal = draftObj && (draftObj as any).isLocalOnly;
+            
+            if (isLocal && typeof window !== "undefined") {
+              const oldListId = editingId.replace("board_list_", "");
+              localStorage.removeItem(`workspace_task_draft_${oldListId}`);
+            }
+
+            if (editingId.startsWith("board_list_") || editingId.startsWith("draft_temp_")) {
+              payload.id = editingId;
+              await createDraft(payload);
+            } else {
+              await updateDraft(editingId, payload);
+            }
+          } else {
+            // Create a new draft
+            const created = await createDraft(payload);
+            if (created && created.id) {
+              setEditingId(created.id);
+            }
+          }
+          void loadDrafts();
+        }
+        setSaveStatus("saved");
+      } catch (err) {
+        console.error("Lỗi tự động lưu bản nháp:", err);
+        setSaveStatus("idle");
+      }
+    }, 1000); // 1s debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [title, description, listId, assigneeId, editingId, isOnline, isLoaded]);
+
+  // Keep a local backup in case of page close
   useEffect(() => {
     if (!isLoaded) return;
     if (typeof window !== "undefined") {
@@ -174,6 +407,9 @@ export default function DraftsPage() {
     setDescription("");
     setAssigneeId("");
     setListId("");
+    setSelectedWorkspaceId("");
+    setSelectedBoardId("");
+    setSaveStatus("idle");
     if (typeof window !== "undefined") {
       localStorage.removeItem("task_draft_local_backup");
     }
@@ -184,75 +420,28 @@ export default function DraftsPage() {
     setTitle(draft.title);
     setDescription(draft.description);
     setAssigneeId(draft.assigneeId || "");
-    setListId(draft.listId || "");
+    
+    const targetListId = draft.listId || "";
+    setListId(targetListId);
+    
+    // Resolve workspace and board from listId
+    if (targetListId && listLookup[targetListId]) {
+      setSelectedWorkspaceId(listLookup[targetListId].workspaceId);
+      setSelectedBoardId(listLookup[targetListId].boardId);
+      setShowManualListId(false);
+    } else {
+      setSelectedWorkspaceId("");
+      setSelectedBoardId("");
+      if (targetListId) {
+        setShowManualListId(true);
+      } else {
+        setShowManualListId(false);
+      }
+    }
     toast.info("Đã chọn bản nháp để chỉnh sửa");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      toast.warning("Vui lòng nhập đầy đủ tiêu đề và nội dung mô tả bản nháp");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const draft = drafts.find(d => d.id === editingId);
-    const isLocal = draft && (draft as any).isLocalOnly;
-
-    const payload: TaskDraft = {
-      title,
-      description,
-      assigneeId: assigneeId.trim() || undefined,
-      listId: listId.trim() || undefined,
-    };
-
-    try {
-      if (!isOnline) {
-        // Save to localStorage offline
-        if (typeof window !== "undefined") {
-          const targetListId = listId.trim() || (editingId ? editingId.replace("board_list_", "") : "unknown");
-          const localDraftObj = {
-            id: `board_list_${targetListId}`,
-            title,
-            description,
-            listId: targetListId,
-            assigneeId: assigneeId.trim() || undefined,
-            updatedAt: Date.now()
-          };
-          localStorage.setItem(`workspace_task_draft_${targetListId}`, JSON.stringify(localDraftObj));
-          toast.success("Đã cập nhật bản nháp cục bộ ngoại tuyến thành công");
-        }
-      } else {
-        // Online: save to Redis
-        if (editingId) {
-          if (isLocal && typeof window !== "undefined") {
-            const oldListId = editingId.replace("board_list_", "");
-            localStorage.removeItem(`workspace_task_draft_${oldListId}`);
-          }
-          if (editingId.startsWith("board_list_")) {
-            payload.id = editingId;
-            await createDraft(payload);
-          } else {
-            await updateDraft(editingId, payload);
-          }
-          toast.success("Đã cập nhật bản nháp thành công trên Redis");
-        } else {
-          await createDraft(payload);
-          toast.success("Đã lưu bản nháp mới thành công vào Redis");
-        }
-      }
-      resetForm();
-      await loadDrafts();
-    } catch (error) {
-      console.error("Lỗi khi lưu bản nháp:", error);
-      toast.error("Có lỗi xảy ra khi lưu trữ dữ liệu. Vui lòng kiểm tra kết nối mạng.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     
     const draft = drafts.find(d => d.id === id);
@@ -262,37 +451,43 @@ export default function DraftsPage() {
       toast.error("Không thể thực hiện tác vụ xóa trên Redis khi ngoại tuyến.");
       return;
     }
-    if (!confirm("Bạn có chắc chắn muốn xóa bản nháp này không?")) {
-      return;
-    }
 
-    try {
-      if (isLocal) {
-        if (typeof window !== "undefined") {
-          const listIdVal = id.replace("board_list_", "");
-          localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
-          toast.success("Đã xóa bản nháp cục bộ thành công");
+    showConfirm({
+      title: "Xóa bản nháp công việc",
+      message: `Bạn có chắc chắn muốn xóa bản nháp "${draft?.title || 'này'}" không? Thao tác này không thể hoàn tác.`,
+      confirmText: "Xóa bản nháp",
+      cancelText: "Hủy bỏ",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          if (isLocal) {
+            if (typeof window !== "undefined") {
+              const listIdVal = id.replace("board_list_", "");
+              localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+              toast.success("Đã xóa bản nháp cục bộ thành công");
+            }
+          } else {
+            await deleteDraft(id);
+            toast.success("Đã xóa bản nháp thành công khỏi Redis");
+          }
+          
+          if (editingId === id) {
+            resetForm();
+          }
+          await loadDrafts();
+        } catch (error) {
+          console.error("Lỗi khi xóa bản nháp:", error);
+          toast.error("Không thể xóa bản nháp");
         }
-      } else {
-        await deleteDraft(id);
-        toast.success("Đã xóa bản nháp thành công khỏi Redis");
       }
-      
-      if (editingId === id) {
-        resetForm();
-      }
-      await loadDrafts();
-    } catch (error) {
-      console.error("Lỗi khi xóa bản nháp:", error);
-      toast.error("Không thể xóa bản nháp");
-    }
+    });
   };
 
   // Convert draft to an official task and delete from Redis/LocalStorage
-  const handlePublish = async (draft: TaskDraft, e: React.MouseEvent) => {
+  const handlePublish = (draft: TaskDraft, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!draft.listId) {
-      toast.error("Bản nháp này chưa có List ID (Mã cột công việc). Vui lòng cập nhật List ID trước khi chuyển thành công việc chính thức.");
+      toast.error("Bản nháp này chưa có vị trí lưu trữ (Cột công việc). Vui lòng chọn cột trước khi chuyển thành công việc chính thức.");
       return;
     }
 
@@ -301,89 +496,136 @@ export default function DraftsPage() {
       return;
     }
 
-    if (!confirm(`Bạn có chắc chắn muốn chuyển bản nháp "${draft.title}" thành công việc chính thức? (Bản nháp sẽ được xóa sau khi tạo thành công)`)) {
+    showConfirm({
+      title: "Chuyển thành công việc chính thức",
+      message: `Bạn có chắc chắn muốn chuyển bản nháp "${draft.title}" thành công việc chính thức trên bảng? Bản nháp sẽ được xóa sau khi tạo thành công.`,
+      confirmText: "Xác nhận chuyển",
+      cancelText: "Hủy",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          // 1. Tạo công việc chính thức qua task-service
+          await createTask({
+            taskListId: draft.listId!,
+            title: draft.title,
+            description: draft.description || "",
+            status: "TODO",
+            priority: "MEDIUM"
+          });
+
+          toast.success("Đã tạo công việc chính thức thành công trên bảng!");
+
+          // 2. Xóa bản nháp khỏi Redis hoặc LocalStorage
+          if ((draft as any).isLocalOnly) {
+            if (typeof window !== "undefined") {
+              const listIdVal = draft.id!.replace("board_list_", "");
+              localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+            }
+          } else {
+            await deleteDraft(draft.id!);
+          }
+          
+          if (editingId === draft.id) {
+            resetForm();
+          }
+          await loadDrafts();
+        } catch (err: any) {
+          console.error("Lỗi khi chuyển bản nháp thành công việc:", err);
+          toast.error(err.message || "Không thể tạo công việc. Vui lòng kiểm tra lại vị trí lưu trữ.");
+        }
+      }
+    });
+  };
+
+  // Publish from Form
+  const handlePublishFromForm = async (e: React.MouseEvent) => {
+    const payload: TaskDraft = {
+      title: title.trim(),
+      description: description.trim(),
+      assigneeId: assigneeId.trim() || undefined,
+      listId: listId.trim() || undefined,
+    };
+
+    if (!payload.listId) {
+      toast.error("Vui lòng chọn hoặc nhập vị trí cột chứa trước khi đăng");
       return;
     }
 
-    try {
-      // 1. Tạo công việc chính thức qua task-service
-      await createTask({
-        title: draft.title,
-        description: draft.description || "",
-        taskListId: draft.listId,
-        status: "TODO",
-        priority: "MEDIUM"
-      });
+    showConfirm({
+      title: "Chuyển thành công việc chính thức",
+      message: `Bạn có chắc chắn muốn chuyển bản nháp "${payload.title}" thành công việc chính thức trên bảng?`,
+      confirmText: "Xác nhận chuyển",
+      cancelText: "Hủy",
+      type: "success",
+      onConfirm: async () => {
+        try {
+          setIsSubmitting(true);
+          let finalId = editingId;
+          
+          // Save first if not already saved or if modified
+          if (!editingId) {
+            const created = await createDraft(payload);
+            finalId = created.id || null;
+          } else {
+            const draftObj = drafts.find(d => d.id === editingId);
+            const isLocal = draftObj && (draftObj as any).isLocalOnly;
+            
+            if (isLocal && typeof window !== "undefined") {
+              const oldListId = editingId.replace("board_list_", "");
+              localStorage.removeItem(`workspace_task_draft_${oldListId}`);
+            }
 
-      toast.success("Đã tạo công việc chính thức thành công trên bảng!");
+            if (editingId.startsWith("board_list_") || editingId.startsWith("draft_temp_")) {
+              payload.id = editingId;
+              await createDraft(payload);
+            } else {
+              await updateDraft(editingId, payload);
+            }
+          }
 
-      // 2. Xóa bản nháp khỏi Redis hoặc LocalStorage
-      if ((draft as any).isLocalOnly) {
-        if (typeof window !== "undefined") {
-          const listIdVal = draft.id!.replace("board_list_", "");
-          localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+          // Publish
+          await createTask({
+            taskListId: payload.listId!,
+            title: payload.title,
+            description: payload.description || "",
+            status: "TODO",
+            priority: "MEDIUM"
+          });
+
+          toast.success("Đã tạo công việc chính thức thành công trên bảng!");
+
+          // Delete draft
+          if (finalId) {
+            if (finalId.startsWith("board_list_")) {
+              if (typeof window !== "undefined") {
+                const listIdVal = finalId.replace("board_list_", "");
+                localStorage.removeItem(`workspace_task_draft_${listIdVal}`);
+              }
+            } else {
+              await deleteDraft(finalId);
+            }
+          }
+
+          resetForm();
+          await loadDrafts();
+        } catch (err: any) {
+          console.error("Lỗi khi chuyển bản nháp thành công việc:", err);
+          toast.error(err.message || "Không thể tạo công việc. Vui lòng kiểm tra lại vị trí lưu trữ.");
+        } finally {
+          setIsSubmitting(false);
         }
-      } else {
-        await deleteDraft(draft.id!);
       }
-      
-      if (editingId === draft.id) {
-        resetForm();
-      }
-      await loadDrafts();
-    } catch (err: any) {
-      console.error("Lỗi khi chuyển bản nháp thành công việc:", err);
-      toast.error(err.message || "Không thể tạo công việc. Vui lòng kiểm tra lại List ID.");
-    }
-  };
-
-  const formatTime = (timestamp?: number) => {
-    if (!timestamp) return "Vừa xong";
-    try {
-      return new Intl.DateTimeFormat("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        day: "2-digit",
-        month: "2-digit"
-      }).format(new Date(timestamp));
-    } catch {
-      return "Vừa xong";
-    }
+    });
   };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 shadow-sm">
-              <Sparkles size={24} className="animate-pulse" />
-            </div>
-            Hộp Nháp Công Việc
-          </h1>
-          <p className="text-sm text-slate-500 mt-2">
-            Lưu trữ tức thì và đồng bộ thông minh các công việc chưa hoàn tất cả khi trực tuyến lẫn ngoại tuyến.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {!isOnline && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-xs">
-              <WifiOff size={14} className="animate-bounce" />
-              Ngoại tuyến
-            </div>
-          )}
-          <button 
-            onClick={() => void loadDrafts()}
-            disabled={!isOnline}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-50 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 text-slate-700 transition"
-          >
-            <RefreshCw size={14} className={loading && isOnline ? "animate-spin" : ""} />
-            Làm mới
-          </button>
-        </div>
-      </div>
+      <DraftsHeader 
+        isOnline={isOnline} 
+        loading={loading} 
+        onRefresh={() => { void loadDrafts(); void loadMetadata(); }} 
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Side: Drafts List */}
@@ -395,82 +637,29 @@ export default function DraftsPage() {
           {loading ? (
             <div className="bg-white border border-slate-200/80 rounded-2xl p-16 text-center shadow-xs">
               <Loader2 size={32} className="animate-spin text-indigo-600 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-500">Đang đồng bộ dữ liệu từ Redis...</p>
+              <p className="text-sm font-medium text-slate-500">Đang đồng bộ dữ liệu...</p>
             </div>
           ) : drafts.length === 0 ? (
             <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center shadow-xs">
               <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4 border border-slate-100">
                 <FileText size={20} />
               </div>
-              <p className="text-sm font-semibold text-slate-700">Bộ nhớ đệm Redis trống</p>
-              <p className="text-xs text-slate-400 mt-1">Chưa có bản nháp công việc nào được lưu trên Redis.</p>
+              <p className="text-sm font-semibold text-slate-700">Bộ nhớ đệm trống</p>
+              <p className="text-xs text-slate-400 mt-1">Chưa có bản nháp công việc nào được lưu trữ.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {drafts.map((draft) => (
-                <div 
-                  key={draft.id} 
+                <DraftCard
+                  key={draft.id}
+                  draft={draft}
+                  isActive={editingId === draft.id}
+                  isOnline={isOnline}
+                  listLookup={listLookup}
                   onClick={() => handleEditClick(draft)}
-                  className={`bg-white border rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-indigo-200 transition duration-200 cursor-pointer relative overflow-hidden group ${
-                    editingId === draft.id ? "border-indigo-500 ring-2 ring-indigo-500/10" : "border-slate-200/80"
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1 min-w-0">
-                        <h4 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition truncate">{draft.title}</h4>
-                        <p className="text-xs text-slate-500 line-clamp-2">{draft.description}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition shrink-0">
-                        <button
-                          onClick={(e) => handlePublish(draft, e)}
-                          disabled={!isOnline}
-                          className="px-2 py-1 text-[10px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition flex items-center gap-1 shadow-sm shadow-emerald-500/10"
-                          title="Tạo công việc chính thức từ bản nháp này"
-                        >
-                          <Plus size={11} />
-                          Publish
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleEditClick(draft); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600 transition"
-                          title="Sửa"
-                        >
-                          <Edit3 size={15} />
-                        </button>
-                        <button
-                          onClick={(e) => handleDelete(draft.id!, e)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
-                          title="Xóa khỏi Redis"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2.5 pt-2 border-t border-slate-50">
-                      {draft.listId && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 border border-blue-100 text-blue-700">
-                          List ID: {draft.listId}
-                        </span>
-                      )}
-                      {(draft as any).isLocalOnly && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 border border-amber-200 text-amber-700">
-                          Ngoại tuyến (Chưa sync)
-                        </span>
-                      )}
-                      {draft.assigneeId && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 border border-emerald-100 text-emerald-700">
-                          Người gắn: {draft.assigneeId.substring(0, 8)}...
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 ml-auto font-medium">
-                        <Clock size={11} />
-                        {formatTime(draft.updatedAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  onPublish={(e) => handlePublish(draft, e)}
+                  onDelete={(e) => handleDelete(draft.id!, e)}
+                />
               ))}
             </div>
           )}
@@ -478,94 +667,46 @@ export default function DraftsPage() {
 
         {/* Right Side: Form (Create/Update) */}
         <div className="lg:col-span-5">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6 sticky top-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FolderPlus className="text-indigo-500" size={18} />
-                {editingId ? "Hiệu Chỉnh Bản Nháp" : "Soạn Thảo Bản Nháp"}
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                {editingId ? "Nội dung thay đổi sẽ tự động đồng bộ và lưu trữ tức thời." : "Bản nháp sẽ được lưu trữ tự động trên đám mây và thiết bị của bạn."}
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Tiêu đề công việc</label>
-                <input
-                  type="text"
-                  placeholder="Nhập tiêu đề bản nháp..."
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 focus:bg-white transition"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Mô tả chi tiết</label>
-                <textarea
-                  rows={4}
-                  placeholder="Nhập mô tả nội dung bản nháp..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 focus:bg-white transition"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">List ID (Không bắt buộc để lưu nháp, bắt buộc để tạo task)</label>
-                  <input
-                    type="text"
-                    placeholder="Mã cột chứa..."
-                    value={listId}
-                    onChange={(e) => setListId(e.target.value)}
-                    className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 focus:bg-white transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Assignee ID (Không bắt buộc)</label>
-                  <input
-                    type="text"
-                    placeholder="Mã người xử lý..."
-                    value={assigneeId}
-                    onChange={(e) => setAssigneeId(e.target.value)}
-                    className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 hover:bg-slate-100/50 focus:bg-white transition"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-2.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-                  >
-                    Hủy bỏ
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/10 transition flex items-center justify-center gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="animate-spin" size={14} />
-                  ) : (
-                    <>
-                      {editingId ? "Lưu thay đổi" : "Lưu bản nháp"}
-                      <ArrowRight size={14} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+          <DraftForm
+            editingId={editingId}
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            assigneeId={assigneeId}
+            setAssigneeId={setAssigneeId}
+            listId={listId}
+            setListId={setListId}
+            selectedWorkspaceId={selectedWorkspaceId}
+            setSelectedWorkspaceId={setSelectedWorkspaceId}
+            selectedBoardId={selectedBoardId}
+            setSelectedBoardId={setSelectedBoardId}
+            showManualListId={showManualListId}
+            setShowManualListId={setShowManualListId}
+            isOnline={isOnline}
+            isSubmitting={isSubmitting}
+            saveStatus={saveStatus}
+            workspaces={workspaces}
+            boardsMap={boardsMap}
+            columnsMap={columnsMap}
+            listLookup={listLookup}
+            resetForm={resetForm}
+            onPublishClick={handlePublishFromForm}
+          />
         </div>
       </div>
+
+      {/* Confirmation Modal Component */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        type={confirmModal.type}
+      />
     </div>
   );
 }
