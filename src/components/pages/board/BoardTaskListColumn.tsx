@@ -7,6 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
 import type { BoardTask, BoardTaskList } from "@/lib/api/task";
 import { useRealtime } from "@/providers/RealtimeProvider";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 import { createTaskDragId, createTaskListDragId } from "./boardState";
 import {
   BoardTaskCard,
@@ -95,6 +96,7 @@ function BoardTaskListColumnBase({
   const [addingTask, setAddingTask] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
+  const user = useAuthStore((s) => s.user);
 
   const activeFromThisList = activeDragId
     ? list.tasks.some((task) => createTaskDragId(task.id) === activeDragId)
@@ -155,6 +157,7 @@ function BoardTaskListColumnBase({
           title: taskTitle.trim(),
           description: `Bản nháp tự động lưu từ cột "${list.name}"`,
           listId: list.id,
+          assigneeId: user?.id || undefined,
           updatedAt: Date.now()
         };
         localStorage.setItem(`workspace_task_draft_${list.id}`, JSON.stringify(localDraftObj));
@@ -186,6 +189,7 @@ function BoardTaskListColumnBase({
             title: taskTitle.trim(),
             description: `Bản nháp tự động lưu từ cột "${list.name}"`,
             listId: list.id,
+            assigneeId: user?.id || undefined,
           });
         } catch (error) {
           console.error("Lỗi tự động lưu Redis:", error);
@@ -194,7 +198,7 @@ function BoardTaskListColumnBase({
     }, 1000); // 1s debounce
 
     return () => clearTimeout(delayDebounceFn);
-  }, [taskTitle, list.id, addingTask, list.name]);
+  }, [taskTitle, list.id, addingTask, list.name, user]);
 
   // Synchronize local draft to Redis when coming back online
   useEffect(() => {
@@ -207,6 +211,7 @@ function BoardTaskListColumnBase({
           title: taskTitle.trim(),
           description: `Bản nháp tự động lưu từ cột "${list.name}"`,
           listId: list.id,
+          assigneeId: user?.id || undefined,
         });
         toast.success(`Đã đồng bộ bản nháp cột "${list.name}" lên Redis Cache`);
       } catch (error) {
@@ -216,7 +221,7 @@ function BoardTaskListColumnBase({
 
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [addingTask, taskTitle, list.id, list.name]);
+  }, [addingTask, taskTitle, list.id, list.name, user]);
 
   const submitTask = async () => {
     if (!taskTitle.trim() || creatingTask) {
