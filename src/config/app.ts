@@ -23,6 +23,7 @@ export const ROUTES = {
     settings: "/settings",
     profile: "/profile",
     invitations: "/invitations",
+    drafts: "/drafts",
     login: "/login",
     register: "/register",
 } as const;

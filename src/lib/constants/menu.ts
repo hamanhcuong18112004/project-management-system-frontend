@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   Mail,
+  FileText,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { ROUTES } from "@/config";
@@ -37,6 +38,11 @@ export const MAIN_MENU: MenuItem[] = [
     label: "My Tasks",
     href: ROUTES.tasks,
     icon: CheckSquare,
+  },
+  {
+    label: "Redis Drafts",
+    href: ROUTES.drafts,
+    icon: FileText,
   },
   {
     label: "Lời mời",
