@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { authApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/error";
+import { API_CONFIG } from "@/config/app";
 
 function strengthInfo(len: number) {
   if (len === 0) return null;
@@ -161,7 +162,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Google */}
-            <button id="register-google" type="button"
+            <button id="register-google" type="button" onClick={() => { window.location.href = `${API_CONFIG.baseURL}/identity/oauth2/authorization/google`; }}
               className="w-full py-2.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-semibold text-gray-700 transition-all duration-200 flex items-center justify-center gap-2.5 shadow-sm">
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.7-6.7C35.8 2.5 30.3 0 24 0 14.7 0 6.7 5.5 2.9 13.6l7.8 6C12.5 13.2 17.9 9.5 24 9.5z" />
