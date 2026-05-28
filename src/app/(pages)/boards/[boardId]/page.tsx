@@ -49,10 +49,8 @@ import {
   deleteBoard,
   getBoardById,
   joinBoard,
-  lookupUserByEmail,
   removeBoardMember,
   replaceBoardMembers,
-  updateBoardMemberRole,
   updateBoard,
   type BoardMemberSummary,
   type BoardDetails,
@@ -213,11 +211,14 @@ export default function BoardDetailPage() {
 
         setBoard(boardResult.value);
         setTaskLists(sortTaskLists(nextTaskLists));
-        setLoadError(
-          taskListResult.status === "rejected"
-            ? getApiErrorMessage(taskListResult.reason, "Không thể tải danh sách task.")
-            : null,
-        );
+
+        if (taskListResult.status === "rejected") {
+          const errMsg = getApiErrorMessage(taskListResult.reason, "Không thể tải danh sách task.");
+          setLoadError(errMsg);
+          toast.error("Không thể tải task", { description: errMsg });
+        } else {
+          setLoadError(null);
+        }
         setLoading(false);
       })
       .catch((error) => {
@@ -238,7 +239,7 @@ export default function BoardDetailPage() {
 
   // Refresh on BOARD_UPDATED and TASK notifications (e.g. task list created/updated/deleted by others)
   useEffect(() => {
-    const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED"];
+    const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED", "BOARD_MEMBER_REMOVED"];
     if (lastNotification && refreshTypes.includes(lastNotification.type) && lastNotification.boardId === boardId) {
       const timer = setTimeout(() => {
         setBoardVersion((v) => v + 1);
@@ -246,6 +247,25 @@ export default function BoardDetailPage() {
       return () => clearTimeout(timer);
     }
   }, [lastNotification, boardId, setBoardVersion]);
+
+  // Re-fetch workspace permissions when the current user's role is changed, also reload board
+  useEffect(() => {
+    if (
+      board?.workspaceId &&
+      lastNotification?.type === "WORKSPACE_ROLE_CHANGED" &&
+      lastNotification.workspaceId === board.workspaceId
+    ) {
+      getMyPermissions(board.workspaceId)
+        .then((perms) => setWorkspacePermissions(perms))
+        .catch(() => setWorkspacePermissions([]));
+      // Re-fetch workspace members so the BoardMembersDialog shows updated roles immediately
+      getWorkspaceMembers(board.workspaceId)
+        .then((members) => { if (members.length > 0) setWsMembers(members); })
+        .catch(() => {});
+      // Also bump board version to reload member list and update displayed role badges
+      setBoardVersion((v) => v + 1);
+    }
+  }, [lastNotification, board?.workspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -752,6 +772,7 @@ export default function BoardDetailPage() {
         current ? { ...current, members: updatedBoard.members } : current,
       );
       toast.success("Bạn đã tham gia board!");
+      emitBoardUpdated();
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Không thể tham gia board"));
     } finally {
@@ -763,49 +784,23 @@ export default function BoardDetailPage() {
     setMembersDialogOpen(true);
   };
 
-  const handleConfirmBoardMembers = async (newDraft: { userId: string; role: string }[]) => {
+  const handleConfirmBoardMembers = async (newUserIds: string[]) => {
     if (!board) return;
 
-    const current = enrichedBoardMembers;
-    const currentIds = new Set(current.map((c) => (c.userId || c.id) as string));
-    const draftMap = new Map(newDraft.map((d) => [d.userId, d.role]));
+    const currentIds = new Set(enrichedBoardMembers.map((c) => (c.userId || c.id) as string));
+    const newIdsSet = new Set(newUserIds);
 
-    // Members removed from draft (including owner if they removed themselves)
-    const toRemove = current.filter(
-      (c) => {
-        const uid = (c.userId || c.id) as string;
-        return !draftMap.has(uid);
-      },
-    );
-
-    // Members added in draft (excluding owner who is always present on BE side)
-    const toAdd = newDraft.filter((d) => !currentIds.has(d.userId) && d.userId !== board.ownerId);
-
-    // Role changes for existing members (including the creator/owner)
-    const toUpdateRole = newDraft.filter((d) => {
-      const existing = current.find((c) => (c.userId || c.id) === d.userId);
-      if (!existing) return false;
-      // Normalize OWNER → ADMIN when comparing (creator stored as OWNER in old data)
-      const existingNorm = (existing.role?.toUpperCase() === "OWNER" ? "ADMIN" : existing.role?.toUpperCase()) || "MEMBER";
-      return existingNorm !== d.role.toUpperCase();
-    });
+    const toRemove = [...currentIds].filter((id) => !newIdsSet.has(id));
+    const toAdd = newUserIds.filter((id) => !currentIds.has(id));
 
     if (toAdd.length > 0) {
       // Bulk replace handles all adds/removes in one shot
-      const allNonOwnerIds = newDraft.filter((d) => d.userId !== board.ownerId).map((d) => d.userId);
-      await replaceBoardMembers(board.id, { userIds: allNonOwnerIds });
-      // Fix roles that differ from defaults (owner defaults to ADMIN, others to MEMBER after replaceBoardMembers)
-      const needRoleUpdate = newDraft.filter((d) => {
-        const defaultRole = d.userId === board.ownerId ? "ADMIN" : "MEMBER";
-        return d.role.toUpperCase() !== defaultRole;
-      });
-      await Promise.all(needRoleUpdate.map((d) => updateBoardMemberRole(board.id, d.userId, d.role, userId ?? undefined)));
+      await replaceBoardMembers(board.id, { userIds: newUserIds });
     } else {
-      // Individual operations only
-      await Promise.all([
-        ...toRemove.map((m) => removeBoardMember(board.id, (m.userId || m.id) as string, userId ?? undefined)),
-        ...toUpdateRole.map((d) => updateBoardMemberRole(board.id, d.userId, d.role, userId ?? undefined)),
-      ]);
+      // Only removals
+      await Promise.all(
+        toRemove.map((uid) => removeBoardMember(board.id, uid, userId ?? undefined)),
+      );
     }
 
     const updatedBoard = await getBoardById(board.id);
@@ -815,13 +810,15 @@ export default function BoardDetailPage() {
     });
     setBoard({ ...updatedBoard, members: nextMembers });
     toast.success("Đã cập nhật thành viên board");
+    emitBoardUpdated();
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    if (isReadOnly) return;
-    const dragId = String(event.active.id);
     const dragType =
       event.active.data.current?.type === "taskList" ? "taskList" : "task";
+    if (dragType === "taskList" && !canUpdateList) return;
+    if (dragType === "task" && !canUpdateTask) return;
+    const dragId = String(event.active.id);
 
     setActiveDragId(dragId);
     setActiveDragType(dragType);
@@ -888,6 +885,10 @@ export default function BoardDetailPage() {
     const dragType =
       event.active.data.current?.type === "taskList" ? "taskList" : "task";
 
+    // Re-check permissions before persisting (handles mid-drag permission changes)
+    if (dragType === "taskList" && !canUpdateList) { clearDragState(); return; }
+    if (dragType === "task" && !canUpdateTask) { clearDragState(); return; }
+
     emitDragEnd(currentActiveId, dragType, overId);
 
     try {
@@ -952,8 +953,42 @@ export default function BoardDetailPage() {
 
   const canManageBoard = useMemo(() => {
     if (isWorkspaceOwner) return true;
+    if (workspacePermissions.length === 0) return false;
     return workspacePermissions.includes("board:update");
   }, [isWorkspaceOwner, workspacePermissions]);
+
+  // Auto-close management modals when user's board permissions are revoked
+  const prevCanManageBoardRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const prev = prevCanManageBoardRef.current;
+    prevCanManageBoardRef.current = canManageBoard;
+    if (prev === true && !canManageBoard) {
+      setBoardSettingsOpen(false);
+      setMembersDialogOpen(false);
+      toast.warning("Quyền của bạn trên board này vừa bị thay đổi.", {
+        description: "Các cửa sổ chỉnh sửa đã được đóng lại.",
+      });
+    }
+  }, [canManageBoard]);
+
+  // Auto-close ALL interactive modals when user is kicked from the board
+  const prevIsReadOnlyRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const prev = prevIsReadOnlyRef.current;
+    prevIsReadOnlyRef.current = isReadOnly;
+    if (prev === false && isReadOnly) {
+      // User lost board membership — close everything that requires being a member
+      setSelectedTask(null);
+      setDeleteContext(null);
+      setAddingList(false);
+      setSelectedTaskList(null);
+      setBoardSettingsOpen(false);
+      setMembersDialogOpen(false);
+      toast.warning("Bạn đã bị xóa khỏi board này.", {
+        description: "Tất cả cửa sổ đang mở đã được đóng lại.",
+      });
+    }
+  }, [isReadOnly]);
 
   if (loading && !board) {
     return (
@@ -1152,14 +1187,12 @@ export default function BoardDetailPage() {
         boardName={board.name}
         boardMembers={enrichedBoardMembers}
         workspaceMembers={wsMembers}
-        ownerId={board.ownerId || undefined}
         currentUserId={userId}
-        currentUserRole={currentUserBoardRole}
+        canManage={canManageBoard}
         onClose={() => setMembersDialogOpen(false)}
-        onLookupByEmail={lookupUserByEmail}
-        onConfirm={async (draft) => {
+        onConfirm={async (userIds) => {
           try {
-            await handleConfirmBoardMembers(draft);
+            await handleConfirmBoardMembers(userIds);
           } catch (error) {
             toast.error(
               getApiErrorMessage(error, "Không thể cập nhật thành viên của bảng"),

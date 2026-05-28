@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Shield, Trash2, UserPlus, X, Users } from "lucide-react";
+import { LogOut, Shield, Trash2, UserPlus, X, Users } from "lucide-react";
 
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/error";
@@ -277,15 +277,23 @@ export function MembersModal({
                             </span>
                           )}
 
-                          {canRemoveMembers && (
-                            <button
-                              onClick={() => handleRemove(member.userId)}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
-                              title="Xóa thành viên"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          {member.userId === currentUserId ? (
+                              <button
+                                onClick={() => handleRemove(member.userId)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-500"
+                                title="Rời workspace"
+                              >
+                                <LogOut size={16} />
+                              </button>
+                            ) : canRemoveMembers ? (
+                              <button
+                                onClick={() => handleRemove(member.userId)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                                title="Xóa thành viên"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            ) : null}
                         </div>
                       )}
                     </div>
