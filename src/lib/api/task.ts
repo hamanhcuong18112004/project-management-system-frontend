@@ -304,9 +304,18 @@ export async function unassignTaskMember(
 // ── Task Attachments ──────────────────────────────────────────────────────────
 
 function normalizeAttachment(raw: Record<string, unknown>): TaskAttachment {
+  let fileUrl = String(raw.fileUrl || "");
+  console.log("normalizeAttachment incoming raw.fileUrl:", raw.fileUrl);
+  if (fileUrl.includes("/uploads/")) {
+    const suffix = fileUrl.substring(fileUrl.indexOf("/uploads/"));
+    const baseUrl = apiClient.defaults.baseURL || "http://localhost:8000";
+    fileUrl = `${baseUrl}/task${suffix}`;
+  }
+  console.log("normalizeAttachment outgoing fileUrl:", fileUrl);
+
   return {
     id: String(raw.id || ""),
-    fileUrl: String(raw.fileUrl || ""),
+    fileUrl,
     fileName: (raw.fileName as string | null | undefined) ?? null,
     fileType: (raw.fileType as string | null | undefined) ?? null,
     fileSize: typeof raw.fileSize === "number" ? raw.fileSize : null,
@@ -427,6 +436,25 @@ export async function toggleCommentReaction(
     params: { type },
   });
 }
+
+// ── Task Activities ────────────────────────────────────────────────────────────
+
+export interface TaskActivity {
+  id: string;
+  userId: string;
+  type: string;
+  metadata?: string; // JSON string
+  taskId: string;
+  createdAt: string;
+}
+
+export async function getTaskActivities(taskId: string): Promise<TaskActivity[]> {
+  const response = await apiClient.get<unknown>(
+    `${SERVICE}/api/tasks/${taskId}/activities`,
+  );
+  return unwrapResponse(response.data as ServiceEnvelope<TaskActivity[]> | TaskActivity[]);
+}
+
 
 
 // ── Task Checklists ───────────────────────────────────────────────────────────

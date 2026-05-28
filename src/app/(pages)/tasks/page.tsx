@@ -25,6 +25,25 @@ import { useNotifications } from "@/providers/NotificationProvider";
 import { formatTaskDueDate } from "@/lib/helper/formatTime";
 import Link from "next/link";
 
+const stripHtml = (html?: string) => {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, "").replace(/&nbsp;/g, " ").trim();
+};
+
+const DESC_STYLES = `
+  .desc-rich-view h1 { font-size: 1.8em; font-weight: 800; margin: 4px 0; }
+  .desc-rich-view h2 { font-size: 1.5em; font-weight: 700; margin: 4px 0; }
+  .desc-rich-view h3 { font-size: 1.25em; font-weight: 700; margin: 4px 0; }
+  .desc-rich-view h4 { font-size: 1.1em; font-weight: 700; margin: 4px 0; }
+  .desc-rich-view h5 { font-size: 1em; font-weight: 600; margin: 4px 0; }
+  .desc-rich-view h6 { font-size: 0.9em; font-weight: 600; margin: 4px 0; }
+  .desc-rich-view code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+  .desc-rich-view ul { list-style: disc; padding-left: 1.5em; }
+  .desc-rich-view ol { list-style: decimal; padding-left: 1.5em; }
+  .desc-rich-view strike, .desc-rich-view s, .desc-rich-view del { text-decoration: line-through !important; }
+  .desc-rich-view a { color: #2563eb; text-decoration: underline; }
+`;
+
 const PRIORITY_STYLES: Record<TaskPriority, { bg: string; text: string; label: string }> = {
   NONE: { bg: "bg-zinc-50 border-zinc-200", text: "text-zinc-600", label: "Không" },
   LOWEST: { bg: "bg-blue-50 border-blue-200", text: "text-blue-600", label: "Rất thấp" },
@@ -266,6 +285,7 @@ export default function MyTasksPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+      <style dangerouslySetInnerHTML={{ __html: DESC_STYLES }} />
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
@@ -470,7 +490,7 @@ export default function MyTasksPage() {
                             </div>
                             {task.description && (
                               <div className="text-xs text-slate-400 line-clamp-1 mt-0.5 font-normal">
-                                {task.description}
+                                {stripHtml(task.description)}
                               </div>
                             )}
                           </div>
@@ -684,8 +704,13 @@ export default function MyTasksPage() {
               {/* Description */}
               <div>
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Mô tả chi tiết</h4>
-                <div className="text-sm text-slate-700 bg-slate-50/50 p-4 border border-slate-200/30 rounded-2xl leading-relaxed whitespace-pre-wrap">
-                  {selectedTask.description || (
+                <div className="desc-rich-view text-sm text-slate-700 bg-slate-50/50 p-4 border border-slate-200/30 rounded-2xl leading-relaxed whitespace-pre-wrap">
+                  {selectedTask.description ? (
+                    <div
+                      className="w-full wrap-break-word"
+                      dangerouslySetInnerHTML={{ __html: selectedTask.description }}
+                    />
+                  ) : (
                     <span className="text-slate-400 italic font-normal">Không có mô tả chi tiết cho công việc này.</span>
                   )}
                 </div>

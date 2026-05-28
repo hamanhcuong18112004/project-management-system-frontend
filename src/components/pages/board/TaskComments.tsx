@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { MessageSquare, Send, Image as ImageIcon, Trash2, Reply, Smile, Loader2, X } from "lucide-react";
 import { 
   getTaskComments, 
   addTaskComment, 
   deleteTaskComment, 
   toggleCommentReaction, 
-  type TaskComment 
+  getTaskActivities,
+  type TaskComment,
+  type TaskActivity
 } from "@/lib/api/task";
 import { toast } from "sonner";
 import { useRealtime } from "@/providers/RealtimeProvider";
@@ -15,10 +17,17 @@ import { parseServerDate } from "@/lib/helper/formatTime";
 
 interface TaskCommentsProps {
   taskId: string;
+  refreshTrigger?: number;
   currentUserId?: string;
   userFullName?: string;
   userAvatarUrl?: string;
   canComment?: boolean;
+  boardMembers?: Array<{
+    userId?: string;
+    fullName?: string;
+    email?: string;
+    avatarUrl?: string;
+  }>;
 }
 
 const REACTIONS = [
@@ -33,35 +42,49 @@ const REACTIONS = [
 
 const COMMON_EMOJIS = ["😀", "😂", "🥰", "😍", "🤩", "😘", "😜", "🤑", "🤔", "🙄", "😭", "😤", "😡", "😱", "🥳", "😇", "👍", "👎", "❤️", "🔥", "✨", "🎉", "🙏", "💪", "🚀", "💡", "✅", "❌", "💯", "🌟"];
 
-export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUrl, canComment = true }: TaskCommentsProps) {
+export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullName, userAvatarUrl, canComment = true, boardMembers = [] }: TaskCommentsProps) {
   const [comments, setComments] = useState<TaskComment[]>([]);
+  const [activities, setActivities] = useState<TaskActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
-  const { lastCommentUpdate } = useRealtime();
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const { lastCommentUpdate, boardVersion } = useRealtime();
 
   useEffect(() => {
-    loadComments();
-  }, [taskId]);
+    loadCommentsAndActivities();
+  }, [taskId, boardVersion, refreshTrigger]);
 
   useEffect(() => {
     if (lastCommentUpdate?.taskId === taskId) {
       console.log("Realtime comment update detected for task:", taskId);
-      loadComments();
+      loadCommentsAndActivities();
     }
   }, [lastCommentUpdate, taskId]);
 
-  const loadComments = async () => {
+  const loadCommentsAndActivities = async () => {
     setLoading(true);
     try {
-      const data = await getTaskComments(taskId);
-      setComments(data);
+      const [commentsData, activitiesData] = await Promise.all([
+        getTaskComments(taskId).catch(err => {
+          console.error("Failed to load comments", err);
+          return [];
+        }),
+        getTaskActivities(taskId).catch(err => {
+          console.error("Failed to load activities", err);
+          return [];
+        })
+      ]);
+      setComments(commentsData);
+      setActivities(activitiesData);
     } catch (error) {
-      console.error("Failed to load comments", error);
+      console.error("Failed to load comments or activities", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadComments = loadCommentsAndActivities;
 
   const confirmDelete = async () => {
     if (!commentToDelete) return;
@@ -393,12 +416,181 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
     );
   };
 
+  const formatActivityTime = (dateStr: string) => {
+    const date = parseServerDate(dateStr);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${hours}:${minutes} ${day} thg ${month}, ${year}`;
+  };
+
+  const renderActivityText = (activity: TaskActivity) => {
+    const member = boardMembers?.find(m => m.userId === activity.userId);
+    const userName = member?.fullName || member?.email || "Một người dùng";
+    
+    let metadata: any = {};
+    if (activity.metadata) {
+      try {
+        metadata = JSON.parse(activity.metadata);
+      } catch (e) {
+        console.error("Failed to parse activity metadata", e);
+      }
+    }
+
+    switch (activity.type) {
+      case "TASK_CREATED":
+        return `${userName} đã tạo thẻ này`;
+      case "TASK_MOVED":
+        return `${userName} đã thêm thẻ này vào danh sách ${metadata?.listName || ""}`;
+      case "TASK_DESCRIPTION_UPDATED":
+        return `${userName} đã cập nhật mô tả của thẻ này`;
+      case "CHECKLIST_CREATED":
+        return `${userName} đã thêm danh sách công việc ${metadata?.checklistName || ""} vào thẻ này`;
+      case "CHECKLIST_UPDATED": {
+        const action = metadata?.action;
+        const clName = metadata?.checklistName || "Công việc";
+        const itName = metadata?.itemName || "";
+        if (action === "add_item") {
+          return `${userName} đã thêm công việc "${itName}" vào danh sách ${clName}`;
+        }
+        if (action === "update_item") {
+          if (metadata?.completed) {
+            return `${userName} đã hoàn thành công việc "${itName}" trong danh sách ${clName}`;
+          } else {
+            return `${userName} đã đánh dấu chưa hoàn thành công việc "${itName}" trong danh sách ${clName}`;
+          }
+        }
+        if (action === "delete_item") {
+          return `${userName} đã xóa công việc "${itName}" khỏi danh sách ${clName}`;
+        }
+        if (action === "delete_checklist") {
+          return `${userName} đã xóa danh sách công việc ${clName}`;
+        }
+        return `${userName} đã cập nhật danh sách công việc ${clName}`;
+      }
+      case "ATTACHMENT_ADDED":
+        return `${userName} đã đính kèm tài liệu ${metadata?.fileName || ""}`;
+      case "MEMBER_ADDED": {
+        const targetMember = boardMembers?.find(m => m.userId === metadata?.memberId);
+        const targetName = targetMember?.fullName || targetMember?.email || "Một thành viên";
+        return `${userName} đã thêm ${targetName} vào thẻ này`;
+      }
+      case "MEMBER_REMOVED": {
+        const targetMember = boardMembers?.find(m => m.userId === metadata?.memberId);
+        const targetName = targetMember?.fullName || targetMember?.email || "Một thành viên";
+        return `${userName} đã gỡ ${targetName} khỏi thẻ này`;
+      }
+      case "TASK_UPDATED": {
+        const changes: string[] = [];
+        if (metadata?.title) {
+          changes.push(`đổi tiêu đề thành "${metadata.title}"`);
+        }
+        if (metadata?.status) {
+          const statusLabels: Record<string, string> = {
+            TODO: "Việc cần làm",
+            IN_PROGRESS: "Đang làm",
+            DONE: "Đã xong",
+            ARCHIVED: "Lưu trữ"
+          };
+          const statusLabel = statusLabels[metadata.status] || metadata.status;
+          changes.push(`đổi trạng thái thành "${statusLabel}"`);
+        }
+        if (metadata?.priority) {
+          const priorityLabels: Record<string, string> = {
+            NONE: "Không",
+            LOWEST: "Rất thấp",
+            LOW: "Thấp",
+            MEDIUM: "Trung bình",
+            HIGH: "Cao",
+            HIGHEST: "Rất cao",
+            URGENT: "Khẩn cấp"
+          };
+          const priorityLabel = priorityLabels[metadata.priority] || metadata.priority;
+          changes.push(`đổi độ ưu tiên thành "${priorityLabel}"`);
+        }
+        if (metadata?.dueDate) {
+          if (metadata.dueDate === "none") {
+            changes.push("gỡ bỏ hạn xử lý");
+          } else {
+            changes.push(`thay đổi hạn xử lý thành ${formatActivityTime(metadata.dueDate)}`);
+          }
+        }
+        
+        if (changes.length === 0) {
+          return `${userName} đã cập nhật thẻ này`;
+        }
+        return `${userName} đã ${changes.join(", ")}`;
+      }
+      default:
+        return `${userName} đã thực hiện hoạt động ${activity.type}`;
+    }
+  };
+
+  const ActivityItem = ({ activity }: { activity: TaskActivity }) => {
+    const member = boardMembers?.find(m => m.userId === activity.userId);
+    const userFullName = member?.fullName || member?.email || "Người dùng";
+    const userAvatarUrl = member?.avatarUrl || "";
+
+    return (
+      <div className="mt-4 flex gap-2 items-start pl-1">
+        <div className="flex shrink-0 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 overflow-hidden h-7 w-7 text-[10px]">
+          {userAvatarUrl ? (
+            <img src={userAvatarUrl} alt={userFullName} className="h-full w-full object-cover" />
+          ) : (
+            userFullName.charAt(0).toUpperCase()
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-slate-600 leading-snug">
+            {renderActivityText(activity)}
+          </p>
+          <span className="text-[10px] text-slate-400 block mt-0.5" title={parseServerDate(activity.createdAt).toLocaleString("vi-VN")}>
+            {formatActivityTime(activity.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const combinedFeed = useMemo(() => {
+    const feedComments = comments.map(c => ({
+      feedId: `comment-${c.id}`,
+      feedType: "comment" as const,
+      createdAt: c.createdAt,
+      data: c
+    }));
+
+    const visibleActivities = showAllActivities ? activities : activities.slice(0, 2);
+    const feedActivities = visibleActivities.map(a => ({
+      feedId: `activity-${a.id}`,
+      feedType: "activity" as const,
+      createdAt: a.createdAt,
+      data: a
+    }));
+
+    return [...feedComments, ...feedActivities].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [comments, activities, showAllActivities]);
+
   return (
     <div className="border-t border-slate-100 px-5 py-6">
-      <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        <MessageSquare size={16} />
-        <span>Bình luận</span>
-        {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
+      <div className="mb-4 flex items-center justify-between text-sm font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          <MessageSquare size={16} />
+          <span>Bình luận và Hoạt động</span>
+          {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
+        </div>
+        {activities.length > 2 && (
+          <button
+            onClick={() => setShowAllActivities(!showAllActivities)}
+            className="text-xs font-semibold text-sky-500 hover:text-sky-600 transition"
+          >
+            {showAllActivities ? "Ẩn chi tiết" : "Xem chi tiết"}
+          </button>
+        )}
       </div>
 
       {canComment && (
@@ -411,14 +603,18 @@ export function TaskComments({ taskId, currentUserId, userFullName, userAvatarUr
         <div className="py-10 text-center">
           <Loader2 className="mx-auto animate-spin text-slate-300" />
         </div>
-      ) : comments.length === 0 ? (
+      ) : combinedFeed.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-sm text-slate-400">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+          <p className="text-sm text-slate-400">Chưa có bình luận hay hoạt động nào.</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
+          {combinedFeed.map((item) => (
+            item.feedType === "comment" ? (
+              <CommentItem key={item.feedId} comment={item.data} />
+            ) : (
+              <ActivityItem key={item.feedId} activity={item.data} />
+            )
           ))}
         </div>
       )}

@@ -29,5 +29,18 @@
 }
 
 body {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
 }
+
+/* Rich text editor styles for Task Description */
+.desc-rich-editor h1, .desc-rich-view h1 { font-size: 28px !important; font-weight: 800 !important; margin: 4px 0 !important; }
+.desc-rich-editor h2, .desc-rich-view h2 { font-size: 24px !important; font-weight: 700 !important; margin: 4px 0 !important; }
+.desc-rich-editor h3, .desc-rich-view h3 { font-size: 20px !important; font-weight: 700 !important; margin: 4px 0 !important; }
+.desc-rich-editor h4, .desc-rich-view h4 { font-size: 18px !important; font-weight: 700 !important; margin: 4px 0 !important; }
+.desc-rich-editor h5, .desc-rich-view h5 { font-size: 16px !important; font-weight: 600 !important; margin: 4px 0 !important; }
+.desc-rich-editor h6, .desc-rich-view h6 { font-size: 14px !important; font-weight: 600 !important; margin: 4px 0 !important; }
+.desc-rich-editor code, .desc-rich-view code { background: #f1f5f9 !important; padding: 2px 6px !important; border-radius: 4px !important; font-family: monospace !important; font-size: 0.9em !important; }
+.desc-rich-editor ul, .desc-rich-view ul { list-style: disc !important; padding-left: 1.5em !important; }
+.desc-rich-editor ol, .desc-rich-view ol { list-style: decimal !important; padding-left: 1.5em !important; }
+.desc-rich-editor a, .desc-rich-view a { color: #2563eb !important; text-decoration: underline !important; }
+.desc-rich-editor ::selection { background: #93c5fd !important; color: #0f172a !important; }

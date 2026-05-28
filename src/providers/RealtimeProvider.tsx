@@ -202,6 +202,9 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
       };
 
       socket.onerror = (error) => {
+        if (socket?.readyState === WebSocket.CLOSING || socket?.readyState === WebSocket.CLOSED) {
+          return;
+        }
         console.error("WebSocket error detail:", {
           url: socket?.url,
           readyState: socket?.readyState,
