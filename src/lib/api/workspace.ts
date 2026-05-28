@@ -247,6 +247,11 @@ export async function removeWorkspaceMember(workspaceId: string, memberUserId: s
   unwrap(res);
 }
 
+export async function leaveWorkspace(workspaceId: string): Promise<void> {
+  const res = await apiClient.delete<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/leave`);
+  unwrap(res);
+}
+
 export async function acceptWorkspaceInvite(workspaceId: string, token: string): Promise<void> {
   const res = await apiClient.get<ApiResponse<null>>(`${SERVICE}/api/workspaces/${workspaceId}/accept-invite?token=${token}`);
   unwrap(res);

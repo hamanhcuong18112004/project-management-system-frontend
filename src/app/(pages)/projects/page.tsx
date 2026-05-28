@@ -14,6 +14,7 @@ import {
   getMyPermissions,
   getWorkspaceById,
   inviteToWorkspace,
+  leaveWorkspace,
   removeWorkspaceMember,
   updateWorkspace,
   updateWorkspaceMemberRole,
@@ -212,6 +213,8 @@ export default function ProjectsPage() {
   useEffect(() => {
     const refreshTypes = [
       "WORKSPACE_MEMBER_JOINED",
+      "WORKSPACE_MEMBER_REMOVED",
+      "WORKSPACE_ROLE_CHANGED",
       "BOARD_CREATED",
       "BOARD_UPDATED",
       "WORKSPACE_CREATED",
@@ -725,15 +728,24 @@ export default function ProjectsPage() {
 
       <ConfirmModal
         open={!!memberToRemove}
-        title="Xóa thành viên"
-        description="Bạn có chắc chắn muốn xóa thành viên này khỏi không gian làm việc?"
-        confirmText="Xóa thành viên"
+        title={memberToRemove?.memberId === userId ? "Rời workspace" : "Xóa thành viên"}
+        description={
+          memberToRemove?.memberId === userId
+            ? "Bạn có chắc chắn muốn rời khỏi không gian làm việc này?"
+            : "Bạn có chắc chắn muốn xóa thành viên này khỏi không gian làm việc?"
+        }
+        confirmText={memberToRemove?.memberId === userId ? "Rời workspace" : "Xóa thành viên"}
         isDanger={true}
         onClose={() => setMemberToRemove(null)}
         onConfirm={async () => {
           if (memberToRemove) {
-            await removeWorkspaceMember(memberToRemove.workspaceId, memberToRemove.memberId);
-            toast.success("Đã xóa thành viên khỏi workspace");
+            if (memberToRemove.memberId === userId) {
+              await leaveWorkspace(memberToRemove.workspaceId);
+              toast.success("Đã rời khỏi workspace");
+            } else {
+              await removeWorkspaceMember(memberToRemove.workspaceId, memberToRemove.memberId);
+              toast.success("Đã xóa thành viên khỏi workspace");
+            }
             fetchWorkspaces();
             setMemberToRemove(null);
           }

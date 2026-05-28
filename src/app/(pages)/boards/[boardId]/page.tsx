@@ -258,6 +258,10 @@ export default function BoardDetailPage() {
       getMyPermissions(board.workspaceId)
         .then((perms) => setWorkspacePermissions(perms))
         .catch(() => setWorkspacePermissions([]));
+      // Re-fetch workspace members so the BoardMembersDialog shows updated roles immediately
+      getWorkspaceMembers(board.workspaceId)
+        .then((members) => { if (members.length > 0) setWsMembers(members); })
+        .catch(() => {});
       // Also bump board version to reload member list and update displayed role badges
       setBoardVersion((v) => v + 1);
     }
