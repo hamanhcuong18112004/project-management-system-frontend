@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -25,12 +26,13 @@ export default function OAuthCallbackPage() {
       try {
         const user = await authApi.getMyProfile();
         useAuthStore.getState().setAuth(accessToken, refreshToken || "", user);
-        router.replace("/dashboard");
-      } catch (err) {
+        const nextPath = searchParams.get("next");
+        router.replace(nextPath?.startsWith("/") ? nextPath : "/dashboard");
+      } catch {
         router.replace("/login");
       }
     })();
-  }, [router]);
+  }, [router, searchParams]);
 
   return <div>Đang xử lý đăng nhập...</div>;
 }

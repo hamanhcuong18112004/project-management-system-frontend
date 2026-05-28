@@ -9,6 +9,8 @@ import { authApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { API_CONFIG } from "@/config/app";
 
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 function strengthInfo(len: number) {
   if (len === 0) return null;
   if (len < 4) return { label: "Quá yếu", color: "#ef4444", bars: 1 };
@@ -28,14 +30,28 @@ export default function RegisterPage() {
 
   const strength = strengthInfo(password.length);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const getPasswordError = () => {
+    if (password.length < 8) {
+      return "Mật khẩu phải có ít nhất 8 ký tự.";
+    }
+
+    if (!STRONG_PASSWORD_REGEX.test(password)) {
+      return "Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt.";
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!fullName || !username || !email || !password) {
       toast.error("Vui lòng điền đầy đủ thông tin.");
       return;
     }
-    if (password.length < 8) {
-      toast.error("Mật khẩu phải có ít nhất 8 ký tự.");
+
+    const passwordError = getPasswordError();
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     try {
@@ -96,31 +112,31 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4 mb-7">
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Họ và tên</label>
+              <label htmlFor="register-fullname" className="block text-sm font-medium text-gray-700 mb-2">Họ và tên</label>
               <input id="register-fullname" type="text" autoComplete="name" placeholder="Nguyễn Văn A"
                 value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputCls} />
             </div>
 
             {/* Username */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tên người dùng</label>
+              <label htmlFor="register-username" className="block text-sm font-medium text-gray-700 mb-2">Tên người dùng</label>
               <input id="register-username" type="text" autoComplete="username" placeholder="nguyen_van_a"
                 value={username} onChange={(e) => setUsername(e.target.value)} className={inputCls} />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input id="register-email" type="email" autoComplete="email" placeholder="name@company.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
+              <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
               <div className="relative">
                 <input id="register-password" type={showPassword ? "text" : "password"} autoComplete="new-password"
-                  placeholder="Tạo mật khẩu (ít nhất 8 ký tự)"
+                  placeholder="Ít nhất 8 ký tự, có hoa, số và ký tự đặc biệt"
                   value={password} onChange={(e) => setPassword(e.target.value)}
                   className={`${inputCls} pr-11`} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -128,6 +144,9 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
+              </p>
               {strength && (
                 <div className="mb-2 space-y-1">
                   <div className="flex gap-1">
@@ -162,7 +181,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Google */}
-            <button id="register-google" type="button" onClick={() => { window.location.href = `${API_CONFIG.baseURL}/identity/oauth2/authorization/google`; }}
+            <button id="register-google" type="button" onClick={() => { globalThis.location.href = `${API_CONFIG.baseURL}/identity/oauth2/authorization/google`; }}
               className="w-full py-2.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-semibold text-gray-700 transition-all duration-200 flex items-center justify-center gap-2.5 shadow-sm">
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.7-6.7C35.8 2.5 30.3 0 24 0 14.7 0 6.7 5.5 2.9 13.6l7.8 6C12.5 13.2 17.9 9.5 24 9.5z" />

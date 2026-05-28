@@ -999,9 +999,15 @@ export default function BoardDetailPage() {
   }
 
   if (!board) {
+    const isAccessDenied = Boolean(
+      loadError && /không có quyền|not allowed to view|you are not a member|access denied/i.test(loadError),
+    );
+
     return (
       <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center gap-3 bg-slate-100 px-6 text-center text-slate-700">
-        <h1 className="text-xl font-bold text-slate-900">Không tải được board</h1>
+        <h1 className="text-xl font-bold text-slate-900">
+          {isAccessDenied ? "Bạn không có quyền truy cập board này" : "Không tải được board"}
+        </h1>
         <p className="max-w-md text-sm text-slate-600">
           {loadError || "Board này chưa có dữ liệu từ API thật."}
         </p>

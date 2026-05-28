@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/api";
@@ -12,6 +12,7 @@ import { API_CONFIG } from "@/config/app";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const [email, setEmail] = useState("");
@@ -35,7 +36,8 @@ export default function LoginPage() {
       const user = await authApi.getMyProfile();
       setAuth(accessToken, refreshToken, user);
       toast.success("Đăng nhập thành công!");
-      router.push("/dashboard");
+      const nextPath = searchParams.get("next");
+      router.push(nextPath?.startsWith("/") ? nextPath : "/dashboard");
     } catch (err: unknown) {
 
       toast.error(getApiErrorMessage(err, "Đăng nhập thất bại. Vui lòng thử lại."));

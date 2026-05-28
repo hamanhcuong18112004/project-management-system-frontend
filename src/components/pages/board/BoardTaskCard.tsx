@@ -64,6 +64,14 @@ function formatDueDate(value?: string | null) {
   }).format(parseServerDate(value));
 }
 
+function stripHtmlTags(html?: string | null) {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]*>?/gm, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
+
 function BoardTaskCardBase({
   task,
   onClick,
@@ -84,6 +92,8 @@ function BoardTaskCardBase({
     task.dueDate || createdAt || attachmentCount > 0 || commentCount > 0 || checklistTotal > 0 || memberCount > 0,
   );
 
+  const cleanDescription = stripHtmlTags(task.description);
+
   return (
     <button
       type="button"
@@ -99,12 +109,12 @@ function BoardTaskCardBase({
             </span>
           ) : null}
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold leading-5 text-slate-900">
+            <h4 className="text-sm font-semibold leading-5 text-slate-900 break-words [word-break:break-word]">
               {task.title}
             </h4>
-            {task.description ? (
-              <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600">
-                {task.description}
+            {cleanDescription ? (
+              <p className="mt-2 line-clamp-3 text-xs leading-5 text-slate-600 break-words [word-break:break-word]">
+                {cleanDescription}
               </p>
             ) : null}
           </div>

@@ -184,7 +184,8 @@ export default function CalendarPage() {
         listName={selectedTask?.taskListName || "Calendar"}
         onClose={() => setSelectedTask(null)}
         onSave={async (id, payload) => {
-          await handleUpdateTask(id, payload);
+          const updated = await handleUpdateTask(id, payload);
+          if (updated) setSelectedTask(updated);
         }}
         onDelete={handleDeleteTask}
       />
