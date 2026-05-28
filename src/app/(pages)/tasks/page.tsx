@@ -37,12 +37,71 @@ const DESC_STYLES = `
   .desc-rich-view h4 { font-size: 1.1em; font-weight: 700; margin: 4px 0; }
   .desc-rich-view h5 { font-size: 1em; font-weight: 600; margin: 4px 0; }
   .desc-rich-view h6 { font-size: 0.9em; font-weight: 600; margin: 4px 0; }
-  .desc-rich-view code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-  .desc-rich-view ul { list-style: disc; padding-left: 1.5em; }
-  .desc-rich-view ol { list-style: decimal; padding-left: 1.5em; }
-  .desc-rich-view strike, .desc-rich-view s, .desc-rich-view del { text-decoration: line-through !important; }
   .desc-rich-view a { color: #2563eb; text-decoration: underline; }
-  .desc-rich-view mark { background: #fef08a; color: inherit; border-radius: 4px; padding: 0 2px; }
+
+  /* Lists formatting inside view */
+  .desc-rich-view ul { list-style-type: disc !important; padding-left: 2em !important; margin: 8px 0 !important; }
+  .desc-rich-view ol { list-style-type: decimal !important; padding-left: 2em !important; margin: 8px 0 !important; }
+  .desc-rich-view li { list-style-type: inherit !important; display: list-item !important; margin: 4px 0 !important; }
+
+  /* Ensure headings display inline inside list items so bullets/numbers show right next to them */
+  .desc-rich-view li h1, .desc-rich-view li h2, .desc-rich-view li h3, .desc-rich-view li h4, .desc-rich-view li h5, .desc-rich-view li h6 {
+    display: inline-block !important;
+    margin: 0 !important;
+    font-size: 1.2em !important;
+  }
+
+  /* Strikethrough formatting */
+  .desc-rich-view s, .desc-rich-view strike, .desc-rich-view del {
+    text-decoration: line-through !important;
+  }
+  .desc-rich-view s *, .desc-rich-view strike *, .desc-rich-view del * {
+    text-decoration: line-through !important;
+  }
+  /* Support case where formatting tags are inside headings or wrap headings */
+  .desc-rich-view h1 s, .desc-rich-view h2 s, .desc-rich-view h3 s, .desc-rich-view h4 s, .desc-rich-view h5 s, .desc-rich-view h6 s,
+  .desc-rich-view h1 strike, .desc-rich-view h2 strike, .desc-rich-view h3 strike, .desc-rich-view h4 strike, .desc-rich-view h5 strike, .desc-rich-view h6 strike,
+  .desc-rich-view h1 del, .desc-rich-view h2 del, .desc-rich-view h3 del, .desc-rich-view h4 del, .desc-rich-view h5 del, .desc-rich-view h6 del {
+    text-decoration: line-through !important;
+  }
+
+  /* Highlight/Mark formatting */
+  .desc-rich-view mark {
+    background: #fef08a !important;
+    color: #0f172a !important;
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+  .desc-rich-view mark * {
+    background: #fef08a !important;
+    color: #0f172a !important;
+  }
+  .desc-rich-view h1 mark, .desc-rich-view h2 mark, .desc-rich-view h3 mark, .desc-rich-view h4 mark, .desc-rich-view h5 mark, .desc-rich-view h6 mark {
+    background: #fef08a !important;
+    color: #0f172a !important;
+  }
+
+  /* Code formatting */
+  .desc-rich-view code {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+  .desc-rich-view code * {
+    background: #f1f5f9 !important;
+    font-family: monospace !important;
+  }
+  .desc-rich-view h1 code, .desc-rich-view h2 code, .desc-rich-view h3 code, .desc-rich-view h4 code, .desc-rich-view h5 code, .desc-rich-view h6 code {
+    background: #f1f5f9 !important;
+    font-family: monospace !important;
+    font-size: 0.9em !important;
+    font-weight: normal !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+  }
 `;
 
 const PRIORITY_STYLES: Record<TaskPriority, { bg: string; text: string; label: string }> = {
@@ -107,7 +166,12 @@ export default function MyTasksPage() {
                 };
               });
             } catch (err) {
-              console.error(`Failed to fetch boards for workspace ${ws.id}:`, err);
+              const errMsg = err instanceof Error ? err.message : String(err);
+              if (errMsg.includes("không có quyền") || errMsg.includes("permission") || errMsg.includes("403")) {
+                console.warn(`No board-view permission for workspace ${ws.id} (${ws.name})`);
+              } else {
+                console.error(`Failed to fetch boards for workspace ${ws.id}:`, err);
+              }
             }
           })
         );
