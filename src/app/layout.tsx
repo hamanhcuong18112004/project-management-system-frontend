@@ -6,6 +6,11 @@ import AuthProvider from "@/providers/AuthProvider";
 import RealtimeProvider from "@/providers/RealtimeProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.dangcapnhatvietnam.site";
+const ogImageUrl = `${siteUrl}/ogimage.jpeg`;
+const seoDescription =
+  "TaskFlow giúp đội nhóm quản lý dự án, phân chia công việc, theo dõi deadline, ưu tiên task quan trọng và cộng tác thời gian thực trên một nền tảng trực quan.";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -17,14 +22,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   applicationName: "TaskFlow",
   title: {
     default: "TaskFlow đỉnh cao của quản lý",
     template: "%s | TaskFlow",
   },
-  description:
-    "TaskFlow giúp đội nhóm quản lý dự án, phân chia công việc, theo dõi deadline, ưu tiên task quan trọng và cộng tác thời gian thực trên một nền tảng trực quan.",
+  description: seoDescription,
   keywords: [
     "TaskFlow",
     "quản lý dự án",
@@ -41,15 +45,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "vi_VN",
+    url: siteUrl,
     siteName: "TaskFlow",
     title: "TaskFlow đỉnh cao của quản lý",
-    description:
-      "TaskFlow giúp đội nhóm quản lý dự án, phân chia công việc, theo dõi deadline, ưu tiên task quan trọng và cộng tác thời gian thực trên một nền tảng trực quan.",
+    description: seoDescription,
     images: [
       {
-        url: "/ogimage.jpeg",
-        width: 1200,
-        height: 630,
+        url: ogImageUrl,
+        secureUrl: ogImageUrl,
+        width: 600,
+        height: 400,
         alt: "TaskFlow - nền tảng quản lý dự án và công việc",
       },
     ],
@@ -57,12 +62,11 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "TaskFlow đỉnh cao của quản lý",
-    description:
-      "TaskFlow giúp đội nhóm quản lý dự án, phân chia công việc, theo dõi deadline, ưu tiên task quan trọng và cộng tác thời gian thực.",
-    images: ["/ogimage.jpeg"],
+    description: seoDescription,
+    images: [ogImageUrl],
   },
   alternates: {
-    canonical: "/",
+    canonical: siteUrl,
   },
   robots: {
     index: true,
