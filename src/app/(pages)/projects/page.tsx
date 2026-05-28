@@ -564,7 +564,7 @@ export default function ProjectsPage() {
     return (
       <section className="space-y-5">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold uppercase tracking-wide text-slate-700">
+          <h2 className="text-2xl font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
             {title}
           </h2>
           {title.includes("KHÁC") && <Info size={18} className="text-blue-500" />}
@@ -594,14 +594,14 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] px-4 py-10 text-slate-900 dark:text-slate-100 sm:px-6 lg:px-8 transition-colors">
       <div className="mx-auto max-w-7xl space-y-10">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-400">
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
               Workspace
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
               Không gian làm việc
             </h1>
           </div>
@@ -616,9 +616,9 @@ export default function ProjectsPage() {
         </div>
 
         {workspaces.length > 0 && (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
             <div className="relative flex-1 max-w-md">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
                 <Search size={16} />
               </span>
               <input
@@ -626,7 +626,7 @@ export default function ProjectsPage() {
                 placeholder="Tìm kiếm không gian hoặc bảng..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-500 dark:text-white transition"
               />
             </div>
             {(searchQuery || searchParams.get("workspaceId")) && (
@@ -650,8 +650,8 @@ export default function ProjectsPage() {
             <Loader2 size={32} className="animate-spin text-blue-500" />
           </div>
         ) : workspaces.length === 0 ? (
-          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-20 text-center shadow-sm">
-            <p className="mb-5 text-slate-500">
+          <div className="rounded-[28px] border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-20 text-center shadow-sm transition-colors">
+            <p className="mb-5 text-slate-500 dark:text-slate-400">
               Bạn chưa có không gian làm việc nào.
             </p>
             <button
@@ -662,8 +662,8 @@ export default function ProjectsPage() {
             </button>
           </div>
         ) : filteredWorkspaces.length === 0 ? (
-          <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
-            <p className="text-slate-500 text-sm font-medium">
+          <div className="rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-16 text-center shadow-sm transition-colors">
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
               Không tìm thấy không gian làm việc hoặc bảng nào khớp với từ khóa tìm kiếm.
             </p>
             <button

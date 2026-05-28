@@ -182,11 +182,11 @@ export default function InvitationsPage() {
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
           <Mail className="text-blue-600" size={26} />
           Hộp Thư Lời Mời
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Quản lý các lời mời tham gia workspace từ các đội nhóm khác gửi tới tài khoản của bạn.
         </p>
       </div>
@@ -198,12 +198,12 @@ export default function InvitationsPage() {
         </h3>
         
         {pendingInvites.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-10 text-center shadow-xs">
-            <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3 border border-slate-100">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-10 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-3 border border-slate-100 dark:border-slate-700">
               <Mail size={20} />
             </div>
-            <p className="text-sm font-semibold text-slate-700">Không có lời mời nào đang chờ</p>
-            <p className="text-xs text-slate-400 mt-1">Hộp thư của bạn hoàn toàn trống sạch.</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Không có lời mời nào đang chờ</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Hộp thư của bạn hoàn toàn trống sạch.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -276,15 +276,15 @@ export default function InvitationsPage() {
         </h3>
 
         {processedInvites.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-10 text-center shadow-xs">
-            <p className="text-xs text-slate-400">Không có lịch sử lời mời nào trước đây.</p>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-10 text-center shadow-xs">
+            <p className="text-xs text-slate-400 dark:text-slate-500">Không có lịch sử lời mời nào trước đây.</p>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100 text-left border-collapse">
+              <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
                     <th className="px-5 py-4">Workspace</th>
                     <th className="px-5 py-4">Người mời</th>
                     <th className="px-5 py-4">Vai trò đề xuất</th>
@@ -293,7 +293,7 @@ export default function InvitationsPage() {
                     <th className="px-5 py-4 text-right">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {processedInvites.map((invite) => {
                     const isMember = myWorkspacesList.some((w) => w.id === invite.workspaceId);
                     return (

@@ -252,31 +252,31 @@ export default function DashboardPage() {
 
       {/* Overview cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-5 flex items-center gap-4 transition-colors">
+          <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <FolderKanban size={22} />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Workspace</p>
-            <p className="text-xl font-bold text-gray-900">{workspaces.length}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Workspace</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{workspaces.length}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center text-sky-600">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-5 flex items-center gap-4 transition-colors">
+          <div className="w-12 h-12 rounded-xl bg-sky-100 dark:bg-sky-900/50 flex items-center justify-center text-sky-600 dark:text-sky-400">
             <ListTodo size={22} />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Tổng bảng</p>
-            <p className="text-xl font-bold text-gray-900">{allBoards.length}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Tổng bảng</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{allBoards.length}</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-5 flex items-center gap-4 transition-colors">
+          <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center text-violet-600 dark:text-violet-400">
             <Users size={22} />
           </div>
           <div>
-            <p className="text-xs text-gray-500">Thành viên</p>
-            <p className="text-xl font-bold text-gray-900">{totalMembers}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">Thành viên</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{totalMembers}</p>
           </div>
         </div>
       </div>
@@ -284,41 +284,41 @@ export default function DashboardPage() {
       {/* Two-column layout: Deadlines + Notifications */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Deadlines */}
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 transition-colors">
           <div className="flex items-center gap-2 mb-4">
-            <Clock size={18} className="text-red-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Hạn chốt sắp tới</h2>
+            <Clock size={18} className="text-red-500 dark:text-red-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Hạn chốt sắp tới</h2>
           </div>
           {upcomingDeadlines.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">Không có deadline nào sắp tới.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">Không có deadline nào sắp tới.</p>
           ) : (
             <div className="space-y-3">
               {upcomingDeadlines.map((d, i) => {
                 const isOverdue = parseServerDate(d.dueDate) < new Date();
-                let borderAndBg = "border-zinc-300 bg-zinc-50/40";
+                let borderAndBg = "border-zinc-300 dark:border-slate-700 bg-zinc-50/40 dark:bg-slate-800/50";
                 if (isOverdue) {
-                  borderAndBg = "border-red-500 bg-red-50/40";
+                  borderAndBg = "border-red-500 dark:border-red-500/50 bg-red-50/40 dark:bg-red-500/10";
                 } else {
                   switch (d.priority) {
-                    case "URGENT": borderAndBg = "border-red-500 bg-red-50/40"; break;
-                    case "HIGHEST": borderAndBg = "border-orange-500 bg-orange-50/40"; break;
-                    case "HIGH": borderAndBg = "border-amber-500 bg-amber-50/40"; break;
-                    case "MEDIUM": borderAndBg = "border-blue-500 bg-blue-50/40"; break;
-                    case "LOW": borderAndBg = "border-emerald-500 bg-emerald-50/40"; break;
-                    case "LOWEST": borderAndBg = "border-indigo-500 bg-indigo-50/40"; break;
-                    case "NONE": borderAndBg = "border-zinc-300 bg-zinc-50/40"; break;
+                    case "URGENT": borderAndBg = "border-red-500 dark:border-red-500/50 bg-red-50/40 dark:bg-red-500/10"; break;
+                    case "HIGHEST": borderAndBg = "border-orange-500 dark:border-orange-500/50 bg-orange-50/40 dark:bg-orange-500/10"; break;
+                    case "HIGH": borderAndBg = "border-amber-500 dark:border-amber-500/50 bg-amber-50/40 dark:bg-amber-500/10"; break;
+                    case "MEDIUM": borderAndBg = "border-blue-500 dark:border-blue-500/50 bg-blue-50/40 dark:bg-blue-500/10"; break;
+                    case "LOW": borderAndBg = "border-emerald-500 dark:border-emerald-500/50 bg-emerald-50/40 dark:bg-emerald-500/10"; break;
+                    case "LOWEST": borderAndBg = "border-indigo-500 dark:border-indigo-500/50 bg-indigo-50/40 dark:bg-indigo-500/10"; break;
+                    case "NONE": borderAndBg = "border-zinc-300 dark:border-slate-700 bg-zinc-50/40 dark:bg-slate-800/50"; break;
                   }
                 }
 
                 return (
                   <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 ${borderAndBg}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{d.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                         Bảng: {d.boardName}
                       </p>
                     </div>
-                    <span className={`text-xs font-medium whitespace-nowrap px-2 py-1 rounded-full border ${isOverdue ? "bg-red-50 text-red-700 border-red-200" : "bg-white text-gray-500 border-gray-200"}`}>
+                    <span className={`text-xs font-medium whitespace-nowrap px-2 py-1 rounded-full border ${isOverdue ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800/50" : "bg-white text-gray-500 border-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"}`}>
                       {formatDate(d.dueDate)}
                     </span>
                   </div>
@@ -329,34 +329,34 @@ export default function DashboardPage() {
         </div>
 
         {/* Notifications */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 transition-colors">
           <div className="flex items-center gap-2 mb-4">
-            <Bell size={18} className="text-blue-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Thông báo mới</h2>
+            <Bell size={18} className="text-blue-500 dark:text-blue-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Thông báo mới</h2>
             {notifications.filter((n) => !n.read).length > 0 && (
-              <span className="ml-auto text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded-full">
                 {notifications.filter((n) => !n.read).length} mới
               </span>
             )}
           </div>
           {notifications.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">Chưa có thông báo nào.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">Chưa có thông báo nào.</p>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {notifications.slice(0, 10).map((notif) => (
                 <div
                   key={notif.id}
-                  className={`flex gap-3 p-3 rounded-lg transition ${notif.read ? "bg-white" : "bg-blue-50/60"}`}
+                  className={`flex gap-3 p-3 rounded-lg transition ${notif.read ? "bg-white dark:bg-slate-800/20" : "bg-blue-50/60 dark:bg-blue-900/20"}`}
                 >
                   <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold ${getNotifColor(notif.type)}`}>
                     {getNotifIcon(notif.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 leading-snug">
-                      <span className="font-semibold text-gray-900">{notif.title}</span>
+                    <p className="text-sm text-gray-700 dark:text-slate-300 leading-snug">
+                      <span className="font-semibold text-gray-900 dark:text-white">{notif.title}</span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{notif.message}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(notif.createdAt)}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notif.message}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">{formatTimeAgo(notif.createdAt)}</p>
                   </div>
                   {!notif.read && (
                     <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />
@@ -384,15 +384,23 @@ function StatCard({
   icon: React.ElementType;
   color: string;
 }) {
+  const darkColorMap: Record<string, string> = {
+    "bg-blue-100 text-blue-600": "dark:bg-blue-900/30 dark:text-blue-400",
+    "bg-yellow-100 text-yellow-600": "dark:bg-yellow-900/30 dark:text-yellow-400",
+    "bg-red-100 text-red-600": "dark:bg-red-900/30 dark:text-red-400",
+    "bg-green-100 text-green-600": "dark:bg-green-900/30 dark:text-green-400",
+  };
+  const darkColor = darkColorMap[color] || "";
+
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} ${darkColor}`}>
           <Icon size={22} />
         </div>
         <div>
-          <p className="text-gray-500 text-xs">{label}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-gray-500 dark:text-slate-400 text-xs">{label}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
         </div>
       </div>
     </div>

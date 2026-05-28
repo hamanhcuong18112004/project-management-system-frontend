@@ -181,6 +181,18 @@ export async function getMyProfile(): Promise<UserData> {
 }
 
 /**
+ * PUT /me
+ * Updates the user's profile (e.g. full name).
+ */
+export async function updateProfile(fullName: string): Promise<UserData> {
+    const res = await apiClient.put<ApiResponse<UserData>>(
+        `${service}/me`,
+        { fullName }
+    );
+    return unwrap(res);
+}
+
+/**
  * POST /users/bulk
  * Returns profiles for a list of user IDs.
  */
@@ -190,6 +202,25 @@ export async function getUsersProfiles(userIds: string[]): Promise<UserData[]> {
     const res = await apiClient.post<ApiResponse<UserData[]>>(
         `${service}/users/bulk`,
         userIds
+    );
+    return unwrap(res);
+}
+
+/**
+ * POST /me/password
+ * Body: { currentPassword, newPassword }
+ * Changes the current user's password.
+ */
+export async function changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+    logoutOtherSessions: boolean,
+    currentRefreshToken: string
+): Promise<string> {
+    const res = await apiClient.post<ApiResponse<string>>(
+        `${service}/me/password`,
+        { currentPassword, newPassword, confirmPassword, logoutOtherSessions, currentRefreshToken }
     );
     return unwrap(res);
 }

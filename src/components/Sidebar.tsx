@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, LogOut, Settings, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { ChevronDown, LogOut, Settings, ChevronLeft, ChevronRight, Menu, ActivitySquare } from "lucide-react";
 
 import { toast } from "sonner";
 import { ROUTES } from "@/config";
@@ -116,31 +116,31 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-slate-200 bg-white shadow-sm transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
-      <div className={`flex items-center border-b border-slate-200 px-5 py-5 ${isCollapsed ? "justify-center" : "justify-between"}`}>
+    <aside className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
+      <div className={`flex items-center border-b border-slate-200 dark:border-slate-800 px-5 py-5 ${isCollapsed ? "justify-center" : "justify-between"}`}>
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 shadow-sm">
             <span className="text-sm font-bold text-white">T</span>
           </div>
           {!isCollapsed && (
-            <span className="text-xl font-bold tracking-tight text-slate-900">
+            <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               TaskFlow
             </span>
           )}
         </div>
         <button
           onClick={toggle}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 ${isCollapsed ? "hidden" : ""}`}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200 ${isCollapsed ? "hidden" : ""}`}
         >
           <ChevronLeft size={18} />
         </button>
       </div>
 
       {isCollapsed && (
-        <div className="flex justify-center border-b border-slate-200 py-2">
+        <div className="flex justify-center border-b border-slate-200 dark:border-slate-800 py-2">
           <button
             onClick={toggle}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <Menu size={18} />
           </button>
@@ -160,15 +160,15 @@ export function Sidebar() {
                 href={item.href}
                 title={isCollapsed ? item.label : undefined}
                 className={`group flex items-center gap-3 rounded-xl py-2.5 transition-all duration-200 relative ${isCollapsed ? "justify-center px-0" : "px-3"} ${active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                   }`}
               >
                 <Icon
                   size={20}
                   className={`shrink-0 ${active
-                    ? "text-blue-700"
-                    : "text-slate-400 group-hover:text-slate-700"
+                    ? "text-blue-700 dark:text-blue-400"
+                    : "text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
                     }`}
                 />
                 {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
@@ -192,7 +192,7 @@ export function Sidebar() {
           {!isCollapsed && (
             <button
               onClick={() => setWorkspacesExpanded((current) => !current)}
-              className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600"
+              className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
             >
               <span>Workspace</span>
               <ChevronDown
@@ -204,7 +204,7 @@ export function Sidebar() {
           )}
 
           {isCollapsed && (
-            <div className="my-2 h-px bg-slate-200 mx-4" />
+            <div className="my-2 h-px bg-slate-200 dark:bg-slate-800 mx-4" />
           )}
 
 
@@ -218,8 +218,8 @@ export function Sidebar() {
                     key={workspace.id}
                     href={workspace.href}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${active
-                      ? "bg-blue-50 text-blue-700 font-semibold"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-semibold"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
                       }`}
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
@@ -238,20 +238,35 @@ export function Sidebar() {
           href={ROUTES.settings}
           title={isCollapsed ? "Cài đặt" : undefined}
           className={`group flex items-center gap-3 rounded-xl py-2.5 transition-all duration-200 ${isCollapsed ? "justify-center px-0" : "px-3"} ${isActive(ROUTES.settings)
-            ? "bg-blue-50 text-blue-700"
-            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
             }`}
         >
           <Settings
             size={20}
-            className={`shrink-0 ${isActive(ROUTES.settings) ? "text-blue-700" : "text-slate-400"
+            className={`shrink-0 ${isActive(ROUTES.settings) ? "text-blue-700 dark:text-blue-400" : "text-slate-400"
               }`}
           />
           {!isCollapsed && <span className="text-sm font-medium">Cài đặt</span>}
         </Link>
 
+        <Link
+          href={ROUTES.auditLog}
+          title={isCollapsed ? "Nhật ký hệ thống" : undefined}
+          className={`group flex items-center gap-3 rounded-xl py-2.5 transition-all duration-200 ${isCollapsed ? "justify-center px-0" : "px-3"} ${isActive(ROUTES.auditLog)
+            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+            : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
+        >
+          <ActivitySquare
+            size={20}
+            className={`shrink-0 ${isActive(ROUTES.auditLog) ? "text-blue-700 dark:text-blue-400" : "text-slate-400"
+              }`}
+          />
+          {!isCollapsed && <span className="text-sm font-medium">Nhật ký hệ thống</span>}
+        </Link>
 
-        <div className={`flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 py-3 ${isCollapsed ? "justify-center px-0" : "px-3"}`}>
+        <div className={`flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 py-3 ${isCollapsed ? "justify-center px-0" : "px-3"}`}>
           <Link href="/profile" className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-80">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600">
               <span className="text-sm font-semibold text-white">
@@ -260,10 +275,10 @@ export function Sidebar() {
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">
+                <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-200">
                   {user?.fullName || "User"}
                 </p>
-                <p className="truncate text-xs text-slate-500">{user?.email || ""}</p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user?.email || ""}</p>
               </div>
             )}
           </Link>
@@ -271,7 +286,7 @@ export function Sidebar() {
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="rounded-md p-1.5 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
+              className="rounded-md p-1.5 text-slate-500 dark:text-slate-400 transition-all hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-50"
               title="Đăng xuất"
             >
               <LogOut size={16} />
