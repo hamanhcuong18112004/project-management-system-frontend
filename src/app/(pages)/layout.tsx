@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Header, Sidebar } from "@/components";
 import { useAuthStore, useSidebarStore } from "@/lib/stores";
 
@@ -15,10 +15,14 @@ export default function PagesLayout({
   const router = useRouter();
 
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [hydrated, setHydrated] = useState(
     () => useAuthStore.persist?.hasHydrated?.() ?? false,
   );
   const isBoardRoute = pathname.startsWith("/boards/");
+  const currentPath = searchParams.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
 
   useEffect(() => {
     if (hydrated) {
@@ -36,9 +40,9 @@ export default function PagesLayout({
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
-      router.replace("/login");
+      router.replace(`/login?next=${encodeURIComponent(currentPath)}`);
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [currentPath, hydrated, isAuthenticated, router]);
 
   if (!hydrated || !isAuthenticated) {
     return null;
