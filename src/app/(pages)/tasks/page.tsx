@@ -42,6 +42,7 @@ const DESC_STYLES = `
   .desc-rich-view ol { list-style: decimal; padding-left: 1.5em; }
   .desc-rich-view strike, .desc-rich-view s, .desc-rich-view del { text-decoration: line-through !important; }
   .desc-rich-view a { color: #2563eb; text-decoration: underline; }
+  .desc-rich-view mark { background: #fef08a; color: inherit; border-radius: 4px; padding: 0 2px; }
 `;
 
 const PRIORITY_STYLES: Record<TaskPriority, { bg: string; text: string; label: string }> = {

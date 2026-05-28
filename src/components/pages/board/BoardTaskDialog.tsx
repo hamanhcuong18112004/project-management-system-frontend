@@ -1218,6 +1218,13 @@ const EDITOR_STYLES = `
   .desc-rich-view ol { list-style: decimal; padding-left: 1.5em; }
   .desc-rich-view strike, .desc-rich-view s, .desc-rich-view del { text-decoration: line-through !important; }
   .desc-rich-view a { color: #2563eb; text-decoration: underline; }
+  .desc-rich-editor mark,
+  .desc-rich-view mark {
+    background: #fef08a;
+    color: inherit;
+    border-radius: 4px;
+    padding: 0 2px;
+  }
 `;
 
 export interface TaskDescriptionProps {
@@ -1266,6 +1273,37 @@ export function TaskDescription({
   });
 
   const ttBtnRef = React.useRef<HTMLDivElement>(null);
+
+  const focusEditor = () => {
+    descEditorRef.current?.focus();
+  };
+
+  const runCommand = (command: string, value?: string) => {
+    focusEditor();
+    document.execCommand(command, false, value);
+    handleEditorInput();
+  };
+
+  const wrapSelectionWithTag = (tagName: string) => {
+    focusEditor();
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+
+    const element = document.createElement(tagName);
+    element.appendChild(range.extractContents());
+    range.insertNode(element);
+
+    selection.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(element);
+    selection.addRange(newRange);
+
+    handleEditorInput();
+  };
 
   // Check if description has any real text content
   const hasDescription = (() => {
@@ -1444,7 +1482,7 @@ export function TaskDescription({
               <div className="mx-1 h-4 w-px bg-slate-200" />
               <button
                 type="button"
-                onClick={() => execFormat("bold")}
+                onClick={() => runCommand("bold")}
                 className="rounded p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
                 title="Chữ đậm (Ctrl+B)"
               >
@@ -1452,7 +1490,7 @@ export function TaskDescription({
               </button>
               <button
                 type="button"
-                onClick={() => execFormat("italic")}
+                onClick={() => runCommand("italic")}
                 className="rounded p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
                 title="Chữ nghiêng (Ctrl+I)"
               >
@@ -1484,7 +1522,7 @@ export function TaskDescription({
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        execFormat("strikeThrough");
+                        runCommand("strikeThrough");
                         setShowMoreDropdown(false);
                       }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
@@ -1496,21 +1534,19 @@ export function TaskDescription({
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        // Wrap selection in <code> tag
-                        const sel = window.getSelection();
-                        if (sel && sel.rangeCount > 0) {
-                          const range = sel.getRangeAt(0);
-                          const code = document.createElement("code");
-                          try {
-                            range.surroundContents(code);
-                          } catch {
-                            // If selection spans multiple elements, insert as text
-                            code.textContent = sel.toString();
-                            range.deleteContents();
-                            range.insertNode(code);
-                          }
-                          handleEditorInput();
-                        }
+                        wrapSelectionWithTag("mark");
+                        setShowMoreDropdown(false);
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                    >
+                      <span className="rounded bg-yellow-200 px-1 text-slate-700 flex items-center justify-center w-4 h-4 text-[10px]">Aa</span>
+                      <span>Đánh dấu</span>
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        wrapSelectionWithTag("code");
                         setShowMoreDropdown(false);
                       }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
@@ -1562,7 +1598,7 @@ export function TaskDescription({
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        execFormat("insertUnorderedList");
+                        runCommand("insertUnorderedList");
                         setShowListDropdown(false);
                       }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
@@ -1574,7 +1610,7 @@ export function TaskDescription({
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        execFormat("insertOrderedList");
+                        runCommand("insertOrderedList");
                         setShowListDropdown(false);
                       }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
@@ -1590,7 +1626,7 @@ export function TaskDescription({
                 type="button"
                 onClick={() => {
                   const url = prompt("Nhập URL:");
-                  if (url) execFormat("createLink", url);
+                  if (url) runCommand("createLink", url);
                 }}
                 className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
                 title="Chèn liên kết"
