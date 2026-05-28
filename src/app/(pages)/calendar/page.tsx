@@ -112,35 +112,35 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarIcon className="text-blue-600" size={26} />
             Lịch Công Việc
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Quản lý tiến độ - Nâng tầm hiệu suất
           </p>
         </div>
 
         {/* Navigation / Actions */}
-        <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-sm border border-slate-200">
+        <div className="flex items-center gap-2 rounded-2xl bg-white dark:bg-slate-900 p-2 shadow-sm border border-slate-200 dark:border-slate-800">
           <button
             onClick={prevMonth}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-all"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
           >
             <ChevronLeft size={20} />
           </button>
-          <div className="min-w-[150px] text-center font-bold text-slate-800 px-2 capitalize text-sm md:text-base">
+          <div className="min-w-[150px] text-center font-bold text-slate-800 dark:text-slate-200 px-2 capitalize text-sm md:text-base">
             {format(currentDate, "MMMM yyyy", { locale: vi })}
           </div>
           <button
             onClick={nextMonth}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-all"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
           >
             <ChevronRight size={20} />
           </button>
-          <div className="mx-2 h-6 w-px bg-slate-200" />
+          <div className="mx-2 h-6 w-px bg-slate-200 dark:bg-slate-700" />
           <button
             onClick={goToToday}
             className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-xl shadow-sm"
@@ -151,9 +151,9 @@ export default function CalendarPage() {
       </div>
 
       {/* Calendar Body */}
-      <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden p-4 min-h-[600px] h-[calc(100vh-240px)]">
+      <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden p-4 min-h-[600px] h-[calc(100vh-240px)]">
         {loading && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
             <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
           </div>
         )}
@@ -198,10 +198,18 @@ export default function CalendarPage() {
           border: none;
         }
         
+        .dark .calendar-container .fc {
+          --fc-border-color: #1e293b;
+          --fc-today-bg-color: #0f172a;
+        }
+
         .calendar-header-cell {
           background: #f8fafc;
           padding: 10px 0 !important;
           border: none !important;
+        }
+        .dark .calendar-header-cell {
+          background: #0f172a;
         }
 
         .calendar-header-cell .fc-col-header-cell-cushion {
@@ -211,6 +219,9 @@ export default function CalendarPage() {
           text-transform: uppercase;
           text-decoration: none !important;
         }
+        .dark .calendar-header-cell .fc-col-header-cell-cushion {
+          color: #94a3b8;
+        }
 
         .calendar-container .fc-daygrid-day-number {
           font-size: 12px;
@@ -219,9 +230,15 @@ export default function CalendarPage() {
           padding: 8px 12px !important;
           text-decoration: none !important;
         }
+        .dark .calendar-container .fc-daygrid-day-number {
+          color: #94a3b8;
+        }
 
         .calendar-container .fc-day-today {
           background-color: #eff6ff !important;
+        }
+        .dark .calendar-container .fc-day-today {
+          background-color: #1e293b !important;
         }
 
         .calendar-container .fc-event {
@@ -249,6 +266,10 @@ export default function CalendarPage() {
         .calendar-container .fc-theme-standard td, 
         .calendar-container .fc-theme-standard th {
           border-color: #f1f5f9;
+        }
+        .dark .calendar-container .fc-theme-standard td, 
+        .dark .calendar-container .fc-theme-standard th {
+          border-color: #1e293b;
         }
       `}</style>
     </div>

@@ -378,10 +378,10 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Báo cáo & Phân tích
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {selectedBoard
               ? `${report?.workspace.name} / ${selectedBoard.name}`
               : report
@@ -408,9 +408,9 @@ export default function ReportsPage() {
 
       {/* Empty prompt */}
       {!reportLoading && !report && (
-        <div className="flex flex-col items-center justify-center py-28 text-slate-400">
+        <div className="flex flex-col items-center justify-center py-28 text-slate-400 dark:text-slate-500">
           <BarChart3 size={52} className="mb-4 opacity-20" />
-          <p className="font-medium text-slate-500">Chọn workspace để xem báo cáo</p>
+          <p className="font-medium text-slate-500 dark:text-slate-400">Chọn workspace để xem báo cáo</p>
           <p className="mt-1 text-sm">
             Xem tổng quan workspace hoặc đi sâu vào từng board
           </p>

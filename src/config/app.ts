@@ -20,12 +20,13 @@ export const ROUTES = {
     team: "/team",
     calendar: "/calendar",
     reports: "/reports",
-    settings: "/profile",
+    settings: "/settings",
     profile: "/profile",
     invitations: "/invitations",
     drafts: "/drafts",
     login: "/login",
     register: "/register",
+    auditLog: "/audit-log",
 } as const;
 
 

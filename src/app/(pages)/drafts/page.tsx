@@ -635,17 +635,17 @@ export default function DraftsPage() {
           </h3>
 
           {loading ? (
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-16 text-center shadow-xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-16 text-center shadow-xs">
               <Loader2 size={32} className="animate-spin text-indigo-600 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-500">Đang đồng bộ dữ liệu...</p>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Đang đồng bộ dữ liệu...</p>
             </div>
           ) : drafts.length === 0 ? (
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center shadow-xs">
-              <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4 border border-slate-100">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-12 text-center shadow-xs">
+              <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-slate-700">
                 <FileText size={20} />
               </div>
-              <p className="text-sm font-semibold text-slate-700">Bộ nhớ đệm trống</p>
-              <p className="text-xs text-slate-400 mt-1">Chưa có bản nháp công việc nào được lưu trữ.</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Bộ nhớ đệm trống</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Chưa có bản nháp công việc nào được lưu trữ.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">

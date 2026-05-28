@@ -40,7 +40,7 @@ export function Header() {
   };
 
   return (
-    <header className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-40 transition-all duration-300 ${isCollapsed ? "left-20" : "left-64"}`}>
+    <header className={`fixed top-0 right-0 h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 z-40 transition-all duration-300 ${isCollapsed ? "left-20" : "left-64"}`}>
 
       <div className="h-full px-6 flex items-center justify-between">
         {/* Left: Navigation tabs */}
@@ -52,8 +52,8 @@ export function Header() {
                 key={tab.href}
                 href={tab.href}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${active
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
                   }`}
               >
                 {tab.label}
@@ -67,12 +67,12 @@ export function Header() {
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500"
             />
             <input
               type="text"
               placeholder="Tìm kiếm..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg bg-gray-100 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 dark:focus:border-blue-500 transition-all"
             />
           </div>
         </div>
@@ -82,7 +82,7 @@ export function Header() {
           {/* Notifications */}
           <div className="relative">
             <button
-              className={`relative p-2 rounded-lg transition-all ${isJiggling ? "animate-bounce text-blue-600" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className={`relative p-2 rounded-lg transition-all ${isJiggling ? "animate-bounce text-blue-600 dark:text-blue-400" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                 }`}
               aria-label="Thông báo"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -173,12 +173,13 @@ export function Header() {
             )}
           </div>
           {/* Settings */}
-          <button
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-all"
+          <Link
+            href="/settings"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-all"
             aria-label="Cài đặt"
           >
             <Settings size={20} />
-          </button>
+          </Link>
 
           {/* User Avatar */}
           <button className="ml-1 w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center hover:ring-2 hover:ring-blue-300 transition-all">

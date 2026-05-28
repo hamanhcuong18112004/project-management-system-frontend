@@ -9,16 +9,31 @@ import {
   Shield,
   Loader2,
   Building,
+  Key,
+  Lock,
 } from "lucide-react";
-import { getMyProfile, type UserData } from "@/lib/api/auth";
+import { getMyProfile, changePassword, updateProfile, type UserData } from "@/lib/api/auth";
 import { getMyInvitations, type WorkspaceInviteResponse } from "@/lib/api/workspace";
 import { toast } from "sonner";
 import { parseServerDate } from "@/lib/helper/formatTime";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserData | null>(null);
   const [invitations, setInvitations] = useState<WorkspaceInviteResponse[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Change password states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [logoutOtherSessions, setLogoutOtherSessions] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Edit name states
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
 
   const loadData = async () => {
     try {
@@ -39,6 +54,66 @@ export default function ProfilePage() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  const handleSaveName = async () => {
+    if (!editNameValue.trim()) {
+      toast.error("Tên không được để trống");
+      return;
+    }
+    if (editNameValue.trim().length < 2) {
+      toast.error("Tên phải từ 2 ký tự");
+      return;
+    }
+    try {
+      setIsSavingName(true);
+      const updatedProfile = await updateProfile(editNameValue.trim());
+      setProfile(updatedProfile);
+      useAuthStore.setState({ user: updatedProfile });
+      toast.success("Cập nhật tên thành công");
+      setIsEditingName(false);
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi cập nhật tên");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Vui lòng điền đầy đủ mật khẩu");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải từ 6 ký tự");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    
+    try {
+      setIsChangingPassword(true);
+      const currentRefreshToken = useAuthStore.getState().refreshToken || "";
+      await changePassword(currentPassword, newPassword, confirmPassword, logoutOtherSessions, currentRefreshToken);
+      
+      if (logoutOtherSessions) {
+        toast.success("Đổi mật khẩu thành công và đã đăng xuất các thiết bị khác!");
+      } else {
+        toast.success("Đổi mật khẩu thành công!");
+      }
+      
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setLogoutOtherSessions(false);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể đổi mật khẩu");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -78,7 +153,49 @@ export default function ProfilePage() {
               <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-3xl font-extrabold shadow-md mb-4 ring-4 ring-blue-50">
                 {profile?.fullName?.substring(0, 2).toUpperCase() || "U"}
               </div>
-              <h3 className="text-lg font-bold text-slate-800">{profile?.fullName || "Người dùng"}</h3>
+              
+              <div className="flex items-center justify-center gap-2">
+                {isEditingName ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editNameValue}
+                      onChange={(e) => setEditNameValue(e.target.value)}
+                      className="px-2 py-1 text-sm font-semibold text-slate-800 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[150px] text-center"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-green-100 text-green-700 hover:bg-green-200 transition"
+                    >
+                      {isSavingName ? <Loader2 size={14} className="animate-spin" /> : <span className="text-[11px] font-bold px-1">Lưu</span>}
+                    </button>
+                    <button
+                      onClick={() => setIsEditingName(false)}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition text-[11px] font-bold px-1"
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-slate-800">{profile?.fullName || "Người dùng"}</h3>
+                    <button
+                      onClick={() => {
+                        setEditNameValue(profile?.fullName || "");
+                        setIsEditingName(true);
+                      }}
+                      className="text-slate-400 hover:text-blue-600 transition"
+                      title="Chỉnh sửa tên"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                  </>
+                )}
+              </div>
+
               <p className="text-xs text-slate-400 font-medium mt-0.5">@{profile?.username || "username"}</p>
               
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mt-3.5">
@@ -192,6 +309,101 @@ export default function ProfilePage() {
                 Đi đến Hộp thư lời mời
               </Link>
             </div>
+          </div>
+
+          {/* Change Password Card */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-1">
+              <Key className="text-amber-500" size={18} />
+              Bảo mật tài khoản
+            </h3>
+            <p className="text-xs text-slate-400 pb-4 border-b border-slate-100">
+              Cập nhật mật khẩu để bảo vệ tài khoản của bạn.
+            </p>
+
+            <form onSubmit={handleChangePassword} className="pt-4 max-w-sm space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Mật khẩu hiện tại
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={14} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    placeholder="Nhập mật khẩu hiện tại"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Mật khẩu mới
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Key size={14} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                    minLength={6}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Xác nhận mật khẩu mới
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={14} className="text-slate-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    placeholder="Nhập lại mật khẩu mới"
+                    minLength={6}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 pt-2">
+                <input
+                  id="logout-sessions"
+                  type="checkbox"
+                  checked={logoutOtherSessions}
+                  onChange={(e) => setLogoutOtherSessions(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="logout-sessions" className="text-xs text-slate-600 leading-tight cursor-pointer">
+                  <span className="font-semibold block text-slate-700">Đăng xuất khỏi các thiết bị khác</span>
+                  Đóng tất cả các phiên đăng nhập khác, chỉ duy trì phiên hiện tại.
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isChangingPassword}
+                className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition disabled:opacity-70"
+              >
+                {isChangingPassword && <Loader2 size={14} className="animate-spin" />}
+                Đổi mật khẩu
+              </button>
+            </form>
           </div>
         </div>
       </div>
