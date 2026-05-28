@@ -211,11 +211,14 @@ export default function BoardDetailPage() {
 
         setBoard(boardResult.value);
         setTaskLists(sortTaskLists(nextTaskLists));
-        setLoadError(
-          taskListResult.status === "rejected"
-            ? getApiErrorMessage(taskListResult.reason, "Không thể tải danh sách task.")
-            : null,
-        );
+
+        if (taskListResult.status === "rejected") {
+          const errMsg = getApiErrorMessage(taskListResult.reason, "Không thể tải danh sách task.");
+          setLoadError(errMsg);
+          toast.error("Không thể tải task", { description: errMsg });
+        } else {
+          setLoadError(null);
+        }
         setLoading(false);
       })
       .catch((error) => {
@@ -236,7 +239,7 @@ export default function BoardDetailPage() {
 
   // Refresh on BOARD_UPDATED and TASK notifications (e.g. task list created/updated/deleted by others)
   useEffect(() => {
-    const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED"];
+    const refreshTypes = ["BOARD_UPDATED", "TASK_CREATED", "TASK_UPDATED", "TASK_ASSIGNED", "BOARD_MEMBER_ADDED", "BOARD_MEMBER_REMOVED"];
     if (lastNotification && refreshTypes.includes(lastNotification.type) && lastNotification.boardId === boardId) {
       const timer = setTimeout(() => {
         setBoardVersion((v) => v + 1);
@@ -244,6 +247,21 @@ export default function BoardDetailPage() {
       return () => clearTimeout(timer);
     }
   }, [lastNotification, boardId, setBoardVersion]);
+
+  // Re-fetch workspace permissions when the current user's role is changed, also reload board
+  useEffect(() => {
+    if (
+      board?.workspaceId &&
+      lastNotification?.type === "WORKSPACE_ROLE_CHANGED" &&
+      lastNotification.workspaceId === board.workspaceId
+    ) {
+      getMyPermissions(board.workspaceId)
+        .then((perms) => setWorkspacePermissions(perms))
+        .catch(() => setWorkspacePermissions([]));
+      // Also bump board version to reload member list and update displayed role badges
+      setBoardVersion((v) => v + 1);
+    }
+  }, [lastNotification, board?.workspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -792,10 +810,11 @@ export default function BoardDetailPage() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    if (isReadOnly) return;
-    const dragId = String(event.active.id);
     const dragType =
       event.active.data.current?.type === "taskList" ? "taskList" : "task";
+    if (dragType === "taskList" && !canUpdateList) return;
+    if (dragType === "task" && !canUpdateTask) return;
+    const dragId = String(event.active.id);
 
     setActiveDragId(dragId);
     setActiveDragType(dragType);
@@ -861,6 +880,10 @@ export default function BoardDetailPage() {
     const previousLists = taskLists;
     const dragType =
       event.active.data.current?.type === "taskList" ? "taskList" : "task";
+
+    // Re-check permissions before persisting (handles mid-drag permission changes)
+    if (dragType === "taskList" && !canUpdateList) { clearDragState(); return; }
+    if (dragType === "task" && !canUpdateTask) { clearDragState(); return; }
 
     emitDragEnd(currentActiveId, dragType, overId);
 
@@ -943,6 +966,25 @@ export default function BoardDetailPage() {
       });
     }
   }, [canManageBoard]);
+
+  // Auto-close ALL interactive modals when user is kicked from the board
+  const prevIsReadOnlyRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const prev = prevIsReadOnlyRef.current;
+    prevIsReadOnlyRef.current = isReadOnly;
+    if (prev === false && isReadOnly) {
+      // User lost board membership — close everything that requires being a member
+      setSelectedTask(null);
+      setDeleteContext(null);
+      setAddingList(false);
+      setSelectedTaskList(null);
+      setBoardSettingsOpen(false);
+      setMembersDialogOpen(false);
+      toast.warning("Bạn đã bị xóa khỏi board này.", {
+        description: "Tất cả cửa sổ đang mở đã được đóng lại.",
+      });
+    }
+  }, [isReadOnly]);
 
   if (loading && !board) {
     return (

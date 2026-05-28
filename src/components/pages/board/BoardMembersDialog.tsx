@@ -54,13 +54,13 @@ function wsRoleBadge(role: RoleDefinition | null | undefined) {
   const code = role?.code?.toUpperCase();
   switch (code) {
     case "OWNER":
-      return { label: "Ch? s? h?u", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+      return { label: "Chủ sở hữu", cls: "border-amber-200 bg-amber-50 text-amber-700" };
     case "ADMIN":
-      return { label: "Qu?n tr? vi�n", cls: "border-violet-200 bg-violet-50 text-violet-700" };
+      return { label: "Quản trị viên", cls: "border-violet-200 bg-violet-50 text-violet-700" };
     case "VIEWER":
       return { label: "Xem", cls: "border-slate-200 bg-slate-50 text-slate-500" };
     default:
-      return { label: role?.name || "Th�nh vi�n", cls: "border-slate-200 bg-slate-100 text-slate-600" };
+      return { label: role?.name || "Thành viên", cls: "border-slate-200 bg-slate-100 text-slate-600" };
   }
 }
 
@@ -173,7 +173,7 @@ export function BoardMembersDialog({
           {/* Add workspace member � only for managers */}
           {canManage ? (
             <div className="border-b border-slate-100 px-5 py-4">
-              <p className="mb-2 text-xs font-semibold text-slate-500">Th�m th�nh vi�n t? workspace</p>
+              <p className="mb-2 text-xs font-semibold text-slate-500">Thêm thành viên từ workspace</p>
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -181,7 +181,7 @@ export function BoardMembersDialog({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="T�m t�n ho?c email trong workspace..."
+                  placeholder="Tìm tên hoặc email trong workspace..."
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:bg-white"
                 />
               </div>
@@ -212,7 +212,7 @@ export function BoardMembersDialog({
                   })}
                 </ul>
               ) : search.length > 0 ? (
-                <p className="mt-1.5 text-xs text-slate-400">Kh�ng t�m th?y th�nh vi�n workspace ph� h?p.</p>
+                <p className="mt-1.5 text-xs text-slate-400">Không tìm thấy thành viên workspace phù hợp.</p>
               ) : null}
             </div>
           ) : null}
@@ -220,16 +220,16 @@ export function BoardMembersDialog({
           {/* Member list */}
           <div className="px-5 py-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-500">Th�nh vi�n ({draft.length})</p>
+              <p className="text-xs font-semibold text-slate-500">Thành viên ({draft.length})</p>
               {pendingChanges ? (
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">C� thay d?i chua luu</span>
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600">Có thay đổi chưa lưu</span>
               ) : null}
             </div>
 
             {draft.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center">
                 <Search size={20} className="mx-auto mb-2 text-slate-300" />
-                <p className="text-sm text-slate-400">Chua c� th�nh vi�n n�o.</p>
+                <p className="text-sm text-slate-400">Chưa có thành viên nào.</p>
               </div>
             ) : (
               <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
@@ -249,8 +249,8 @@ export function BoardMembersDialog({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1">
                           <p className="text-sm font-semibold text-slate-800">{showName}</p>
-                          {isSelf ? <span className="rounded bg-sky-50 px-1 py-px text-[10px] font-semibold text-sky-600">B?n</span> : null}
-                          {m.isNew ? <span className="rounded bg-emerald-50 px-1 py-px text-[10px] font-semibold text-emerald-600">M?i</span> : null}
+                          {isSelf ? <span className="rounded bg-sky-50 px-1 py-px text-[10px] font-semibold text-sky-600">Bạn</span> : null}
+                          {m.isNew ? <span className="rounded bg-emerald-50 px-1 py-px text-[10px] font-semibold text-emerald-600">Mới</span> : null}
                         </div>
                         {m.email ? (
                           <p className="truncate text-xs text-slate-400">{m.email}</p>
@@ -269,7 +269,7 @@ export function BoardMembersDialog({
                         <button
                           type="button"
                           onClick={() => handleRemove(m.userId)}
-                          title="X�a kh?i board"
+                          title="Xóa khỏi board"
                           className="ml-1 shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
                         >
                           <UserMinus size={13} />
@@ -278,7 +278,7 @@ export function BoardMembersDialog({
                         <button
                           type="button"
                           onClick={() => handleRemove(m.userId)}
-                          title="R?i board"
+                          title="Rời board"
                           className="ml-1 shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-400 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500"
                         >
                           <LogOut size={13} />
@@ -294,7 +294,7 @@ export function BoardMembersDialog({
           {/* Footer */}
           <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4">
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-              ��ng
+              Đóng
             </button>
             {pendingChanges ? (
               <button
@@ -302,7 +302,7 @@ export function BoardMembersDialog({
                 onClick={() => setConfirmOpen(true)}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
               >
-                Luu thay d?i
+                Lưu thay đổi
               </button>
             ) : null}
           </div>
@@ -313,14 +313,14 @@ export function BoardMembersDialog({
         <div className="fixed inset-0 z-97 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
           <button type="button" className="absolute inset-0 cursor-default" onClick={() => setConfirmOpen(false)} />
           <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h4 className="text-base font-bold text-slate-900">X�c nh?n c?p nh?t</h4>
+            <h4 className="text-base font-bold text-slate-900">Xác nhận cập nhật</h4>
             <p className="mt-2 text-sm text-slate-600">
-              B?ng <span className="font-semibold text-slate-800">{boardName}</span> s? c�{" "}
-              <span className="font-semibold text-slate-800">{draft.length}</span> th�nh vi�n.
+              Bảng <span className="font-semibold text-slate-800">{boardName}</span> sẽ có{" "}
+              <span className="font-semibold text-slate-800">{draft.length}</span> thành viên.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-                Quay l?i
+                Quay lại
               </button>
               <button
                 type="button"
@@ -328,7 +328,7 @@ export function BoardMembersDialog({
                 disabled={saving}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? "�ang luu..." : "X�c nh?n"}
+                {saving ? "Đang lưu..." : "Xác nhận"}
               </button>
             </div>
           </div>

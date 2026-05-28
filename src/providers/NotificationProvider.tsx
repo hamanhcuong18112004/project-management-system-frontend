@@ -131,10 +131,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               duration: 3000,
               description: notification.message,
             });
+          } else if (notification.type === "BOARD_MEMBER_REMOVED") {
+            toast.warning(notification.title || "Bạn đã bị xóa khỏi bảng", {
+              duration: 6000,
+              description: notification.message || "Bạn vừa bị xóa khỏi một board.",
+            });
           } else if (notification.type === "TASK_DEADLINE_APPROACHING") {
             toast.warning(notification.title || "Thẻ sắp hết hạn", {
               duration: 5000,
               description: notification.message,
+            });
+          } else if (notification.type === "WORKSPACE_ROLE_CHANGED") {
+            toast.warning(notification.title || "Quyền của bạn đã thay đổi", {
+              duration: 5000,
+              description: notification.message || "Vai trò của bạn trong workspace vừa được cập nhật.",
             });
           }
         } catch (e) {
