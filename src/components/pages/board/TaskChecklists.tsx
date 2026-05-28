@@ -91,21 +91,6 @@ export function TaskChecklists({
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
   const [newItemContent, setNewItemContent] = useState("");
   const [hideChecked, setHideChecked] = useState<Record<string, boolean>>({});
-  const [itemAssignees, setItemAssignees] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const nextAssignees: Record<string, string> = {};
-    checklists.forEach((c) => {
-      c.items.forEach((item) => {
-        const val = localStorage.getItem(`checklist-item-member-${item.id}`);
-        if (val) {
-          nextAssignees[item.id] = val;
-        }
-      });
-    });
-    setItemAssignees(nextAssignees);
-  }, [checklists]);
 
   useEffect(() => {
     if (!activeAssignDropdown) return;
@@ -165,19 +150,17 @@ export function TaskChecklists({
   const handleAddItem = async (checklistId: string) => {
     if (!newItemContent.trim()) return;
     try {
-      const item = await addChecklistItem(checklistId, newItemContent.trim());
+      const item = await addChecklistItem(checklistId, newItemContent.trim(), newItemMemberId);
       setChecklists((prev) =>
         prev.map((c) =>
           c.id === checklistId ? { ...c, items: [...c.items, item] } : c,
         ),
       );
-      if (newItemMemberId && typeof window !== "undefined") {
-        localStorage.setItem(`checklist-item-member-${item.id}`, newItemMemberId);
-      }
       setNewItemContent("");
       setAddingItemTo(null);
       setNewItemMemberId(null);
       toast.success(`Đã thêm mục: "${item.content}"`);
+      onRefreshActivities?.();
       emitBoardUpdated();
     } catch {
       toast.error("Không thể thêm mục công việc.");
@@ -187,7 +170,10 @@ export function TaskChecklists({
   const handleSaveEdit = async (checklistId: string, itemId: string) => {
     if (!editItemContent.trim()) return;
     try {
-      const updated = await updateChecklistItem(itemId, { content: editItemContent.trim() });
+      const updated = await updateChecklistItem(itemId, {
+        content: editItemContent.trim(),
+        assigneeId: editItemMemberId,
+      });
       setChecklists((prev) =>
         prev.map((c) =>
           c.id === checklistId
@@ -198,17 +184,11 @@ export function TaskChecklists({
             : c,
         ),
       );
-      if (typeof window !== "undefined") {
-        if (editItemMemberId) {
-          localStorage.setItem(`checklist-item-member-${itemId}`, editItemMemberId);
-        } else {
-          localStorage.removeItem(`checklist-item-member-${itemId}`);
-        }
-      }
       setEditingItemId(null);
       setEditItemContent("");
       setEditItemMemberId(null);
       toast.success("Đã cập nhật mục công việc.");
+      onRefreshActivities?.();
       emitBoardUpdated();
     } catch {
       toast.error("Không thể cập nhật mục công việc.");
@@ -237,6 +217,7 @@ export function TaskChecklists({
       } else {
         toast.info(`Đã bỏ tích: "${item.content}"`);
       }
+      onRefreshActivities?.();
       emitBoardUpdated();
     } catch {
       // Revert
@@ -266,10 +247,8 @@ export function TaskChecklists({
             : c,
         ),
       );
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(`checklist-item-member-${itemId}`);
-      }
       toast.success("Đã xóa mục công việc.");
+      onRefreshActivities?.();
       emitBoardUpdated();
     } catch {
       toast.error("Không thể xóa mục công việc.");
@@ -407,10 +386,9 @@ export function TaskChecklists({
                 </div>
               )}
 
-              {/* Checklist Items list */}
               <ul className="space-y-1">
                 {filteredItems.map((item) => {
-                  const itemMemberId = itemAssignees[item.id];
+                  const itemMemberId = item.assigneeId ?? null;
                   const itemMember = boardMembers.find((m) => (m.userId || m.id) === itemMemberId);
 
                   if (editingItemId === item.id) {

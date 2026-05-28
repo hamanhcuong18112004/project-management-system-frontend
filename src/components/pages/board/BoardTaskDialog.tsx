@@ -1054,12 +1054,14 @@ export function useTaskDescription({
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest(".desc-toolbar-btn")) {
-        setShowTtDropdown(false);
-        setShowMoreDropdown(false);
-        setShowListDropdown(false);
-        setShowEmojiDropdown(false);
+      // Do không đóng dropdown nếu nhấn vào các nút trên toolbar hoặc bên trong dropdown menu
+      if (target.closest(".desc-toolbar-btn") || target.closest(".desc-dropdown-menu")) {
+        return;
       }
+      setShowTtDropdown(false);
+      setShowMoreDropdown(false);
+      setShowListDropdown(false);
+      setShowEmojiDropdown(false);
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
@@ -1099,7 +1101,38 @@ export function useTaskDescription({
   };
 
   const insertEmoji = (emoji: string) => {
-    execFormat("insertText", emoji);
+    if (!descEditorRef.current) return;
+    descEditorRef.current.focus();
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      const textNode = document.createTextNode(emoji);
+      descEditorRef.current.appendChild(textNode);
+      handleEditorInput();
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    
+    // Ensure selection is inside editor
+    if (!descEditorRef.current.contains(range.commonAncestorContainer)) {
+      const textNode = document.createTextNode(emoji);
+      descEditorRef.current.appendChild(textNode);
+      handleEditorInput();
+      return;
+    }
+
+    range.deleteContents();
+    const textNode = document.createTextNode(emoji);
+    range.insertNode(textNode);
+
+    const newRange = document.createRange();
+    newRange.setStartAfter(textNode);
+    newRange.setEndAfter(textNode);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    handleEditorInput();
   };
 
   const handleDescBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1201,30 +1234,87 @@ const EDITOR_STYLES = `
   .desc-rich-editor h4 { font-size: 18px; font-weight: 700; margin: 4px 0; }
   .desc-rich-editor h5 { font-size: 16px; font-weight: 600; margin: 4px 0; }
   .desc-rich-editor h6 { font-size: 14px; font-weight: 600; margin: 4px 0; }
-  .desc-rich-editor code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-  .desc-rich-editor ul { list-style: disc; padding-left: 1.5em; }
-  .desc-rich-editor ol { list-style: decimal; padding-left: 1.5em; }
-  .desc-rich-editor strike, .desc-rich-editor s, .desc-rich-editor del { text-decoration: line-through !important; }
   .desc-rich-editor a { color: #2563eb; text-decoration: underline; }
   .desc-rich-editor ::selection { background: #93c5fd; color: #0f172a; }
+
+  /* Lists formatting inside editor and view */
+  .desc-rich-editor ul, .desc-rich-view ul { list-style-type: disc !important; padding-left: 2em !important; margin: 8px 0 !important; }
+  .desc-rich-editor ol, .desc-rich-view ol { list-style-type: decimal !important; padding-left: 2em !important; margin: 8px 0 !important; }
+  .desc-rich-editor li, .desc-rich-view li { list-style-type: inherit !important; display: list-item !important; margin: 4px 0 !important; }
+
+  /* Ensure headings display inline inside list items so bullets/numbers show right next to them */
+  .desc-rich-editor li h1, .desc-rich-editor li h2, .desc-rich-editor li h3, .desc-rich-editor li h4, .desc-rich-editor li h5, .desc-rich-editor li h6,
+  .desc-rich-view li h1, .desc-rich-view li h2, .desc-rich-view li h3, .desc-rich-view li h4, .desc-rich-view li h5, .desc-rich-view li h6 {
+    display: inline-block !important;
+    margin: 0 !important;
+    font-size: 1.2em !important;
+  }
+
+  /* Strikethrough formatting */
+  .desc-rich-editor s, .desc-rich-editor strike, .desc-rich-editor del,
+  .desc-rich-view s, .desc-rich-view strike, .desc-rich-view del {
+    text-decoration: line-through !important;
+  }
+  .desc-rich-editor s *, .desc-rich-editor strike *, .desc-rich-editor del * {
+    text-decoration: line-through !important;
+  }
+  /* Support case where formatting tags are inside headings or wrap headings */
+  .desc-rich-editor h1 s, .desc-rich-editor h2 s, .desc-rich-editor h3 s, .desc-rich-editor h4 s, .desc-rich-editor h5 s, .desc-rich-editor h6 s,
+  .desc-rich-editor h1 strike, .desc-rich-editor h2 strike, .desc-rich-editor h3 strike, .desc-rich-editor h4 strike, .desc-rich-editor h5 strike, .desc-rich-editor h6 strike,
+  .desc-rich-editor h1 del, .desc-rich-editor h2 del, .desc-rich-editor h3 del, .desc-rich-editor h4 del, .desc-rich-editor h5 del, .desc-rich-editor h6 del,
+  .desc-rich-view h1 s, .desc-rich-view h2 s, .desc-rich-view h3 s, .desc-rich-view h4 s, .desc-rich-view h5 s, .desc-rich-view h6 s,
+  .desc-rich-view h1 strike, .desc-rich-view h2 strike, .desc-rich-view h3 strike, .desc-rich-view h4 strike, .desc-rich-view h5 strike, .desc-rich-view h6 strike,
+  .desc-rich-view h1 del, .desc-rich-view h2 del, .desc-rich-view h3 del, .desc-rich-view h4 del, .desc-rich-view h5 del, .desc-rich-view h6 del {
+    text-decoration: line-through !important;
+  }
+
+  /* Highlight/Mark formatting */
+  .desc-rich-editor mark, .desc-rich-view mark {
+    background: #fef08a !important;
+    color: #0f172a !important;
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+  .desc-rich-editor mark *, .desc-rich-view mark * {
+    background: #fef08a !important;
+    color: #0f172a !important;
+  }
+  .desc-rich-editor h1 mark, .desc-rich-editor h2 mark, .desc-rich-editor h3 mark, .desc-rich-editor h4 mark, .desc-rich-editor h5 mark, .desc-rich-editor h6 mark,
+  .desc-rich-view h1 mark, .desc-rich-view h2 mark, .desc-rich-view h3 mark, .desc-rich-view h4 mark, .desc-rich-view h5 mark, .desc-rich-view h6 mark {
+    background: #fef08a !important;
+    color: #0f172a !important;
+  }
+
+  /* Code formatting */
+  .desc-rich-editor code, .desc-rich-view code {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+  .desc-rich-editor code *, .desc-rich-view code * {
+    background: #f1f5f9 !important;
+    font-family: monospace !important;
+  }
+  .desc-rich-editor h1 code, .desc-rich-editor h2 code, .desc-rich-editor h3 code, .desc-rich-editor h4 code, .desc-rich-editor h5 code, .desc-rich-editor h6 code,
+  .desc-rich-view h1 code, .desc-rich-view h2 code, .desc-rich-view h3 code, .desc-rich-view h4 code, .desc-rich-view h5 code, .desc-rich-view h6 code {
+    background: #f1f5f9 !important;
+    font-family: monospace !important;
+    font-size: 0.9em !important;
+    font-weight: normal !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+  }
+
+  /* View-only headings fallback */
   .desc-rich-view h1 { font-size: 28px; font-weight: 800; margin: 4px 0; }
   .desc-rich-view h2 { font-size: 24px; font-weight: 700; margin: 4px 0; }
   .desc-rich-view h3 { font-size: 20px; font-weight: 700; margin: 4px 0; }
   .desc-rich-view h4 { font-size: 18px; font-weight: 700; margin: 4px 0; }
   .desc-rich-view h5 { font-size: 16px; font-weight: 600; margin: 4px 0; }
   .desc-rich-view h6 { font-size: 14px; font-weight: 600; margin: 4px 0; }
-  .desc-rich-view code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-  .desc-rich-view ul { list-style: disc; padding-left: 1.5em; }
-  .desc-rich-view ol { list-style: decimal; padding-left: 1.5em; }
-  .desc-rich-view strike, .desc-rich-view s, .desc-rich-view del { text-decoration: line-through !important; }
-  .desc-rich-view a { color: #2563eb; text-decoration: underline; }
-  .desc-rich-editor mark,
-  .desc-rich-view mark {
-    background: #fef08a;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0 2px;
-  }
 `;
 
 export interface TaskDescriptionProps {
@@ -1262,7 +1352,6 @@ export function TaskDescription({
     execFormat,
     applyHeading,
     resetHeading,
-    insertEmoji,
     handleEditorInput,
     handleDescBgUpload,
     handleSave,
@@ -1272,40 +1361,143 @@ export function TaskDescription({
     onSaveDescription,
   });
 
-  const ttBtnRef = React.useRef<HTMLDivElement>(null);
+  const ttBtnRef = useRef<HTMLDivElement>(null);
+  
+  // Dùng ref này để khóa và giữ chặt Selection
+  const lastSelectionRef = useRef<{ range: Range | null }>({ range: null });
 
   const focusEditor = () => {
     descEditorRef.current?.focus();
   };
 
+  // Hàm đồng bộ và ghi nhớ vị trí con trỏ
+  const syncSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (descEditorRef.current?.contains(range.commonAncestorContainer)) {
+        lastSelectionRef.current.range = range.cloneRange();
+      }
+    }
+  };
+
+  // Hàm chèn Emoji siêu mạnh kết hợp Range API làm fallback để luôn chèn thành công
+  const handleInsertEmoji = (emoji: string) => {
+    focusEditor();
+    
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    let range: Range | null = null;
+
+    // Phục hồi lại vị trí con trỏ trước khi bấm nút
+    if (lastSelectionRef.current.range) {
+      sel.removeAllRanges();
+      sel.addRange(lastSelectionRef.current.range);
+      range = lastSelectionRef.current.range;
+    } else if (sel.rangeCount > 0) {
+      range = sel.getRangeAt(0);
+    }
+
+    // Kiểm tra xem range có thực sự nằm trong editor hay không
+    const isInside = range && descEditorRef.current?.contains(range.commonAncestorContainer);
+
+    if (isInside && range) {
+      try {
+        // Cố gắng chèn bằng execCommand để hỗ trợ Undo/Redo của trình duyệt
+        const success = document.execCommand("insertText", false, emoji);
+        if (!success) {
+          throw new Error("execCommand insertText returned false");
+        }
+      } catch (err) {
+        console.warn("Failed to insert via execCommand, falling back to DOM Range API:", err);
+        // Fallback: Chèn thủ công bằng Range API
+        range.deleteContents();
+        const textNode = document.createTextNode(emoji);
+        range.insertNode(textNode);
+        
+        // Di chuyển con trỏ ra sau emoji vừa chèn
+        const newRange = document.createRange();
+        newRange.setStartAfter(textNode);
+        newRange.setEndAfter(textNode);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      }
+    } else {
+      // Fallback cuối cùng: chèn vào cuối editor nếu không tìm thấy selection hợp lệ
+      const textNode = document.createTextNode(emoji);
+      descEditorRef.current?.appendChild(textNode);
+      
+      const newRange = document.createRange();
+      newRange.setStartAfter(textNode);
+      newRange.setEndAfter(textNode);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+
+    // Lưu lại vị trí con trỏ mới sau khi chèn xong
+    if (sel.rangeCount > 0) {
+      lastSelectionRef.current.range = sel.getRangeAt(0).cloneRange();
+    }
+
+    // Báo cho hook biết là nội dung đã thay đổi
+    handleEditorInput();
+  };
+
   const runCommand = (command: string, value?: string) => {
     focusEditor();
+    if (lastSelectionRef.current.range) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(lastSelectionRef.current.range);
+    }
     document.execCommand(command, false, value);
     handleEditorInput();
+    syncSelection();
   };
 
-  const wrapSelectionWithTag = (tagName: string) => {
-    focusEditor();
+  // Đồng bộ lại dữ liệu khi đổi qua lại chế độ edit
+  useEffect(() => {
+    if (editingDesc) {
+      // Đợi Editor hiển thị xong thì focus luôn
+      setTimeout(() => {
+        focusEditor();
+        // Đưa con trỏ xuống cuối text
+        const sel = window.getSelection();
+        if (sel && descEditorRef.current) {
+          const range = document.createRange();
+          range.selectNodeContents(descEditorRef.current);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          lastSelectionRef.current.range = range.cloneRange();
+        }
+      }, 50);
+    } else {
+      lastSelectionRef.current.range = null;
+    }
+  }, [editingDesc]);
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+  // Theo dõi sự thay đổi selection của document để cập nhật vị trí con trỏ trong editor liên tục
+  useEffect(() => {
+    if (!editingDesc) return;
+    
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        if (descEditorRef.current?.contains(range.commonAncestorContainer)) {
+          lastSelectionRef.current.range = range.cloneRange();
+        }
+      }
+    };
+    
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [editingDesc]);
 
-    const range = selection.getRangeAt(0);
-    if (range.collapsed) return;
-
-    const element = document.createElement(tagName);
-    element.appendChild(range.extractContents());
-    range.insertNode(element);
-
-    selection.removeAllRanges();
-    const newRange = document.createRange();
-    newRange.selectNodeContents(element);
-    selection.addRange(newRange);
-
-    handleEditorInput();
-  };
-
-  // Check if description has any real text content
   const hasDescription = (() => {
     if (!localDesc) return false;
     return localDesc
@@ -1355,7 +1547,7 @@ export function TaskDescription({
               )}
             </div>
             {effectiveCanUpdate && (
-              <div className={`absolute z-10 flex items-center gap-2 ${descBgUrl ? "right-3.5 top-3.5" : "right-3.5 top-3.5"}`}>
+              <div className="absolute z-10 flex items-center gap-2 right-3.5 top-3.5">
                 {descBgUrl && (
                   <button
                     type="button"
@@ -1400,6 +1592,7 @@ export function TaskDescription({
               <div className="relative" ref={ttBtnRef}>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setShowTtDropdown(!showTtDropdown);
                     setShowMoreDropdown(false);
@@ -1409,16 +1602,7 @@ export function TaskDescription({
                   className="flex items-center gap-0.5 rounded px-1.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition desc-toolbar-btn"
                 >
                   <span>Tt</span>
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
@@ -1428,10 +1612,9 @@ export function TaskDescription({
                   return (
                     <div
                       onMouseDown={(e) => e.preventDefault()}
-                      className="fixed w-64 rounded-xl border border-slate-200 bg-white py-1.5 shadow-2xl"
+                      className="fixed w-64 rounded-xl border border-slate-200 bg-white py-1.5 shadow-2xl desc-dropdown-menu"
                       style={{ bottom: `${window.innerHeight - rect.top + 4}px`, left: `${rect.left}px`, zIndex: 9999 }}
                     >
-                      {/* Normal text */}
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
@@ -1449,7 +1632,6 @@ export function TaskDescription({
 
                       <div className="mx-3 my-1 h-px bg-slate-200" />
 
-                      {/* Headings H1 - H6 */}
                       {([
                         { level: 1, fontSize: "text-[22px]", fontWeight: "font-extrabold" },
                         { level: 2, fontSize: "text-[19px]", fontWeight: "font-bold" },
@@ -1482,6 +1664,7 @@ export function TaskDescription({
               <div className="mx-1 h-4 w-px bg-slate-200" />
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => runCommand("bold")}
                 className="rounded p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
                 title="Chữ đậm (Ctrl+B)"
@@ -1490,6 +1673,7 @@ export function TaskDescription({
               </button>
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => runCommand("italic")}
                 className="rounded p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
                 title="Chữ nghiêng (Ctrl+I)"
@@ -1497,142 +1681,7 @@ export function TaskDescription({
                 <Italic size={14} />
               </button>
 
-              {/* More Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMoreDropdown(!showMoreDropdown);
-                    setShowTtDropdown(false);
-                    setShowListDropdown(false);
-                    setShowEmojiDropdown(false);
-                  }}
-                  className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
-                  title="Thêm định dạng"
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-
-                {showMoreDropdown && (
-                  <div 
-                    onMouseDown={(e) => e.preventDefault()}
-                    className="absolute left-0 top-full z-30 mt-1 w-36 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                  >
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        runCommand("strikeThrough");
-                        setShowMoreDropdown(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <Strikethrough size={13} className="text-slate-500 shrink-0" />
-                      <span className="line-through">Gạch ngang</span>
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        wrapSelectionWithTag("mark");
-                        setShowMoreDropdown(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <span className="rounded bg-yellow-200 px-1 text-slate-700 flex items-center justify-center w-4 h-4 text-[10px]">Aa</span>
-                      <span>Đánh dấu</span>
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        wrapSelectionWithTag("code");
-                        setShowMoreDropdown(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <Code size={13} className="text-slate-500 shrink-0" />
-                      <span>Đoạn mã (Code)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
               <div className="mx-1 h-4 w-px bg-slate-200" />
-
-              {/* List Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowListDropdown(!showListDropdown);
-                    setShowTtDropdown(false);
-                    setShowMoreDropdown(false);
-                    setShowEmojiDropdown(false);
-                  }}
-                  className="flex items-center gap-0.5 rounded p-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn"
-                  title="Danh sách"
-                >
-                  <List size={14} />
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-slate-400 shrink-0"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-
-                {showListDropdown && (
-                  <div 
-                    onMouseDown={(e) => e.preventDefault()}
-                    className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                  >
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        runCommand("insertUnorderedList");
-                        setShowListDropdown(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <List size={13} className="text-slate-500 shrink-0" />
-                      <span>Danh sách dấu đầu dòng</span>
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        runCommand("insertOrderedList");
-                        setShowListDropdown(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <ListOrdered size={13} className="text-slate-500 shrink-0" />
-                      <span>Danh sách số đầu dòng</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const url = prompt("Nhập URL:");
-                  if (url) runCommand("createLink", url);
-                }}
-                className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition desc-toolbar-btn flex items-center justify-center"
-                title="Chèn liên kết"
-              >
-                <Link size={14} />
-              </button>
 
               <button
                 type="button"
@@ -1647,6 +1696,7 @@ export function TaskDescription({
               <div className="relative">
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setShowEmojiDropdown(!showEmojiDropdown);
                     setShowTtDropdown(false);
@@ -1657,17 +1707,7 @@ export function TaskDescription({
                   title="Chèn biểu cảm"
                 >
                   <Smile size={14} />
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-slate-400 shrink-0"
-                  >
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0">
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
@@ -1675,9 +1715,9 @@ export function TaskDescription({
                 {showEmojiDropdown && (
                   <div 
                     onMouseDown={(e) => e.preventDefault()}
-                    className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
+                    className="absolute left-0 top-full z-30 mt-1 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-lg desc-dropdown-menu"
                   >
-                    <div className="grid grid-cols-6 gap-1">
+                    <div className="grid grid-cols-6 gap-1" onMouseDown={(e) => e.preventDefault()}>
                       {[
                         "😀", "😂", "😍", "👍", "🎉", "🔥",
                         "❤️", "🚀", "🤔", "👀", "👏", "🌟",
@@ -1686,9 +1726,9 @@ export function TaskDescription({
                         <button
                           key={emoji}
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            insertEmoji(emoji);
-                            setShowEmojiDropdown(false);
+                            handleInsertEmoji(emoji);
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded text-base hover:bg-slate-100 transition"
                         >
@@ -1701,46 +1741,17 @@ export function TaskDescription({
               </div>
 
               <div className="ml-auto flex items-center gap-0.5">
-                <button
-                  type="button"
-                  className="rounded px-2 py-1 text-slate-400 hover:bg-slate-100 transition"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                <button type="button" className="rounded px-2 py-1 text-slate-400 hover:bg-slate-100 transition">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className="rounded px-1.5 py-1 text-[10px] font-bold text-slate-400 hover:bg-slate-100 transition"
-                >
+                <button type="button" className="rounded px-1.5 py-1 text-[10px] font-bold text-slate-400 hover:bg-slate-100 transition">
                   Mɔ
                 </button>
-                <button
-                  type="button"
-                  className="rounded px-2 py-1 text-slate-400 hover:bg-slate-100 transition"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                <button type="button" className="rounded px-2 py-1 text-slate-400 hover:bg-slate-100 transition">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                 </button>
               </div>
@@ -1756,6 +1767,9 @@ export function TaskDescription({
               data-gramm_editor="false"
               data-enable-grammarly="false"
               onInput={handleEditorInput}
+              // Ghi đè bắt sự kiện chuột và phím để lưu vị trí chuẩn xác nhất
+              onKeyUp={syncSelection}
+              onMouseUp={syncSelection}
               className={`desc-rich-editor relative z-10 w-full min-h-30 px-4 py-3 text-sm leading-6 text-slate-900 outline-none ${
                 descBgUrl ? "bg-white/70" : "bg-white"
               }`}

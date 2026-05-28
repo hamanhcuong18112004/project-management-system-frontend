@@ -453,13 +453,34 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
         const clName = metadata?.checklistName || "Công việc";
         const itName = metadata?.itemName || "";
         if (action === "add_item") {
-          return `${userName} đã thêm công việc "${itName}" vào danh sách ${clName}`;
+          const assigneeId = metadata?.assigneeId;
+          let suffix = "";
+          if (assigneeId) {
+            const member = boardMembers?.find(m => m.userId === assigneeId);
+            const assigneeName = member ? (member.fullName || member.email) : "một thành viên";
+            suffix = ` (chỉ định cho ${assigneeName})`;
+          }
+          return `${userName} đã thêm công việc "${itName}" vào danh sách ${clName}${suffix}`;
         }
         if (action === "update_item") {
           if (metadata?.completed) {
             return `${userName} đã hoàn thành công việc "${itName}" trong danh sách ${clName}`;
           } else {
             return `${userName} đã đánh dấu chưa hoàn thành công việc "${itName}" trong danh sách ${clName}`;
+          }
+        }
+        if (action === "edit_item") {
+          const newItemName = metadata?.newItemName || "";
+          return `${userName} đã đổi tên công việc "${itName}" thành "${newItemName}" trong danh sách ${clName}`;
+        }
+        if (action === "assign_item") {
+          const assigneeId = metadata?.assigneeId;
+          if (assigneeId && assigneeId !== "") {
+            const member = boardMembers?.find(m => m.userId === assigneeId);
+            const assigneeName = member ? (member.fullName || member.email) : "một thành viên";
+            return `${userName} đã chỉ định ${assigneeName} thực hiện công việc "${itName}" trong danh sách ${clName}`;
+          } else {
+            return `${userName} đã bỏ chỉ định thực hiện công việc "${itName}" trong danh sách ${clName}`;
           }
         }
         if (action === "delete_item") {

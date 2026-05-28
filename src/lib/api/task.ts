@@ -463,6 +463,7 @@ export interface TaskChecklistItemData {
   id: string;
   content: string;
   completed: boolean;
+  assigneeId?: string | null;
 }
 
 export interface TaskChecklistData {
@@ -476,6 +477,7 @@ function normalizeChecklistItem(raw: Record<string, unknown>): TaskChecklistItem
     id: String(raw.id || ""),
     content: String(raw.content || ""),
     completed: Boolean(raw.completed),
+    assigneeId: (raw.assigneeId as string | null | undefined) ?? null,
   };
 }
 
@@ -525,10 +527,11 @@ export async function deleteTaskChecklist(
 export async function addChecklistItem(
   checklistId: string,
   content: string,
+  assigneeId?: string | null,
 ): Promise<TaskChecklistItemData> {
   const response = await apiClient.post<unknown>(
     `${SERVICE}/api/checklists/${checklistId}/items`,
-    { content },
+    { content, assigneeId },
   );
   const data = unwrapResponse(
     response.data as ServiceEnvelope<Record<string, unknown>> | Record<string, unknown>,
@@ -538,7 +541,7 @@ export async function addChecklistItem(
 
 export async function updateChecklistItem(
   itemId: string,
-  payload: { content?: string; completed?: boolean },
+  payload: { content?: string; completed?: boolean; assigneeId?: string | null },
 ): Promise<TaskChecklistItemData> {
   const response = await apiClient.put<unknown>(
     `${SERVICE}/api/checklist-items/${itemId}`,
