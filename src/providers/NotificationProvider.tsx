@@ -88,6 +88,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (process.env.NEXT_PUBLIC_NOTIFICATION_WS_ENABLED !== "true") return;
 
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let pingInterval: ReturnType<typeof setInterval>;
     let attempt = 0;
     const MAX_ATTEMPTS = 5;
     const BASE_DELAY_MS = 3000;
@@ -103,6 +104,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         attempt = 0;
         setIsConnected(true);
         console.log("Notification WebSocket connected");
+        // Send ping every 30s to prevent Nginx proxy_read_timeout from closing the connection
+        pingInterval = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 30000);
       };
 
       socket.onmessage = (event) => {
@@ -153,6 +160,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       };
 
       socket.onclose = () => {
+        clearInterval(pingInterval);
         setIsConnected(false);
         attempt += 1;
         if (attempt >= MAX_ATTEMPTS) {
@@ -177,6 +185,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => {
       if (socketRef.current) socketRef.current.close();
       clearTimeout(reconnectTimeout);
+      clearInterval(pingInterval);
     };
   }, [user?.id]);
 
