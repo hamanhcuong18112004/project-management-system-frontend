@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { LayoutDashboard, Users, Activity } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 const features = [
@@ -131,12 +131,22 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(false);
+  const searchParams = useSearchParams();
+  const [hydrated, setHydrated] = useState(() => useAuthStore.persist?.hasHydrated?.() ?? false);
+  const [isReloadNavigation] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const legacyNavigationType = (performance as Performance & { navigation?: { type?: number } }).navigation?.type;
+    const navigationType = navigationEntry?.type || (legacyNavigationType === 1 ? "reload" : "navigate");
+
+    return navigationType === "reload";
+  });
 
   useEffect(() => {
-    // Check if already hydrated (safe: only runs on client)
-    if (useAuthStore.persist?.hasHydrated?.()) {
-      setHydrated(true);
+    if (hydrated) {
       return;
     }
 
@@ -147,16 +157,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     return () => {
       unsubscribeHydration?.();
     };
-  }, []);
+  }, [hydrated]);
 
   useEffect(() => {
-    if (hydrated && isAuthenticated) {
-      router.replace("/dashboard");
+    if (hydrated && isAuthenticated && !isReloadNavigation) {
+      const nextPath = searchParams.get("next");
+      const safeNextPath = nextPath?.startsWith("/") ? nextPath : null;
+      router.replace(safeNextPath || "/dashboard");
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, isReloadNavigation, router, searchParams]);
 
   // Avoid flash of auth page while hydrating
-  if (!hydrated || isAuthenticated) return null;
+  if (!hydrated || (isAuthenticated && !isReloadNavigation)) return null;
 
   return (
     <AuthShell
