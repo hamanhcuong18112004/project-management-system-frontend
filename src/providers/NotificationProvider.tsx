@@ -25,7 +25,7 @@ function normalizeWebSocketUrl(url: string) {
 }
 
 const WS_URL = normalizeWebSocketUrl(
-  ((process as any).env.NEXT_PUBLIC_NOTIFICATION_WS_URL) || "ws://localhost:8000/ws/notifications"
+  ((process as any).env.NEXT_PUBLIC_NOTIFICATION_WS_URL) || "ws://localhost:8085/ws/notifications"
 );
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
@@ -85,8 +85,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user?.id) return;
+    if (process.env.NEXT_PUBLIC_NOTIFICATION_WS_ENABLED !== "true") return;
 
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 5;
+    const BASE_DELAY_MS = 3000;
 
     const connect = () => {
       const url = new URL(WS_URL);
@@ -96,6 +100,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       socketRef.current = socket;
 
       socket.onopen = () => {
+        attempt = 0;
         setIsConnected(true);
         console.log("Notification WebSocket connected");
       };
@@ -139,13 +144,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       socket.onclose = () => {
         setIsConnected(false);
+        attempt += 1;
+        if (attempt >= MAX_ATTEMPTS) {
+          console.warn(`Notification WebSocket: stopped after ${MAX_ATTEMPTS} failed attempts. Reload the page to retry.`);
+          return;
+        }
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
         reconnectTimeout = setTimeout(() => {
           if (user?.id) connect();
-        }, 3000);
+        }, delay);
       };
 
-      socket.onerror = (error) => {
-        console.error("Notification WebSocket error:", error);
+      socket.onerror = () => {
+        if (attempt === 0) {
+          console.warn("Notification WebSocket: connection failed, will retry with backoff...");
+        }
       };
     };
 
