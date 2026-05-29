@@ -125,6 +125,11 @@ export default function AuditLogPage() {
   const [hasMore, setHasMore] = useState(true);
   const { user } = useAuthStore();
   const [workspaceId, setWorkspaceId] = useState("");
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (dateKey: string) => {
+    setExpandedDates((prev) => ({ ...prev, [dateKey]: !prev[dateKey] }));
+  };
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -214,7 +219,7 @@ export default function AuditLogPage() {
 
               {/* Log entries */}
               <div className="space-y-2">
-                {grouped[dateKey].map((log) => {
+                {(expandedDates[dateKey] ? grouped[dateKey] : grouped[dateKey].slice(0, 5)).map((log) => {
                   const config = ACTION_CONFIG[log.action] || DEFAULT_CONFIG;
                   const Icon = config.icon;
                   const description = buildDescription(log.action, log.metadata);
@@ -274,6 +279,20 @@ export default function AuditLogPage() {
                   );
                 })}
               </div>
+
+              {/* Expand button if more than 5 logs */}
+              {grouped[dateKey].length > 5 && (
+                <div className="flex justify-center mt-3">
+                  <button
+                    onClick={() => toggleExpand(dateKey)}
+                    className="text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                  >
+                    {expandedDates[dateKey] 
+                      ? "Thu gọn" 
+                      : `Xem thêm ${grouped[dateKey].length - 5} hoạt động...`}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
 
