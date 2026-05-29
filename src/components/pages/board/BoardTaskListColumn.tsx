@@ -33,7 +33,7 @@ interface BoardTaskListColumnProps {
 
 export function BoardTaskListPreview({ list }: { list: BoardTaskList }) {
   return (
-    <section className="w-[320px] shrink-0 rounded-3xl border border-slate-200/80 bg-white/92 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
+    <section className="w-[280px] sm:w-[320px] shrink-0 rounded-3xl border border-slate-200/80 bg-white/92 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold text-slate-900">{list.name}</h3>
@@ -263,7 +263,7 @@ function BoardTaskListColumnBase({
   };
 
   return (
-    <section className="flex h-fit w-[320px] shrink-0 flex-col rounded-3xl border border-slate-200/80 bg-white/78 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
+    <section className="flex h-fit w-[280px] sm:w-[320px] shrink-0 flex-col rounded-3xl border border-slate-200/80 bg-white/78 p-4 shadow-xl shadow-slate-300/35 backdrop-blur-xl">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div
           className="min-w-0 flex-1 cursor-grab rounded-2xl px-1 py-1 active:cursor-grabbing"

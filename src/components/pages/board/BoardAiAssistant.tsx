@@ -263,9 +263,9 @@ export function BoardAiAssistant({
         type="button"
         id="btn-board-ai-assistant"
         onClick={() => setOpen((current) => !current)}
-        className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white/95 px-4 py-3 text-sm font-semibold text-slate-800 shadow-xl shadow-slate-300/50 transition hover:bg-white hover:shadow-2xl active:scale-95"
+        className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-sky-200 bg-white/95 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold text-slate-800 shadow-xl shadow-slate-300/50 transition hover:bg-white hover:shadow-2xl active:scale-95"
       >
-        <Bot size={18} className="text-sky-600" />
+        <Bot size={16} className="text-sky-600 sm:w-[18px] sm:h-[18px]" />
         AI Gợi ý
         {result && (
           <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-[10px] font-bold text-white">
@@ -276,9 +276,12 @@ export function BoardAiAssistant({
 
       {/* Panel */}
       {open && (
-        <aside className="fixed bottom-24 right-6 z-30 flex w-96 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/95 shadow-2xl shadow-slate-400/35 backdrop-blur-xl">
+        <aside className="fixed z-30 flex flex-col overflow-hidden border border-slate-200 bg-slate-50/95 shadow-2xl shadow-slate-400/35 backdrop-blur-xl
+          bottom-24 right-6 w-96 max-w-[calc(100vw-1.5rem)] rounded-3xl
+          max-sm:top-16 max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:border-t max-sm:border-x-0 max-sm:border-b-0
+        ">
           {/* Header */}
-          <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3">
+          <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
                 <Bot size={16} className="text-sky-600" />
@@ -303,9 +306,9 @@ export function BoardAiAssistant({
           </header>
 
           {/* Body */}
-          <div className="flex flex-col gap-3 overflow-y-auto p-4" style={{ maxHeight: "calc(100vh - 200px)" }}>
+          <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto p-4">
             {/* Board info */}
-            <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-xs text-slate-700">
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-xs text-slate-700 shrink-0">
               <p className="font-semibold text-slate-900">📋 {boardName}</p>
               <p className="mt-0.5 text-slate-500">
                 AI sẽ phân tích toàn bộ task trong workspace và gợi ý theo độ ưu tiên, deadline.

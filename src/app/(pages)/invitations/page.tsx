@@ -221,8 +221,8 @@ export default function InvitationsPage() {
                       <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                         <Building size={20} />
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 text-sm truncate">{invite.workspaceName}</h4>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-slate-900 text-sm break-words">{invite.workspaceName}</h4>
                         <p className="text-xs text-slate-400 mt-0.5">Mời bởi: <span className="font-semibold text-slate-600">{invite.inviterName}</span></p>
                       </div>
                     </div>
@@ -280,82 +280,154 @@ export default function InvitationsPage() {
             <p className="text-xs text-slate-400 dark:text-slate-500">Không có lịch sử lời mời nào trước đây.</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
-                    <th className="px-5 py-4">Workspace</th>
-                    <th className="px-5 py-4">Người mời</th>
-                    <th className="px-5 py-4">Vai trò đề xuất</th>
-                    <th className="px-5 py-4">Thời gian nhận</th>
-                    <th className="px-5 py-4">Trạng thái</th>
-                    <th className="px-5 py-4 text-right">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                  {processedInvites.map((invite) => {
-                    const isMember = myWorkspacesList.some((w) => w.id === invite.workspaceId);
-                    return (
-                      <tr key={invite.id} className="hover:bg-slate-50/50 transition">
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 text-xs">{invite.workspaceName}</span>
-                            {invite.status === "ACCEPTED" && (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
+                      <th className="px-5 py-4">Workspace</th>
+                      <th className="px-5 py-4">Người mời</th>
+                      <th className="px-5 py-4">Vai trò đề xuất</th>
+                      <th className="px-5 py-4">Thời gian nhận</th>
+                      <th className="px-5 py-4">Trạng thái</th>
+                      <th className="px-5 py-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    {processedInvites.map((invite) => {
+                      const isMember = myWorkspacesList.some((w) => w.id === invite.workspaceId);
+                      return (
+                        <tr key={invite.id} className="hover:bg-slate-50/50 transition">
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800 text-xs">{invite.workspaceName}</span>
+                              {invite.status === "ACCEPTED" && (
+                                isMember ? (
+                                  <Link
+                                    href={`/projects?workspaceId=${invite.workspaceId}`}
+                                    className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline font-bold mt-0.5"
+                                  >
+                                    Đi đến workspace →
+                                  </Link>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-medium mt-0.5 italic">
+                                    Không còn là thành viên
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-slate-600 text-xs">{invite.inviterName}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-700 uppercase">
+                              {invite.roleName}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="text-slate-500 text-xs">{formatDate(invite.createdAt)}</span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            {getStatusBadge(invite.status)}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                            {invite.status === "ACCEPTED" ? (
                               isMember ? (
                                 <Link
                                   href={`/projects?workspaceId=${invite.workspaceId}`}
-                                  className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline font-bold mt-0.5"
+                                  className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold border border-blue-100 transition text-[11px]"
                                 >
-                                  Đi đến workspace →
+                                  Truy cập
                                 </Link>
                               ) : (
-                                <span className="text-[10px] text-slate-400 font-medium mt-0.5 italic">
-                                  Không còn là thành viên
+                                <span className="text-[11px] text-slate-400 font-semibold select-none">
+                                  Không khả dụng
                                 </span>
                               )
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="text-slate-600 text-xs">{invite.inviterName}</span>
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 border border-slate-200 text-slate-700 uppercase">
-                            {invite.roleName}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="text-slate-500 text-xs">{formatDate(invite.createdAt)}</span>
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap">
-                          {getStatusBadge(invite.status)}
-                        </td>
-                        <td className="px-5 py-4 whitespace-nowrap text-right text-xs font-semibold">
-                          {invite.status === "ACCEPTED" ? (
-                            isMember ? (
-                              <Link
-                                href={`/projects?workspaceId=${invite.workspaceId}`}
-                                className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold border border-blue-100 transition text-[11px]"
-                              >
-                                Truy cập
-                              </Link>
                             ) : (
-                              <span className="text-[11px] text-slate-400 font-semibold select-none">
-                                Không khả dụng
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-slate-300">--</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              <span className="text-slate-300">--</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+
+            {/* Mobile Card List View */}
+            <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+              {processedInvites.map((invite) => {
+                const isMember = myWorkspacesList.some((w) => w.id === invite.workspaceId);
+                return (
+                  <div
+                    key={invite.id}
+                    className="p-4 flex flex-col gap-3"
+                  >
+                    {/* Top Row: Workspace Name & Status Badge */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm block break-words">
+                          {invite.workspaceName}
+                        </span>
+                        {invite.status === "ACCEPTED" && (
+                          isMember ? (
+                            <Link
+                              href={`/projects?workspaceId=${invite.workspaceId}`}
+                              className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline font-bold mt-0.5 inline-block"
+                            >
+                              Đi đến workspace →
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5 italic block">
+                              Không còn là thành viên
+                            </span>
+                          )
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        {getStatusBadge(invite.status)}
+                      </div>
+                    </div>
+
+                    {/* Middle Details Grid */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-2.5 border border-slate-100/50 dark:border-slate-800 text-[11px]">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Người mời</p>
+                        <p className="font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5">{invite.inviterName}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Vai trò đề xuất</p>
+                        <span className="inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 uppercase">
+                          {invite.roleName}
+                        </span>
+                      </div>
+                      <div className="col-span-2 border-t border-slate-100/80 dark:border-slate-800/80 pt-1.5 mt-1">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Thời gian nhận</p>
+                        <p className="font-medium text-slate-500 dark:text-slate-400 mt-0.5">{formatDate(invite.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    {/* Action Button if Accepted & Member */}
+                    {invite.status === "ACCEPTED" && isMember && (
+                      <div className="flex justify-end pt-1">
+                        <Link
+                          href={`/projects?workspaceId=${invite.workspaceId}`}
+                          className="w-full text-center inline-flex items-center justify-center px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition text-xs shadow-sm shadow-blue-500/10"
+                        >
+                          Truy cập Workspace
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

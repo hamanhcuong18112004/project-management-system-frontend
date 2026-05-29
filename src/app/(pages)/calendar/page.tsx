@@ -124,26 +124,26 @@ export default function CalendarPage() {
         </div>
 
         {/* Navigation / Actions */}
-        <div className="flex items-center gap-2 rounded-2xl bg-white dark:bg-slate-900 p-2 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-1 sm:gap-2 rounded-2xl bg-white dark:bg-slate-900 p-1.5 sm:p-2 shadow-sm border border-slate-200 dark:border-slate-800 w-full sm:w-auto justify-between sm:justify-start">
           <button
             onClick={prevMonth}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
+            className="rounded-xl p-1.5 sm:p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all shrink-0"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
           </button>
-          <div className="min-w-[150px] text-center font-bold text-slate-800 dark:text-slate-200 px-2 capitalize text-sm md:text-base">
+          <div className="min-w-[110px] sm:min-w-[150px] text-center font-bold text-slate-800 dark:text-slate-200 px-1 sm:px-2 capitalize text-xs sm:text-sm md:text-base truncate">
             {format(currentDate, "MMMM yyyy", { locale: vi })}
           </div>
           <button
             onClick={nextMonth}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
+            className="rounded-xl p-1.5 sm:p-2 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 transition-all shrink-0"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} className="sm:w-5 sm:h-5" />
           </button>
-          <div className="mx-2 h-6 w-px bg-slate-200 dark:bg-slate-700" />
+          <div className="mx-1 sm:mx-2 h-6 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
           <button
             onClick={goToToday}
-            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-xl shadow-sm"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all rounded-xl shadow-sm shrink-0"
           >
             Hôm nay
           </button>
@@ -158,22 +158,24 @@ export default function CalendarPage() {
           </div>
         )}
 
-        <div className="h-full calendar-container">
-          <FullCalendar
-            key={tasks.length}
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={false}
-            events={events}
-            eventClick={handleEventClick}
-            eventContent={renderEventContent}
-            eventDrop={handleEventDrop}
-            editable={true}
-            height="100%"
-            locale="vi"
-            dayMaxEvents={3}
-            dayHeaderClassNames="calendar-header-cell"
-          />
+        <div className="h-full calendar-container overflow-x-auto">
+          <div className="min-w-[700px] md:min-w-0 h-full">
+            <FullCalendar
+              key={tasks.length}
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={false}
+              events={events}
+              eventClick={handleEventClick}
+              eventContent={renderEventContent}
+              eventDrop={handleEventDrop}
+              editable={true}
+              height="100%"
+              locale="vi"
+              dayMaxEvents={3}
+              dayHeaderClassNames="calendar-header-cell"
+            />
+          </div>
         </div>
       </div>
 
@@ -270,6 +272,21 @@ export default function CalendarPage() {
         .dark .calendar-container .fc-theme-standard td, 
         .dark .calendar-container .fc-theme-standard th {
           border-color: #1e293b;
+        }
+
+        /* Custom scrollbar for calendar overflow */
+        .calendar-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        .calendar-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .calendar-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .dark .calendar-container::-webkit-scrollbar-thumb {
+          background: #475569;
         }
       `}</style>
     </div>

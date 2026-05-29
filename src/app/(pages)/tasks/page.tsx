@@ -325,11 +325,15 @@ export default function MyTasksPage() {
     setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
-  const getPriorityBadge = (priority?: TaskPriority) => {
+  const getPriorityBadge = (priority?: TaskPriority, compact?: boolean) => {
     const style = PRIORITY_STYLES[priority || "MEDIUM"];
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${style.bg} ${style.text}`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      <span className={`inline-flex items-center gap-1 rounded-lg border text-[10px] font-semibold transition shrink-0 ${
+        compact 
+          ? "px-2 py-0.5" 
+          : "px-2.5 py-1 text-xs rounded-full sm:px-2.5 sm:py-1 sm:rounded-full"
+      } ${style.bg} ${style.text}`}>
+        <span className={`rounded-full bg-current shrink-0 ${compact ? "w-1 h-1" : "w-1.5 h-1.5"}`} />
         {style.label}
       </span>
     );
@@ -365,48 +369,48 @@ export default function MyTasksPage() {
       </div>
 
       {/* Stats Counter Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+      <div className="grid grid-cols-3 gap-2 sm:gap-5">
+        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Được giao</p>
-              <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-200 mt-1.5">{stats.assigned}</h3>
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Được giao</p>
+              <h3 className="text-lg sm:text-3xl font-extrabold text-slate-800 dark:text-slate-200 mt-1 sm:mt-1.5">{stats.assigned}</h3>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 items-center justify-center">
               <CheckSquare size={22} />
             </div>
           </div>
-          <div className="mt-3.5 text-xs text-slate-500 dark:text-slate-400">
+          <div className="hidden sm:block mt-3.5 text-xs text-slate-500 dark:text-slate-400">
             Tất cả công việc chưa lưu trữ
           </div>
         </div>
 
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Quá hạn</p>
-              <h3 className="text-3xl font-extrabold text-rose-600 dark:text-rose-500 mt-1.5">{stats.overdue}</h3>
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Quá hạn</p>
+              <h3 className="text-lg sm:text-3xl font-extrabold text-rose-600 dark:text-rose-500 mt-1 sm:mt-1.5">{stats.overdue}</h3>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 items-center justify-center">
               <AlertTriangle size={22} />
             </div>
           </div>
-          <div className="mt-3.5 text-xs text-rose-600/90 dark:text-rose-400/90 font-medium">
+          <div className="hidden sm:block mt-3.5 text-xs text-rose-600/90 dark:text-rose-400/90 font-medium">
             Cần ưu tiên xử lý ngay lập tức
           </div>
         </div>
 
-        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+        <div className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-5 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Hạn hôm nay</p>
-              <h3 className="text-3xl font-extrabold text-amber-600 dark:text-amber-500 mt-1.5">{stats.today}</h3>
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Hạn hôm nay</p>
+              <h3 className="text-lg sm:text-3xl font-extrabold text-amber-600 dark:text-amber-500 mt-1 sm:mt-1.5">{stats.today}</h3>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 items-center justify-center">
               <Clock size={22} />
             </div>
           </div>
-          <div className="mt-3.5 text-xs text-slate-500 dark:text-slate-400">
+          <div className="hidden sm:block mt-3.5 text-xs text-slate-500 dark:text-slate-400">
             Các công việc hết hạn vào hôm nay
           </div>
         </div>
@@ -415,7 +419,7 @@ export default function MyTasksPage() {
       {/* Tabs and Controls */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 p-2 overflow-x-auto gap-1">
+        <div className="flex flex-nowrap whitespace-nowrap border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 p-2 overflow-x-auto gap-1 scrollbar-none">
           {(["all", "today", "upcoming", "overdue", "completed"] as const).map((tab) => {
             const tabLabels = {
               all: "Tất cả",
@@ -442,9 +446,9 @@ export default function MyTasksPage() {
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+        <div className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
           {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-md w-full">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <Search size={16} />
             </span>
@@ -458,27 +462,29 @@ export default function MyTasksPage() {
           </div>
 
           {/* Sort Controls */}
-          <div className="flex items-center gap-3 self-end md:self-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-2.5 w-full md:w-auto justify-between md:justify-start">
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5">
               <SlidersHorizontal size={14} />
               Sắp xếp:
             </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="dueDate">Hạn hoàn thành</option>
-              <option value="priority">Mức độ ưu tiên</option>
-              <option value="title">Tên công việc</option>
-            </select>
-            <button
-              onClick={toggleSortOrder}
-              title="Đổi thứ tự sắp xếp"
-              className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition"
-            >
-              <ArrowUpDown size={14} />
-            </button>
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 flex-1 sm:flex-initial"
+              >
+                <option value="dueDate">Hạn hoàn thành</option>
+                <option value="priority">Mức độ ưu tiên</option>
+                <option value="title">Tên công việc</option>
+              </select>
+              <button
+                onClick={toggleSortOrder}
+                title="Đổi thứ tự sắp xếp"
+                className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition shrink-0"
+              >
+                <ArrowUpDown size={14} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -495,17 +501,146 @@ export default function MyTasksPage() {
               </p>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
-                  <th className="px-6 py-3.5">Tên công việc</th>
-                  <th className="px-6 py-3.5">Bảng</th>
-                  <th className="px-6 py-3.5">Ưu tiên</th>
-                  <th className="px-6 py-3.5">Hạn chốt</th>
-                  <th className="px-6 py-3.5">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+            <>
+              {/* Desktop View */}
+              <div className="hidden md:block">
+                <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
+                      <th className="px-6 py-3.5">Tên công việc</th>
+                      <th className="px-6 py-3.5">Bảng</th>
+                      <th className="px-6 py-3.5">Ưu tiên</th>
+                      <th className="px-6 py-3.5">Hạn chốt</th>
+                      <th className="px-6 py-3.5">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                    {filteredTasks.map((task) => {
+                      const checklistTotal = Number(task.checklistTotal || 0);
+                      const checklistChecked = Number(task.checklistChecked || 0);
+                      const progressPercent =
+                        checklistTotal > 0 ? Math.round((checklistChecked / checklistTotal) * 100) : -1;
+                      const overdue = isOverdue(task);
+                      const boardInfo = boardLocationMap[task.boardId || ""];
+                      const boardName = boardInfo?.boardName || "Không xác định";
+
+                      return (
+                        <tr
+                          key={task.id}
+                          onClick={() => setSelectedTask(task)}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition cursor-pointer group"
+                        >
+                          {/* Title & Description */}
+                          <td className="px-6 py-4.5 max-w-xs md:max-w-md">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+                                  try {
+                                    await updateTask(task.id, { status: newStatus });
+                                    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+                                    if (selectedTask?.id === task.id) {
+                                      setSelectedTask(prev => prev ? { ...prev, status: newStatus } : null);
+                                    }
+                                  } catch (err) {
+                                    console.error("Failed to update status:", err);
+                                  }
+                                }}
+                                className={`flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                                  task.status === "DONE"
+                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                    : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-transparent hover:text-slate-300 bg-white dark:bg-slate-800"
+                                }`}
+                                title={task.status === "DONE" ? "Đánh dấu là chưa hoàn thành" : "Đánh dấu là hoàn thành"}
+                              >
+                                <CheckCircle2 size={13} className="stroke-[3.5px]" />
+                              </button>
+                              <div className="min-w-0">
+                                <div className={`font-semibold transition text-sm ${
+                                  task.status === "DONE" ? "text-slate-400 dark:text-slate-500 line-through font-normal" : "text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold"
+                                }`}>
+                                  {task.title}
+                                </div>
+                                {task.description && (
+                                  <div className="text-xs text-slate-400 dark:text-slate-500 line-clamp-1 mt-0.5 font-normal">
+                                    {stripHtml(task.description)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Workspace Tag */}
+                          <td className="px-6 py-4.5 whitespace-nowrap">
+                            {task.boardId && boardInfo ? (
+                              <Link
+                                href={`/boards/${task.boardId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-xs border border-blue-100 font-semibold transition shadow-sm"
+                              >
+                                <FolderKanban size={13} />
+                                {boardName}
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-600 text-xs border border-slate-200/50 font-medium">
+                                <FolderKanban size={13} className="text-slate-400" />
+                                {boardName}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Priority */}
+                          <td className="px-6 py-4.5 whitespace-nowrap">
+                            {getPriorityBadge(task.priority)}
+                          </td>
+
+                          {/* Due Date */}
+                          <td className="px-6 py-4.5 whitespace-nowrap">
+                            {task.dueDate ? (
+                              (() => {
+                                const formatted = formatTaskDueDate(task.dueDate, task.status);
+                                return (
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${formatted.badgeClass}`}
+                                  >
+                                    <Calendar size={12} />
+                                    {formatted.text}
+                                  </span>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-slate-300 text-xs">--</span>
+                            )}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-6 py-4.5 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                                task.status === "DONE"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : task.status === "IN_PROGRESS"
+                                  ? "bg-sky-50 text-sky-700 border border-sky-200"
+                                  : "bg-slate-50 text-slate-600 border border-slate-200"
+                              }`}
+                            >
+                              {task.status === "DONE"
+                                ? "Hoàn thành"
+                                : task.status === "IN_PROGRESS"
+                                ? "Đang làm"
+                                : "Cần làm"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl overflow-hidden shadow-sm">
                 {filteredTasks.map((task) => {
                   const checklistTotal = Number(task.checklistTotal || 0);
                   const checklistChecked = Number(task.checklistChecked || 0);
@@ -516,106 +651,56 @@ export default function MyTasksPage() {
                   const boardName = boardInfo?.boardName || "Không xác định";
 
                   return (
-                    <tr
+                    <div
                       key={task.id}
                       onClick={() => setSelectedTask(task)}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition cursor-pointer group"
+                      className="p-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition cursor-pointer flex flex-col gap-2.5"
                     >
-                      {/* Title & Description */}
-                      <td className="px-6 py-4.5 max-w-xs md:max-w-md">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const newStatus = task.status === "DONE" ? "TODO" : "DONE";
-                              try {
-                                await updateTask(task.id, { status: newStatus });
-                                setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-                                if (selectedTask?.id === task.id) {
+                      {/* Top Row: Complete Checkbox, Title & Status Badge */}
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+                            try {
+                              await updateTask(task.id, { status: newStatus });
+                              setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+                              if (selectedTask?.id === task.id) {
                                   setSelectedTask(prev => prev ? { ...prev, status: newStatus } : null);
-                                }
-                              } catch (err) {
-                                console.error("Failed to update status:", err);
                               }
-                            }}
-                            className={`flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                              task.status === "DONE"
-                                ? "bg-emerald-500 border-emerald-500 text-white"
-                                : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-transparent hover:text-slate-300 bg-white dark:bg-slate-800"
-                            }`}
-                            title={task.status === "DONE" ? "Đánh dấu là chưa hoàn thành" : "Đánh dấu là hoàn thành"}
-                          >
-                            <CheckCircle2 size={13} className="stroke-[3.5px]" />
-                          </button>
-                          <div className="min-w-0">
-                            <div className={`font-semibold transition text-sm ${
-                              task.status === "DONE" ? "text-slate-400 dark:text-slate-500 line-through font-normal" : "text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold"
-                            }`}>
-                              {task.title}
-                            </div>
-                            {task.description && (
-                              <div className="text-xs text-slate-400 dark:text-slate-500 line-clamp-1 mt-0.5 font-normal">
-                                {stripHtml(task.description)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Workspace Tag */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
-                        {task.boardId && boardInfo ? (
-                          <Link
-                            href={`/boards/${task.boardId}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-xs border border-blue-100 font-semibold transition shadow-sm"
-                          >
-                            <FolderKanban size={13} />
-                            {boardName}
-                          </Link>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-600 text-xs border border-slate-200/50 font-medium">
-                            <FolderKanban size={13} className="text-slate-400" />
-                            {boardName}
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Priority */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
-                        {getPriorityBadge(task.priority)}
-                      </td>
-
-                      {/* Due Date */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
-                        {task.dueDate ? (
-                          (() => {
-                            const formatted = formatTaskDueDate(task.dueDate, task.status);
-                            return (
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${formatted.badgeClass}`}
-                              >
-                                <Calendar size={12} />
-                                {formatted.text}
-                              </span>
-                            );
-                          })()
-                        ) : (
-                          <span className="text-slate-300 text-xs">--</span>
-                        )}
-                      </td>
-
-
-
-                      {/* Status */}
-                      <td className="px-6 py-4.5 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                            } catch (err) {
+                              console.error("Failed to update status:", err);
+                            }
+                          }}
+                          className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border flex items-center justify-center transition-all ${
                             task.status === "DONE"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              ? "bg-emerald-500 border-emerald-500 text-white"
+                              : "border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-transparent hover:text-slate-300 bg-white dark:bg-slate-800"
+                          }`}
+                          title={task.status === "DONE" ? "Đánh dấu là chưa hoàn thành" : "Đánh dấu là hoàn thành"}
+                        >
+                          <CheckCircle2 size={13} className="stroke-[3.5px]" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <div className={`font-semibold transition text-sm ${
+                            task.status === "DONE" ? "text-slate-400 dark:text-slate-500 line-through font-normal" : "text-slate-900 dark:text-slate-100 font-semibold"
+                          }`}>
+                            {task.title}
+                          </div>
+                          {task.description && (
+                            <div className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 mt-1 font-normal">
+                              {stripHtml(task.description)}
+                            </div>
+                          )}
+                        </div>
+                        {/* Status Badge */}
+                        <span
+                          className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase ${
+                            task.status === "DONE"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
                               : task.status === "IN_PROGRESS"
-                              ? "bg-sky-50 text-sky-700 border border-sky-200"
-                              : "bg-slate-50 text-slate-600 border border-slate-200"
+                              ? "bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-900/50"
+                              : "bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
                           }`}
                         >
                           {task.status === "DONE"
@@ -624,12 +709,59 @@ export default function MyTasksPage() {
                             ? "Đang làm"
                             : "Cần làm"}
                         </span>
-                      </td>
-                    </tr>
+                      </div>
+
+                      {/* Bottom Row: Metadata Badges (Board, Priority, Due Date) */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                        {/* Board Name */}
+                        {task.boardId && boardInfo ? (
+                          <Link
+                            href={`/boards/${task.boardId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-[10px] border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50 font-semibold transition shadow-sm max-w-[120px]"
+                          >
+                            <FolderKanban size={11} className="shrink-0" />
+                            <span className="truncate">{boardName}</span>
+                          </Link>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 text-slate-600 text-[10px] border border-slate-200/50 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50 font-medium max-w-[120px]">
+                            <FolderKanban size={11} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{boardName}</span>
+                          </span>
+                        )}
+
+                        {/* Priority Badge */}
+                        {getPriorityBadge(task.priority, true)}
+
+                        {/* Due Date Badge */}
+                        {task.dueDate ? (
+                          (() => {
+                            const formatted = formatTaskDueDate(task.dueDate, task.status, true);
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold ${formatted.badgeClass}`}
+                              >
+                                <Calendar size={11} className="shrink-0" />
+                                {formatted.text}
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="text-slate-300 text-[10px]">--</span>
+                        )}
+
+                        {/* Checklist progress badge */}
+                        {checklistTotal > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 text-slate-600 text-[10px] border border-slate-200/50 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50 font-semibold">
+                            {checklistChecked}/{checklistTotal} ({progressPercent}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -49,7 +49,11 @@ export const formatDateToDDMMYYYY = (
     badgeClass: string;
   }
 
-  export const formatTaskDueDate = (dueDateStr?: string | null, status?: string): FormattedDueDate => {
+  export const formatTaskDueDate = (
+    dueDateStr?: string | null,
+    status?: string,
+    compact?: boolean
+  ): FormattedDueDate => {
     if (!dueDateStr) {
       return { text: "", status: "normal", badgeClass: "" };
     }
@@ -73,9 +77,9 @@ export const formatDateToDDMMYYYY = (
 
     if (status === "DONE") {
       return {
-        text: `✓ Đã hoàn thành (${formattedText})`,
+        text: compact ? `✓ ${formattedText}` : `✓ Đã hoàn thành (${formattedText})`,
         status: "normal",
-        badgeClass: "bg-emerald-50 text-emerald-600 border border-emerald-100",
+        badgeClass: "bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50",
       };
     }
 
@@ -86,29 +90,31 @@ export const formatDateToDDMMYYYY = (
       const diffInDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
       let text = "";
       if (diffInDays >= 1) {
-        text = `Quá hạn ${diffInDays} ngày (${formattedText})`;
+        text = compact ? `Quá hạn ${diffInDays} ngày` : `Quá hạn ${diffInDays} ngày (${formattedText})`;
       } else {
         const diffInHoursAbs = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60));
-        text = `Quá hạn ${diffInHoursAbs > 0 ? `${diffInHoursAbs} giờ` : "ít phút"} (${formattedText})`;
+        const hoursText = diffInHoursAbs > 0 ? `${diffInHoursAbs} giờ` : "ít phút";
+        text = compact ? `Quá hạn ${hoursText}` : `Quá hạn ${hoursText} (${formattedText})`;
       }
       return {
         text,
         status: "overdue",
-        badgeClass: "bg-red-50 text-red-600 border border-red-100",
+        badgeClass: "bg-red-50 text-red-600 border border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50",
       };
     } else if (diffInHours <= 24) {
       const hoursLeft = Math.floor(diffInHours);
-      const text = `⚠ Sắp hết hạn (còn ${hoursLeft > 0 ? `${hoursLeft} giờ` : "ít phút"}) - ${formattedText}`;
+      const hoursLeftText = hoursLeft > 0 ? `${hoursLeft} giờ` : "ít phút";
+      const text = compact ? `Còn ${hoursLeftText}` : `⚠ Sắp hết hạn (còn ${hoursLeftText}) - ${formattedText}`;
       return {
         text,
         status: "warning",
-        badgeClass: "bg-amber-50 text-amber-700 border border-amber-100",
+        badgeClass: "bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50",
       };
     }
 
     return {
-      text: `Hạn chót: ${formattedText}`,
+      text: compact ? formattedText : `Hạn chót: ${formattedText}`,
       status: "normal",
-      badgeClass: "bg-slate-50 text-slate-600 border border-slate-100",
+      badgeClass: "bg-slate-50 text-slate-600 border border-slate-100 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-800",
     };
   };

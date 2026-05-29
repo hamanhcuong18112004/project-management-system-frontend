@@ -421,7 +421,7 @@ export default function ReportsPage() {
       {!reportLoading && report && !selectedBoardId && (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <KpiCard
               label="Tổng công việc"
               value={wsTotal}
@@ -472,109 +472,198 @@ export default function ReportsPage() {
           </div>
 
           {/* Board overview table */}
-          <ChartCard title="Tổng quan các board — nhấp vào hàng để xem chi tiết">
+          <ChartCard title="Tổng quan các board — nhấp để xem chi tiết">
             {wsBoardData.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      <th className="pb-3 pr-6">Board</th>
-                      <th className="pb-3 pr-6">Người phụ trách</th>
-                      <th className="pb-3 pr-4 text-center">Thành viên</th>
-                      <th className="pb-3 pr-4 text-center">Chờ xử lý</th>
-                      <th className="pb-3 pr-4 text-center">Đang làm</th>
-                      <th className="pb-3 pr-4 text-center">Hoàn thành</th>
-                      <th className="pb-3 pr-4 text-center">Quá hạn</th>
-                      <th className="pb-3 pr-4 text-center">Tổng</th>
-                      <th className="pb-3 text-right">Tiến độ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {wsBoardData.map((b) => {
-                      const rate = b.tasks > 0 ? Math.round((b.done / b.tasks) * 100) : 0;
-                      return (
-                        <tr
-                          key={b.id}
-                          className="group cursor-pointer transition-colors hover:bg-blue-50/40"
-                          onClick={() => setSelectedBoardId(b.id)}
-                        >
-                          <td className="py-3 pr-6">
-                            <span className="font-semibold text-slate-800 transition-colors group-hover:text-blue-600">
-                              {b.name}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-6">
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        <th className="pb-3 pr-6">Board</th>
+                        <th className="pb-3 pr-6">Người phụ trách</th>
+                        <th className="pb-3 pr-4 text-center">Thành viên</th>
+                        <th className="pb-3 pr-4 text-center">Chờ xử lý</th>
+                        <th className="pb-3 pr-4 text-center">Đang làm</th>
+                        <th className="pb-3 pr-4 text-center">Hoàn thành</th>
+                        <th className="pb-3 pr-4 text-center">Quá hạn</th>
+                        <th className="pb-3 pr-4 text-center">Tổng</th>
+                        <th className="pb-3 text-right">Tiến độ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800/80 bg-white dark:bg-slate-900">
+                      {wsBoardData.map((b) => {
+                        const rate = b.tasks > 0 ? Math.round((b.done / b.tasks) * 100) : 0;
+                        return (
+                          <tr
+                            key={b.id}
+                            className="group cursor-pointer transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-950/10"
+                            onClick={() => setSelectedBoardId(b.id)}
+                          >
+                            <td className="py-3 pr-6">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                                {b.name}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-6">
+                              {b.admins.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {b.admins.map((a, i) => (
+                                    <div
+                                      key={i}
+                                      className="inline-flex flex-col rounded-lg border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50 dark:bg-indigo-950/20 px-2.5 py-1 leading-tight"
+                                    >
+                                      <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">{a.name}</span>
+                                      {a.email && (
+                                        <span className="text-[10px] text-indigo-500 dark:text-indigo-400">{a.email}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-300 dark:text-slate-700">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 text-center">
+                              <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                                <Users size={12} />{b.memberCount}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4 text-center">
+                              <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+                                {b.todo}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4 text-center">
+                              <span className="inline-flex rounded-full bg-blue-100 dark:bg-blue-950/30 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                                {b.inProgress}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4 text-center">
+                              <span className="inline-flex rounded-full bg-emerald-100 dark:bg-emerald-950/30 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                {b.done}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-4 text-center">
+                              {b.overdue > 0 ? (
+                                <span className="inline-flex rounded-full bg-red-100 dark:bg-red-950/30 px-2.5 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                                  {b.overdue}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-300 dark:text-slate-700">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 text-center font-semibold text-slate-700 dark:text-slate-300">
+                              {b.tasks}
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                  <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all"
+                                    style={{ width: `${rate}%` }}
+                                  />
+                                </div>
+                                <span className="w-9 text-right text-xs font-semibold text-slate-600 dark:text-slate-400">
+                                  {rate}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card List View */}
+                <div className="block md:hidden space-y-4">
+                  {wsBoardData.map((b) => {
+                    const rate = b.tasks > 0 ? Math.round((b.done / b.tasks) * 100) : 0;
+                    return (
+                      <div
+                        key={b.id}
+                        onClick={() => setSelectedBoardId(b.id)}
+                        className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col gap-3.5"
+                      >
+                        {/* Top Row: Board Name & Rate */}
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 text-sm hover:text-blue-600 dark:hover:text-blue-400 transition">
+                            {b.name}
+                          </span>
+                          <span className="shrink-0 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-100 dark:border-slate-700">
+                            {rate}%
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${rate}%` }}
+                          />
+                        </div>
+
+                        {/* Middle Details Grid */}
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100/50 dark:border-slate-800/50">
+                          <div className="col-span-2">
+                            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Người phụ trách</p>
                             {b.admins.length > 0 ? (
                               <div className="flex flex-wrap gap-1.5">
                                 {b.admins.map((a, i) => (
                                   <div
                                     key={i}
-                                    className="inline-flex flex-col rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1 leading-tight"
+                                    className="inline-flex flex-col rounded-lg border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50 dark:bg-indigo-950/20 px-2.5 py-1 leading-tight"
                                   >
-                                    <span className="text-xs font-semibold text-indigo-800">{a.name}</span>
+                                    <span className="text-[10px] font-semibold text-indigo-800 dark:text-indigo-300">{a.name}</span>
                                     {a.email && (
-                                      <span className="text-[10px] text-indigo-500">{a.email}</span>
+                                      <span className="text-[8px] text-indigo-500 dark:text-indigo-400 truncate max-w-[120px]">{a.email}</span>
                                     )}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-300">—</span>
+                              <span className="text-xs text-slate-300 dark:text-slate-700">—</span>
                             )}
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <span className="inline-flex items-center gap-1 text-slate-600">
+                          </div>
+                          <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-2">
+                            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Thành viên</p>
+                            <span className="inline-flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
                               <Users size={12} />{b.memberCount}
                             </span>
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                              {b.todo}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                              {b.inProgress}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                              {b.done}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-center">
-                            {b.overdue > 0 ? (
-                              <span className="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-600">
-                                {b.overdue}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-slate-300">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 pr-4 text-center font-semibold text-slate-700">
-                            {b.tasks}
-                          </td>
-                          <td className="py-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
-                                <div
-                                  className="h-full rounded-full bg-emerald-500 transition-all"
-                                  style={{ width: `${rate}%` }}
-                                />
-                              </div>
-                              <span className="w-9 text-right text-xs font-semibold text-slate-600">
-                                {rate}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                          <div className="border-t border-slate-100/80 dark:border-slate-800/80 pt-2">
+                            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tổng công việc</p>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5 block">{b.tasks} tasks</span>
+                          </div>
+                        </div>
+
+                        {/* Stats columns */}
+                        <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+                          <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800/30">
+                            <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[8px]">Chờ</p>
+                            <span className="font-bold text-slate-600 dark:text-slate-400 text-xs mt-0.5 block">{b.todo}</span>
+                          </div>
+                          <div className="bg-blue-50/50 dark:bg-blue-950/20 p-2 rounded-xl border border-blue-100/30 dark:border-blue-900/10">
+                            <p className="text-blue-500 dark:text-blue-400 font-bold uppercase text-[8px]">Đang làm</p>
+                            <span className="font-bold text-blue-700 dark:text-blue-400 text-xs mt-0.5 block">{b.inProgress}</span>
+                          </div>
+                          <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-2 rounded-xl border border-emerald-100/30 dark:border-emerald-900/10">
+                            <p className="text-emerald-500 dark:text-emerald-400 font-bold uppercase text-[8px]">Xong</p>
+                            <span className="font-bold text-emerald-700 dark:text-emerald-400 text-xs mt-0.5 block">{b.done}</span>
+                          </div>
+                          <div className="bg-red-50/50 dark:bg-red-950/20 p-2 rounded-xl border border-red-100/30 dark:border-red-900/10">
+                            <p className="text-red-500 dark:text-red-400 font-bold uppercase text-[8px]">Trễ</p>
+                            <span className="font-bold text-red-600 dark:text-red-400 text-xs mt-0.5 block">{b.overdue}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
-              <p className="py-12 text-center text-sm text-slate-400">
+              <p className="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
                 Workspace này chưa có board
               </p>
             )}
@@ -593,23 +682,23 @@ export default function ReportsPage() {
             >
               <ArrowLeft size={15} /> Về workspace
             </button>
-            <span className="text-slate-300">/</span>
+            <span className="text-slate-300 dark:text-slate-600">/</span>
             <div className="relative">
               <select
                 value={selectedBoardId}
                 onChange={(e) => setSelectedBoardId(e.target.value)}
-                className="cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-sm font-medium text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="cursor-pointer appearance-none rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 pl-3 pr-8 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-500/20"
               >
                 {report.boards.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id} className="dark:bg-slate-800 dark:text-slate-200">{b.name}</option>
                 ))}
               </select>
-              <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+              <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             </div>
           </div>
 
           {/* KPIs */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <KpiCard
               label="Tổng công việc"
               value={boardTotal}
@@ -639,40 +728,68 @@ export default function ReportsPage() {
           {/* Member list */}
           {boardMemberList.length > 0 && (
             <ChartCard title="Danh sách thành viên board">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      <th className="pb-3 pr-4">Thành viên</th>
-                      <th className="pb-3 pr-4">Email</th>
-                      <th className="pb-3 pr-4">Vai trò</th>
-                      <th className="pb-3 text-right">Công việc phụ trách</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {boardMemberList.map((m) => (
-                      <tr key={m.id} className="hover:bg-slate-50/70">
-                        <td className="py-3 pr-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
-                              {m.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="font-medium text-slate-800">{m.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-4 text-slate-500">{m.email || "—"}</td>
-                        <td className="py-3 pr-4">
-                          <RoleBadge role={m.role} />
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className="font-semibold text-slate-700">{m.tasks}</span>
-                          <span className="ml-1 text-slate-400">tasks</span>
-                        </td>
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        <th className="pb-3 pr-4">Thành viên</th>
+                        <th className="pb-3 pr-4">Email</th>
+                        <th className="pb-3 pr-4">Vai trò</th>
+                        <th className="pb-3 text-right">Công việc phụ trách</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800/80 bg-white dark:bg-slate-900">
+                      {boardMemberList.map((m) => (
+                        <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-850/40">
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-xs font-bold text-blue-700 dark:text-blue-300">
+                                {m.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">{m.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-slate-500 dark:text-slate-400">{m.email || "—"}</td>
+                          <td className="py-3 pr-4">
+                            <RoleBadge role={m.role} />
+                          </td>
+                          <td className="py-3 text-right">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{m.tasks}</span>
+                            <span className="ml-1 text-slate-400 dark:text-slate-500">tasks</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card List View */}
+                <div className="block sm:hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+                  {boardMemberList.map((m) => (
+                    <div key={m.id} className="p-4 flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-xs font-bold text-blue-700 dark:text-blue-300">
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">{m.name}</span>
+                        </div>
+                        <div className="shrink-0">
+                          <RoleBadge role={m.role} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-50 dark:border-slate-800/50">
+                        <span className="text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{m.email || "—"}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                          {m.tasks} tasks
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             </ChartCard>
           )}
 
@@ -715,7 +832,7 @@ export default function ReportsPage() {
                       className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
                         active
                           ? "border-transparent bg-violet-600 text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       }`}
                     >
                       {!active && (
@@ -826,15 +943,15 @@ export default function ReportsPage() {
           <ChartCard title="Xu hướng công việc theo deadline">
             {/* Controls */}
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+              <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5">
                 {(["week", "month"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setTimelineMode(m)}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                       timelineMode === m
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                     }`}
                   >
                     {m === "week" ? "Theo tuần" : "Theo tháng"}
@@ -845,9 +962,9 @@ export default function ReportsPage() {
                 type="date"
                 value={timelineAnchor}
                 onChange={(e) => e.target.value && setTimelineAnchor(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 shadow-sm focus:border-blue-400 dark:focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-500/20"
               />
-              <span className="text-sm font-medium text-slate-600">{timelineRangeLabel}</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{timelineRangeLabel}</span>
             </div>
 
             {/* Chart */}
@@ -944,20 +1061,20 @@ function WsSelector({
   loading: boolean;
   onChange: (id: string) => void;
 }) {
-  if (loading) return <Loader2 className="h-5 w-5 animate-spin text-slate-400" />;
+  if (loading) return <Loader2 className="h-5 w-5 animate-spin text-slate-400 dark:text-slate-500" />;
   return (
     <div className="relative">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-slate-700 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        className="cursor-pointer appearance-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-4 pr-10 text-sm font-medium text-slate-700 dark:text-slate-200 shadow-sm focus:border-blue-400 dark:focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-500/20"
       >
-        <option value="">Chọn workspace...</option>
+        <option value="" className="dark:bg-slate-800 dark:text-slate-200">Chọn workspace...</option>
         {workspaces.map((ws) => (
-          <option key={ws.id} value={ws.id}>{ws.name}</option>
+          <option key={ws.id} value={ws.id} className="dark:bg-slate-800 dark:text-slate-200">{ws.name}</option>
         ))}
       </select>
-      <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
     </div>
   );
 }
@@ -973,20 +1090,25 @@ function KpiCard({
   sub?: string;
   color: "blue" | "emerald" | "red" | "violet";
 }) {
-  const cls = { blue: "text-blue-600", emerald: "text-emerald-600", red: "text-red-500", violet: "text-violet-600" }[color];
+  const cls = { 
+    blue: "text-blue-600 dark:text-blue-400", 
+    emerald: "text-emerald-600 dark:text-emerald-400", 
+    red: "text-red-500 dark:text-red-400", 
+    violet: "text-violet-600 dark:text-violet-400" 
+  }[color];
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-2 text-3xl font-bold ${cls}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+    <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-5 shadow-sm transition">
+      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{label}</p>
+      <p className={`mt-1 sm:mt-2 text-xl sm:text-3xl font-bold ${cls}`}>{value}</p>
+      {sub && <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 truncate">{sub}</p>}
     </article>
   );
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-semibold text-slate-900">{title}</h2>
+    <article className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-sm transition">
+      <h2 className="mb-4 text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
       {children}
     </article>
   );
@@ -1000,16 +1122,16 @@ function DonutChart({
   total: number;
 }) {
   return (
-    <div className="flex h-65 items-center justify-center gap-8">
-      <div className="relative h-44 w-44 shrink-0" style={{ overflow: "hidden" }}>
+    <div className="flex flex-col sm:flex-row h-auto sm:h-65 items-center justify-center gap-6 sm:gap-8 py-4 sm:py-0">
+      <div className="relative h-40 w-40 sm:h-44 sm:w-44 shrink-0" style={{ overflow: "hidden" }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               dataKey="value"
               nameKey="label"
-              innerRadius={52}
-              outerRadius={76}
+              innerRadius={48}
+              outerRadius={70}
               paddingAngle={2}
               startAngle={90}
               endAngle={-270}
@@ -1021,17 +1143,17 @@ function DonutChart({
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-3xl font-bold text-slate-900">{total}</p>
-            <p className="text-xs text-slate-500">công việc</p>
+            <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{total}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">công việc</p>
           </div>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-col gap-x-6 gap-y-2 sm:space-y-3 w-full sm:w-auto px-4 sm:px-0">
         {data.map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-sm text-slate-600">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-            <span>{item.label}</span>
-            <span className="ml-2 font-semibold text-slate-900">{item.value}</span>
+          <div key={item.label} className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="truncate">{item.label}</span>
+            <span className="ml-auto sm:ml-2 font-semibold text-slate-900 dark:text-slate-100">{item.value}</span>
           </div>
         ))}
       </div>
@@ -1042,10 +1164,10 @@ function DonutChart({
 function RoleBadge({ role }: { role: string }) {
   const upper = role.toUpperCase();
   const styles: Record<string, string> = {
-    OWNER: "bg-amber-100 text-amber-700",
-    ADMIN: "bg-blue-100 text-blue-700",
-    MEMBER: "bg-slate-100 text-slate-600",
-    VIEWER: "bg-green-100 text-green-700",
+    OWNER: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/30",
+    ADMIN: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200/30",
+    MEMBER: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/20",
+    VIEWER: "bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200/30",
   };
   const labels: Record<string, string> = {
     OWNER: "Owner",
@@ -1054,7 +1176,7 @@ function RoleBadge({ role }: { role: string }) {
     VIEWER: "Người xem",
   };
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles[upper] ?? "bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles[upper] ?? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}`}>
       {labels[upper] ?? role}
     </span>
   );
@@ -1062,7 +1184,7 @@ function RoleBadge({ role }: { role: string }) {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex h-65 items-center justify-center text-sm text-slate-400">
+    <div className="flex h-65 items-center justify-center text-sm text-slate-400 dark:text-slate-500">
       {label}
     </div>
   );

@@ -2392,10 +2392,10 @@ export function BoardTaskDialog({
         </div>
 
         {/* 2-column body */}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
 
           {/* LEFT COLUMN: Task detail */}
-          <div className="flex-1 overflow-y-auto border-r border-slate-100">
+          <div className="w-full lg:flex-1 lg:overflow-y-auto lg:border-r border-slate-100">
             <div className="space-y-4 px-5 py-5">
               <TaskFieldRow label="Danh sách" icon={<FolderKanban size={15} />}>
                 <div className="w-full px-3.5 py-1 text-sm leading-6 font-medium text-slate-700 bg-transparent">
@@ -2558,7 +2558,7 @@ export function BoardTaskDialog({
           </div>
 
           {/* RIGHT COLUMN: Comments */}
-          <div className="flex w-[480px] shrink-0 flex-col overflow-hidden bg-slate-50/60">
+          <div className="w-full lg:w-[480px] lg:shrink-0 flex flex-col overflow-hidden bg-slate-50/60 border-t lg:border-t-0 lg:border-l border-slate-100 lg:h-full h-[400px]">
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
               <span className="text-sm font-semibold text-slate-700">Nhận xét và hoạt động</span>
             </div>

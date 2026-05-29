@@ -1081,7 +1081,7 @@ export default function BoardDetailPage() {
                     />
                   ))}
 
-                  <section className="w-[320px] shrink-0 rounded-3xl border border-dashed border-slate-300/80 bg-white/60 p-4 shadow-lg shadow-slate-300/25 backdrop-blur-xl">
+                  <section className="w-[280px] sm:w-[320px] shrink-0 rounded-3xl border border-dashed border-slate-300/80 bg-white/60 p-4 shadow-lg shadow-slate-300/25 backdrop-blur-xl">
                     {isReadOnly ? (
                       <div className="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-slate-400">
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-300">

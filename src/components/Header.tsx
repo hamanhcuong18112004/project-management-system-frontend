@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Settings, Trash2 } from "lucide-react";
+import { Bell, Search, Settings, Trash2, Menu } from "lucide-react";
 import { useAuthStore, useSidebarStore } from "@/lib/stores";
 import { MAIN_MENU } from "@/lib/constants/menu";
 import { useRealtime } from "@/providers/RealtimeProvider";
@@ -17,7 +17,7 @@ const HEADER_TABS = MAIN_MENU.filter((item) => item.label !== "Trang chủ");
 export function Header() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { isCollapsed } = useSidebarStore();
+  const { isCollapsed, toggleMobileOpen } = useSidebarStore();
   const pathname = usePathname();
   const { lastCommentUpdate } = useRealtime();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
@@ -40,11 +40,20 @@ export function Header() {
   };
 
   return (
-    <header className={`fixed top-0 right-0 h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 z-40 transition-all duration-300 ${isCollapsed ? "left-20" : "left-64"}`}>
+    <header className={`fixed top-0 right-0 h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 z-40 transition-all duration-300 ${isCollapsed ? "lg:left-20" : "lg:left-64"} left-0`}>
 
-      <div className="h-full px-6 flex items-center justify-between">
-        {/* Left: Navigation tabs */}
-        <nav className="flex items-center gap-1">
+      <div className="h-full px-4 sm:px-6 flex items-center justify-between gap-4">
+        {/* Left: Mobile Sidebar Hamburger Button */}
+        <button
+          onClick={toggleMobileOpen}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 lg:hidden hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          aria-label="Mở menu"
+        >
+          <Menu size={18} />
+        </button>
+
+        {/* Left: Navigation tabs - Hidden on mobile, visible on medium screens and up */}
+        <nav className="hidden md:flex items-center gap-1">
           {HEADER_TABS.map((tab) => {
             const active = isTabActive(tab.href);
             return (
@@ -62,8 +71,8 @@ export function Header() {
           })}
         </nav>
 
-        {/* Center: Search */}
-        <div className="flex-1 max-w-md mx-6">
+        {/* Center: Search - Hidden on mobile screens, shown on sm and up */}
+        <div className="hidden sm:block flex-1 max-w-md mx-4">
           <div className="relative">
             <Search
               size={16}
@@ -97,14 +106,14 @@ export function Header() {
 
             {/* Notifications Dropdown */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                  <h3 className="font-semibold text-gray-800 text-sm">Thông báo</h3>
+              <div className="fixed left-4 right-4 sm:absolute sm:left-auto sm:right-0 top-16 sm:top-auto mt-2 sm:mt-2 w-auto sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] border border-gray-100 dark:border-slate-800 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+                  <h3 className="font-semibold text-gray-800 dark:text-slate-200 text-sm">Thông báo</h3>
                   <div className="flex gap-3">
                     {unreadCount > 0 && (
                       <button
                         onClick={() => markAllAsRead()}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
                       >
                         Đọc tất cả
                       </button>
@@ -125,12 +134,12 @@ export function Header() {
                               router.push(`/boards/${n.boardId}`);
                             }
                           }}
-                          className={`group p-4 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50' : ''} ${!n.read ? 'bg-blue-50/30' : ''}`}
+                          className={`group p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer flex gap-3 ${i !== notifications.length - 1 ? 'border-b border-gray-50 dark:border-slate-800' : ''} ${!n.read ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''}`}
                         >
-                          <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${!n.read ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-gray-300'}`} />
+                          <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${!n.read ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-gray-300 dark:bg-slate-700'}`} />
                           <div className="flex-1">
                             <div className="flex justify-between items-start gap-2">
-                              <p className={`text-sm leading-snug ${!n.read ? 'text-gray-800 font-semibold' : 'text-gray-600'}`}>
+                              <p className={`text-sm leading-snug ${!n.read ? 'text-gray-800 dark:text-slate-200 font-semibold' : 'text-gray-600 dark:text-slate-400'}`}>
                                 {n.title}
                               </p>
                               <button
@@ -138,22 +147,22 @@ export function Header() {
                                   e.stopPropagation();
                                   deleteNotification(n.id);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-500 rounded text-gray-400 transition-all"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 dark:hover:text-red-400 rounded text-gray-400 dark:text-slate-500 transition-all"
                               >
                                 <Trash2 size={12} />
                               </button>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">
                               {n.message}
                             </p>
                             {(n.fullName || n.workspaceName) && (
-                              <p className="text-[11px] text-gray-400 mt-1 flex items-center">
-                                {n.fullName && <span className="font-medium text-gray-500">{n.fullName}</span>}
+                              <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1 flex items-center">
+                                {n.fullName && <span className="font-medium text-gray-500 dark:text-slate-400">{n.fullName}</span>}
                                 {n.fullName && n.workspaceName && <span className="mx-1.5">•</span>}
                                 {n.workspaceName && <span>{n.workspaceName}</span>}
                               </p>
                             )}
-                            <span className="text-[10px] text-gray-400 mt-2 block font-medium">
+                            <span className="text-[10px] text-gray-400 dark:text-slate-500 mt-2 block font-medium">
                               {formatDistanceToNow(parseServerDate(n.createdAt), { addSuffix: true, locale: vi })}
                             </span>
                           </div>
@@ -162,10 +171,10 @@ export function Header() {
                     </div>
                   ) : (
                     <div className="py-12 flex flex-col items-center justify-center text-center">
-                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
-                        <Bell size={24} className="text-gray-300" />
+                      <div className="w-12 h-12 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-3">
+                        <Bell size={24} className="text-gray-300 dark:text-slate-600" />
                       </div>
-                      <p className="text-sm text-gray-500 font-medium">Bạn chưa có thông báo mới</p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Bạn chưa có thông báo mới</p>
                     </div>
                   )}
                 </div>

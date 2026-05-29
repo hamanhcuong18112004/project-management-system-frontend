@@ -132,21 +132,25 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [hydrated, setHydrated] = useState(() => useAuthStore.persist?.hasHydrated?.() ?? false);
-  const [isReloadNavigation] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
+  const [hydrated, setHydrated] = useState(false);
+  const [isReloadNavigation, setIsReloadNavigation] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      const legacyNavigationType = (performance as Performance & { navigation?: { type?: number } }).navigation?.type;
+      const navigationType = navigationEntry?.type || (legacyNavigationType === 1 ? "reload" : "navigate");
+      setIsReloadNavigation(navigationType === "reload");
     }
-
-    const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    const legacyNavigationType = (performance as Performance & { navigation?: { type?: number } }).navigation?.type;
-    const navigationType = navigationEntry?.type || (legacyNavigationType === 1 ? "reload" : "navigate");
-
-    return navigationType === "reload";
-  });
+  }, []);
 
   useEffect(() => {
     if (hydrated) {
+      return;
+    }
+
+    if (useAuthStore.persist?.hasHydrated?.()) {
+      setHydrated(true);
       return;
     }
 
