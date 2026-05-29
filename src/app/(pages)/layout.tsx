@@ -16,9 +16,7 @@ export default function PagesLayout({
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [hydrated, setHydrated] = useState(
-    () => useAuthStore.persist?.hasHydrated?.() ?? false,
-  );
+  const [hydrated, setHydrated] = useState(false);
   const isBoardRoute = pathname.startsWith("/boards/");
   const currentPath = searchParams.toString()
     ? `${pathname}?${searchParams.toString()}`
@@ -26,6 +24,11 @@ export default function PagesLayout({
 
   useEffect(() => {
     if (hydrated) {
+      return;
+    }
+
+    if (useAuthStore.persist?.hasHydrated?.()) {
+      setHydrated(true);
       return;
     }
 
