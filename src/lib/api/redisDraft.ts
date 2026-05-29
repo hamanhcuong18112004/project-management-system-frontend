@@ -6,6 +6,8 @@ export interface TaskDraft {
   description: string;
   assigneeId?: string;
   listId?: string;
+  priority?: string;
+  dueDate?: string;
   updatedAt?: number;
 }
 

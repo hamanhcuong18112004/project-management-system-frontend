@@ -108,6 +108,29 @@ export function DraftCard({
             </span>
           )}
           
+          {draft.priority && (
+            <span 
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold border ${
+                draft.priority === "LOW" ? "bg-slate-50 border-slate-200 text-slate-700" :
+                draft.priority === "HIGH" ? "bg-orange-50 border-orange-200 text-orange-700" :
+                draft.priority === "URGENT" ? "bg-rose-50 border-rose-200 text-rose-700" :
+                "bg-blue-50 border-blue-100 text-blue-700"
+              }`}
+            >
+              Ưu tiên: {
+                draft.priority === "LOW" ? "Thấp" :
+                draft.priority === "HIGH" ? "Cao" :
+                draft.priority === "URGENT" ? "Khẩn cấp" : "Trung bình"
+              }
+            </span>
+          )}
+
+          {draft.dueDate && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 border border-indigo-150 text-indigo-700">
+              Hạn: {new Date(draft.dueDate).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}
+            </span>
+          )}
+          
           {draft.assigneeId && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 border border-emerald-100 text-emerald-700">
               Người xử lý: {draft.assigneeId.substring(0, 8)}...

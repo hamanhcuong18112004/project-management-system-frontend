@@ -16,6 +16,10 @@ interface DraftFormProps {
   setAssigneeId: (val: string) => void;
   listId: string;
   setListId: (val: string) => void;
+  priority: string;
+  setPriority: (val: string) => void;
+  dueDate: string;
+  setDueDate: (val: string) => void;
   selectedWorkspaceId: string;
   setSelectedWorkspaceId: (val: string) => void;
   selectedBoardId: string;
@@ -49,6 +53,10 @@ export function DraftForm({
   setAssigneeId,
   listId,
   setListId,
+  priority,
+  setPriority,
+  dueDate,
+  setDueDate,
   selectedWorkspaceId,
   setSelectedWorkspaceId,
   selectedBoardId,
@@ -208,6 +216,32 @@ export function DraftForm({
             onChange={(e) => setAssigneeId(e.target.value)}
             className="w-full text-xs p-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Độ ưu tiên</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="w-full text-xs p-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
+            >
+              <option value="LOW">Thấp (Low)</option>
+              <option value="MEDIUM">Trung bình (Medium)</option>
+              <option value="HIGH">Cao (High)</option>
+              <option value="URGENT">Khẩn cấp (Urgent)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Hạn xử lý</label>
+            <input
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full text-xs p-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
+            />
+          </div>
         </div>
 
         <div className="pt-2 flex flex-col gap-2">

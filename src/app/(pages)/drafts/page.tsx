@@ -30,6 +30,8 @@ export default function DraftsPage() {
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [listId, setListId] = useState("");
+  const [priority, setPriority] = useState("MEDIUM");
+  const [dueDate, setDueDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -112,6 +114,8 @@ export default function DraftsPage() {
                   description: parsed.description || "Bản nháp cục bộ",
                   listId: parsed.listId || key.replace("workspace_task_draft_", ""),
                   assigneeId: parsed.assigneeId || undefined,
+                  priority: parsed.priority || undefined,
+                  dueDate: parsed.dueDate || undefined,
                   updatedAt: parsed.updatedAt || Date.now(),
                   isLocalOnly: true
                 } as any);
@@ -286,6 +290,8 @@ export default function DraftsPage() {
             setDescription(backup.description || "");
             setListId(backup.listId || "");
             setAssigneeId(backup.assigneeId || "");
+            setPriority(backup.priority || "MEDIUM");
+            setDueDate(backup.dueDate || "");
             setEditingId(backup.editingId || null);
             
             // Resolve workspace & board dropdowns if backup has listId
@@ -327,6 +333,8 @@ export default function DraftsPage() {
         description: description.trim(),
         assigneeId: assigneeId.trim() || undefined,
         listId: listId.trim() || undefined,
+        priority: priority,
+        dueDate: dueDate || undefined,
       };
 
       try {
@@ -341,6 +349,8 @@ export default function DraftsPage() {
             description: description.trim(),
             listId: listId.trim() || undefined,
             assigneeId: assigneeId.trim() || undefined,
+            priority: priority,
+            dueDate: dueDate || undefined,
             updatedAt: Date.now(),
             isLocalOnly: true
           };
@@ -386,20 +396,20 @@ export default function DraftsPage() {
     }, 1000); // 1s debounce
 
     return () => clearTimeout(delayDebounceFn);
-  }, [title, description, listId, assigneeId, editingId, isOnline, isLoaded]);
+  }, [title, description, listId, assigneeId, priority, dueDate, editingId, isOnline, isLoaded]);
 
   // Keep a local backup in case of page close
   useEffect(() => {
     if (!isLoaded) return;
     if (typeof window !== "undefined") {
-      if (title.trim() || description.trim() || listId.trim() || assigneeId.trim()) {
-        const backup = { title, description, listId, assigneeId, editingId };
+      if (title.trim() || description.trim() || listId.trim() || assigneeId.trim() || priority || dueDate) {
+        const backup = { title, description, listId, assigneeId, priority, dueDate, editingId };
         localStorage.setItem("task_draft_local_backup", JSON.stringify(backup));
       } else {
         localStorage.removeItem("task_draft_local_backup");
       }
     }
-  }, [title, description, listId, assigneeId, editingId, isLoaded]);
+  }, [title, description, listId, assigneeId, priority, dueDate, editingId, isLoaded]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -407,6 +417,8 @@ export default function DraftsPage() {
     setDescription("");
     setAssigneeId("");
     setListId("");
+    setPriority("MEDIUM");
+    setDueDate("");
     setSelectedWorkspaceId("");
     setSelectedBoardId("");
     setSaveStatus("idle");
@@ -420,6 +432,8 @@ export default function DraftsPage() {
     setTitle(draft.title);
     setDescription(draft.description);
     setAssigneeId(draft.assigneeId || "");
+    setPriority(draft.priority || "MEDIUM");
+    setDueDate(draft.dueDate || "");
     
     const targetListId = draft.listId || "";
     setListId(targetListId);
@@ -510,7 +524,8 @@ export default function DraftsPage() {
             title: draft.title,
             description: draft.description || "",
             status: "TODO",
-            priority: "MEDIUM"
+            priority: (draft.priority || "MEDIUM") as any,
+            dueDate: draft.dueDate || null
           });
 
           toast.success("Đã tạo công việc chính thức thành công trên bảng!");
@@ -544,6 +559,8 @@ export default function DraftsPage() {
       description: description.trim(),
       assigneeId: assigneeId.trim() || undefined,
       listId: listId.trim() || undefined,
+      priority: priority,
+      dueDate: dueDate || undefined,
     };
 
     if (!payload.listId) {
@@ -589,7 +606,8 @@ export default function DraftsPage() {
             title: payload.title,
             description: payload.description || "",
             status: "TODO",
-            priority: "MEDIUM"
+            priority: (payload.priority || "MEDIUM") as any,
+            dueDate: payload.dueDate || null
           });
 
           toast.success("Đã tạo công việc chính thức thành công trên bảng!");
@@ -677,6 +695,10 @@ export default function DraftsPage() {
             setAssigneeId={setAssigneeId}
             listId={listId}
             setListId={setListId}
+            priority={priority}
+            setPriority={setPriority}
+            dueDate={dueDate}
+            setDueDate={setDueDate}
             selectedWorkspaceId={selectedWorkspaceId}
             setSelectedWorkspaceId={setSelectedWorkspaceId}
             selectedBoardId={selectedBoardId}
