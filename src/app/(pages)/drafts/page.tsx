@@ -19,8 +19,10 @@ import { ConfirmModal } from "@/components/pages/drafts/ConfirmModal";
 import { DraftsHeader } from "@/components/pages/drafts/DraftsHeader";
 import { DraftCard } from "@/components/pages/drafts/DraftCard";
 import { DraftForm } from "@/components/pages/drafts/DraftForm";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 
 export default function DraftsPage() {
+  const currentUser = useAuthStore((state) => state.user);
   const [drafts, setDrafts] = useState<TaskDraft[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -274,6 +276,15 @@ export default function DraftsPage() {
       };
     }
   }, []);
+
+  // Auto-populate assigneeId with current user ID when user inputs content
+  useEffect(() => {
+    if (currentUser?.id && !assigneeId) {
+      if (title.trim() || description.trim()) {
+        setAssigneeId(currentUser.id);
+      }
+    }
+  }, [title, description, assigneeId, currentUser]);
 
   // Restore draft backup on mount & load initial metadata
   useEffect(() => {

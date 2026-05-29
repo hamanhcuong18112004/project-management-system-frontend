@@ -208,13 +208,14 @@ export function DraftForm({
         </div>
 
         <div>
-          <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Assignee ID (Không bắt buộc)</label>
+          <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Assignee ID (Tự động điền)</label>
           <input
             type="text"
-            placeholder="Mã người xử lý..."
+            placeholder="Tự động điền khi nhập tiêu đề/mô tả..."
             value={assigneeId}
             onChange={(e) => setAssigneeId(e.target.value)}
-            className="w-full text-xs p-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100/50 dark:hover:bg-slate-700 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
+            disabled
+            className="w-full text-xs p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed transition"
           />
         </div>
 
