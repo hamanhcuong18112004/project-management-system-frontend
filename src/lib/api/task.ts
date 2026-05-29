@@ -20,6 +20,7 @@ export interface BoardTask {
   priority?: TaskPriority;
   dueDate?: string | null;
   createdAt?: string | null;
+  recurrence?: string | null;
   position?: number | null;
   archived?: boolean;
   attachmentCount?: number;
@@ -69,6 +70,7 @@ export interface CreateTaskPayload {
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string | null;
+  recurrence?: string | null;
   position?: number;
   archived?: boolean;
 }
@@ -80,6 +82,7 @@ export interface UpdateTaskPayload {
   status?: TaskStatus;
   priority?: TaskPriority;
   dueDate?: string | null;
+  recurrence?: string | null;
   position?: number;
   archived?: boolean;
 }
@@ -119,6 +122,7 @@ function normalizeTask(raw: Record<string, unknown>): BoardTask {
     priority: (raw.priority as TaskPriority | undefined) || "MEDIUM",
     dueDate: (raw.dueDate as string | null | undefined) ?? null,
     createdAt: (raw.createdAt as string | null | undefined) ?? null,
+    recurrence: (raw.recurrence as string | null | undefined) ?? null,
     position:
       typeof raw.position === "number"
         ? raw.position
@@ -247,6 +251,10 @@ function createTaskUpdateBody(payload: UpdateTaskPayload) {
 
   if (Object.prototype.hasOwnProperty.call(payload, "dueDate")) {
     nextPayload.dueDate = payload.dueDate ?? "";
+  }
+  
+  if (Object.prototype.hasOwnProperty.call(payload, "recurrence")) {
+    nextPayload.recurrence = payload.recurrence ?? "";
   }
 
   return nextPayload;

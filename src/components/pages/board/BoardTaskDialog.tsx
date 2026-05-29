@@ -46,6 +46,8 @@ import { TaskComments } from "./TaskComments";
 import { TaskChecklists } from "./TaskChecklists";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 import { parseServerDate } from "@/lib/helper/formatTime";
+import { getUsersProfiles } from "@/lib/api/auth";
+import type { UserData } from "@/lib/api/auth";
 import { uploadTaskAttachment, deleteTaskAttachment, assignTaskMember, getTaskAttachments, getTaskMembers, unassignTaskMember } from "@/lib/api/task";
 import { toast } from "sonner";
 import apiClient from "@/lib/api/client";
@@ -66,11 +68,13 @@ export interface UsePremiumDatePickerParams {
   dueTimeStr: string;
   hasStartDate: boolean;
   startDateStr: string;
+  initialRecurrence?: string;
   onSaveDatePicker: (
     hasDueDate: boolean,
     dueDateStr: string,
     dueTimeStr: string,
-    isAllDay: boolean
+    isAllDay: boolean,
+    recurrence: string
   ) => void;
   onClearDatePicker: () => void;
 }
@@ -80,6 +84,7 @@ export function usePremiumDatePicker({
   dueTimeStr,
   hasStartDate,
   startDateStr,
+  initialRecurrence,
   onSaveDatePicker,
   onClearDatePicker,
 }: UsePremiumDatePickerParams) {
@@ -91,7 +96,7 @@ export function usePremiumDatePicker({
   const [pickerDueTime, setPickerDueTime] = useState("17:30");
   const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
-  const [pickerRecurrence, setPickerRecurrence] = useState("Không bao giờ");
+  const [pickerRecurrence, setPickerRecurrence] = useState(initialRecurrence || "Không bao giờ");
   const [pickerReminder, setPickerReminder] = useState("1 Ngày trước");
 
   const handleMonthNav = (offset: number) => {
@@ -141,7 +146,7 @@ export function usePremiumDatePicker({
       nextIsAllDay = false;
     }
 
-    onSaveDatePicker(nextHasDueDate, nextDueDateStr, nextDueTimeStr, nextIsAllDay);
+    onSaveDatePicker(nextHasDueDate, nextDueDateStr, nextDueTimeStr, nextIsAllDay, pickerRecurrence);
     setActiveDatePickerOpen(false);
   };
 
@@ -265,12 +270,14 @@ export interface PremiumDatePickerProps {
   status: string;
   hasStartDate: boolean;
   startDateStr: string;
+  initialRecurrence?: string;
   effectiveCanUpdate: boolean;
   onSaveDatePicker: (
     hasDueDate: boolean,
     dueDateStr: string,
     dueTimeStr: string,
-    isAllDay: boolean
+    isAllDay: boolean,
+    recurrence: string
   ) => void;
   onClearDatePicker: () => void;
   onStatusChange: (newStatus: string) => void;
@@ -284,6 +291,7 @@ export function PremiumDatePicker({
   status,
   hasStartDate,
   startDateStr,
+  initialRecurrence,
   effectiveCanUpdate,
   onSaveDatePicker,
   onClearDatePicker,
@@ -316,6 +324,7 @@ export function PremiumDatePicker({
     dueTimeStr,
     hasStartDate,
     startDateStr,
+    initialRecurrence,
     onSaveDatePicker,
     onClearDatePicker,
   });
@@ -531,14 +540,21 @@ export function PremiumDatePicker({
                 }
 
                 const cellDay = cell.date.getDate();
+                const now = new Date();
+                const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const cellMidnight = new Date(cell.date.getFullYear(), cell.date.getMonth(), cell.date.getDate());
+                const isPast = cellMidnight.getTime() < todayMidnight.getTime();
 
                 return (
                   <button
                     key={cell.key}
                     type="button"
-                    onClick={() => handleDayClick(cell.date)}
+                    disabled={isPast}
+                    onClick={() => !isPast && handleDayClick(cell.date)}
                     className={`h-7 w-7 rounded flex items-center justify-center transition-all ${
-                      isSelectedStart || isSelectedDue
+                      isPast
+                        ? "text-slate-300 opacity-50 cursor-not-allowed"
+                        : isSelectedStart || isSelectedDue
                         ? "bg-blue-600 text-white font-bold"
                         : isInRange
                         ? "bg-blue-50 text-blue-600"
@@ -1893,6 +1909,26 @@ export function TaskMembersSection({
   handleAssignMember,
   handleUnassignMember,
 }: TaskMembersSectionProps) {
+  const [memberProfiles, setMemberProfiles] = useState<Record<string, UserData>>({});
+
+  useEffect(() => {
+    if (members.length > 0) {
+      const missing = members.filter(uid => {
+        const info = boardMembers?.find(m => (m.userId || m.id) === uid);
+        return !info?.fullName && !memberProfiles[uid];
+      });
+      if (missing.length > 0) {
+        getUsersProfiles(missing).then(users => {
+          setMemberProfiles(prev => {
+            const next = { ...prev };
+            users.forEach(u => { if (u.id) next[u.id] = u; });
+            return next;
+          });
+        }).catch(console.error);
+      }
+    }
+  }, [members, boardMembers]);
+
   const {
     memberSearch,
     setMemberSearch,
@@ -1920,9 +1956,11 @@ export function TaskMembersSection({
         ) : (
           <ul className="mb-3 space-y-1.5">
             {members.map((userId) => {
-              const info = boardMembers.find((m) => (m.userId || m.id) === userId);
-              const displayName = info?.fullName || info?.email || userId;
-              const initials = (info?.fullName || info?.email || "U").charAt(0).toUpperCase();
+              const info = boardMembers?.find((m) => (m.userId || m.id) === userId);
+              const profile = memberProfiles[userId];
+              const displayName = profile?.fullName || info?.fullName || profile?.email || info?.email || userId;
+              const initials = (profile?.fullName || info?.fullName || profile?.email || info?.email || "U").charAt(0).toUpperCase();
+              const displayEmail = profile?.email || info?.email;
               return (
                 <li
                   key={userId}
@@ -1934,8 +1972,8 @@ export function TaskMembersSection({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-slate-800">{displayName}</p>
-                      {info?.email && info.email !== displayName ? (
-                        <p className="truncate text-[10px] text-slate-400">{info.email}</p>
+                      {displayEmail && displayEmail !== displayName ? (
+                        <p className="truncate text-[10px] text-slate-400">{displayEmail}</p>
                       ) : null}
                     </div>
                   </div>
@@ -1956,7 +1994,7 @@ export function TaskMembersSection({
         )}
 
         {/* Board member searchable dropdown */}
-        {effectiveCanAssign && boardMembers.length > 0 ? (
+        {effectiveCanAssign && boardMembers.length > 0 && (
           (() => {
             const unassigned = boardMembers.filter((m) => {
               const uid = m.userId || m.id;
@@ -2068,10 +2106,6 @@ export function TaskMembersSection({
               </div>
             );
           })()
-        ) : (
-          <p className="text-xs text-slate-400">
-            {readOnly ? null : "Board này chưa có thành viên nào."}
-          </p>
         )}
       </TaskFieldRow>
     </div>
@@ -2264,7 +2298,8 @@ export function BoardTaskDialog({
     nextDueDateStr?: string | null,
     nextDueTimeStr?: string,
     nextIsAllDay?: boolean,
-    nextMembers?: string[]
+    nextMembers?: string[],
+    nextRecurrence?: string
   ) => {
     if (!task) return;
     
@@ -2288,12 +2323,15 @@ export function BoardTaskDialog({
       const resolvedDueTimeStr = nextDueTimeStr !== undefined ? nextDueTimeStr : dueTimeStr;
       const resolvedIsAllDay = nextIsAllDay !== undefined ? nextIsAllDay : isAllDay;
 
+      const resolvedRecurrence = nextRecurrence !== undefined ? nextRecurrence : task.recurrence;
+
       await onSave(task.id, {
         title: activeTitle,
         description: nextDesc !== undefined ? nextDesc : description,
         priority: nextPriority !== undefined ? nextPriority : priority,
         status: (nextStatus !== undefined ? nextStatus : status) as UpdateTaskPayload["status"],
         dueDate: toDueDatePayload(resolvedHasDueDate, resolvedDueDateStr || "", resolvedDueTimeStr, resolvedIsAllDay),
+        recurrence: resolvedRecurrence,
       });
       triggerCommentsRefresh();
     } catch {
@@ -2475,8 +2513,9 @@ export function BoardTaskDialog({
                   status={status}
                   hasStartDate={hasStartDate}
                   startDateStr={startDateStr}
+                  initialRecurrence={task.recurrence || undefined}
                   effectiveCanUpdate={effectiveCanUpdate}
-                  onSaveDatePicker={(nextHasDueDate, nextDueDateStr, nextDueTimeStr, nextIsAllDay) => {
+                  onSaveDatePicker={(nextHasDueDate, nextDueDateStr, nextDueTimeStr, nextIsAllDay, nextRecurrence) => {
                     setHasDueDate(nextHasDueDate);
                     setDueDateStr(nextDueDateStr);
                     setDueTimeStr(nextDueTimeStr);
@@ -2489,7 +2528,9 @@ export function BoardTaskDialog({
                       nextHasDueDate,
                       nextDueDateStr,
                       nextDueTimeStr,
-                      nextIsAllDay
+                      nextIsAllDay,
+                      undefined,
+                      nextRecurrence
                     );
                   }}
                   onClearDatePicker={() => {

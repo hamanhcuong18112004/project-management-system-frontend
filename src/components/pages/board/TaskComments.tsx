@@ -12,6 +12,7 @@ import {
   type TaskActivity
 } from "@/lib/api/task";
 import { toast } from "sonner";
+import { getUsersProfiles } from "@/lib/api/auth";
 import { useRealtime } from "@/providers/RealtimeProvider";
 import { parseServerDate } from "@/lib/helper/formatTime";
 
@@ -49,6 +50,7 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
   const [replyTo, setReplyTo] = useState<TaskComment | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showAllActivities, setShowAllActivities] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<Record<string, { id: string; fullName?: string; email?: string; avatarUrl?: string }>>({});
   const { lastCommentUpdate, boardVersion } = useRealtime();
 
   useEffect(() => {
@@ -77,6 +79,40 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
       ]);
       setComments(commentsData);
       setActivities(activitiesData);
+
+      // Extract all unique user IDs from activities that are not in boardMembers
+      const existingUserIds = new Set(boardMembers.map(m => m.userId));
+      const neededUserIds = new Set<string>();
+      activitiesData.forEach(a => {
+        if (a.userId && !existingUserIds.has(a.userId)) {
+          neededUserIds.add(a.userId);
+        }
+      });
+      
+      // Also try to find missing member metadata
+      activitiesData.forEach(a => {
+        if (a.metadata) {
+          try {
+             const meta = JSON.parse(a.metadata);
+             if (meta.memberId && !existingUserIds.has(meta.memberId)) {
+               neededUserIds.add(meta.memberId);
+             }
+          } catch (e) {}
+        }
+      });
+
+      if (neededUserIds.size > 0) {
+        try {
+          const profiles = await getUsersProfiles(Array.from(neededUserIds));
+          const profileMap: Record<string, any> = {};
+          profiles.forEach(p => {
+            profileMap[p.id] = p;
+          });
+          setUserProfiles(prev => ({ ...prev, ...profileMap }));
+        } catch (error) {
+          console.error("Failed to load user profiles for activities", error);
+        }
+      }
     } catch (error) {
       console.error("Failed to load comments or activities", error);
     } finally {
@@ -428,7 +464,8 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
 
   const renderActivityText = (activity: TaskActivity) => {
     const member = boardMembers?.find(m => m.userId === activity.userId);
-    const userName = member?.fullName || member?.email || "Một người dùng";
+    const profile = userProfiles[activity.userId];
+    const userName = member?.fullName || member?.email || profile?.fullName || profile?.email || "Một người dùng";
     
     let metadata: any = {};
     if (activity.metadata) {
@@ -494,13 +531,17 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
       case "ATTACHMENT_ADDED":
         return `${userName} đã đính kèm tài liệu ${metadata?.fileName || ""}`;
       case "MEMBER_ADDED": {
-        const targetMember = boardMembers?.find(m => m.userId === metadata?.memberId);
-        const targetName = targetMember?.fullName || targetMember?.email || "Một thành viên";
+        let metaMemberId = metadata?.memberId;
+        const targetMember = boardMembers?.find(m => m.userId === metaMemberId);
+        const targetProfile = metaMemberId ? userProfiles[metaMemberId] : undefined;
+        const targetName = targetMember?.fullName || targetMember?.email || targetProfile?.fullName || targetProfile?.email || "Một thành viên";
         return `${userName} đã thêm ${targetName} vào thẻ này`;
       }
       case "MEMBER_REMOVED": {
-        const targetMember = boardMembers?.find(m => m.userId === metadata?.memberId);
-        const targetName = targetMember?.fullName || targetMember?.email || "Một thành viên";
+        let metaMemberId = metadata?.memberId;
+        const targetMember = boardMembers?.find(m => m.userId === metaMemberId);
+        const targetProfile = metaMemberId ? userProfiles[metaMemberId] : undefined;
+        const targetName = targetMember?.fullName || targetMember?.email || targetProfile?.fullName || targetProfile?.email || "Một thành viên";
         return `${userName} đã gỡ ${targetName} khỏi thẻ này`;
       }
       case "TASK_UPDATED": {
@@ -551,8 +592,9 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
 
   const ActivityItem = ({ activity }: { activity: TaskActivity }) => {
     const member = boardMembers?.find(m => m.userId === activity.userId);
-    const userFullName = member?.fullName || member?.email || "Người dùng";
-    const userAvatarUrl = member?.avatarUrl || "";
+    const profile = userProfiles[activity.userId];
+    const userFullName = member?.fullName || member?.email || profile?.fullName || profile?.email || "Người dùng";
+    const userAvatarUrl = member?.avatarUrl || profile?.avatarUrl || "";
 
     return (
       <div className="mt-4 flex gap-2 items-start pl-1">
