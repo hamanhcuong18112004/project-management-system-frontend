@@ -18,11 +18,13 @@ import {
 } from "lucide-react";
 import { getMyTasks, updateTask } from "@/lib/api/task";
 import { getMyWorkspaces } from "@/lib/api/workspace";
-import { getBoardsByWorkspace } from "@/lib/api/board";
+import { getBoardsByWorkspace, getBoardById } from "@/lib/api/board";
+import type { BoardMemberSummary } from "@/lib/api/board";
 import type { BoardTask, TaskPriority } from "@/lib/api/task";
 import type { Workspace } from "@/lib/api/workspace";
 import { useNotifications } from "@/providers/NotificationProvider";
 import { formatTaskDueDate } from "@/lib/helper/formatTime";
+import { TaskChecklists } from "@/components/pages/board/TaskChecklists";
 import Link from "next/link";
 
 const stripHtml = (html?: string) => {
@@ -130,6 +132,30 @@ export default function MyTasksPage() {
   const [sortBy, setSortBy] = useState<"dueDate" | "priority" | "title">("dueDate");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [selectedTask, setSelectedTask] = useState<BoardTask | null>(null);
+  const [boardMembers, setBoardMembers] = useState<BoardMemberSummary[]>([]);
+
+  useEffect(() => {
+    if (!selectedTask || !selectedTask.boardId) {
+      setBoardMembers([]);
+      return;
+    }
+    let active = true;
+    getBoardById(selectedTask.boardId)
+      .then((board) => {
+        if (active) {
+          setBoardMembers(board.members || []);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch board members for checklists:", err);
+        if (active) {
+          setBoardMembers([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTask]);
 
   const { lastNotification } = useNotifications();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -914,28 +940,23 @@ export default function MyTasksPage() {
               </div>
 
               {/* Checklist Progress Details */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Tiến độ</h4>
-                {selectedTask.checklistTotal && selectedTask.checklistTotal > 0 ? (
-                  <div className="bg-slate-50/30 p-4 border border-slate-200/50 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                      <span>Đã hoàn thành: {selectedTask.checklistChecked} trên {selectedTask.checklistTotal} mục</span>
-                      <span>{Math.round((selectedTask.checklistChecked! / selectedTask.checklistTotal!) * 100)}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full transition-all"
-                        style={{
-                          width: `${Math.round((selectedTask.checklistChecked! / selectedTask.checklistTotal!) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-400 bg-slate-50/50 p-4 border border-slate-200/30 rounded-2xl italic font-normal">
-                    Không có checklist
-                  </div>
-                )}
+              <div className="border-t border-slate-100 pt-4">
+                <TaskChecklists
+                  taskId={selectedTask.id}
+                  canUpdate={true}
+                  boardMembers={boardMembers}
+                  taskMemberIds={selectedTask.assigneeIds}
+                  taskDueDate={selectedTask.dueDate}
+                  onProgressChange={(total, checked) => {
+                    setTasks((prev) =>
+                      prev.map((t) =>
+                        t.id === selectedTask.id
+                          ? { ...t, checklistTotal: total, checklistChecked: checked }
+                          : t
+                      )
+                    );
+                  }}
+                />
               </div>
             </div>
 
