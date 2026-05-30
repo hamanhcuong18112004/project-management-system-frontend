@@ -21,7 +21,7 @@ import { useNotifications } from "@/providers/NotificationProvider";
 import { parseServerDate } from "@/lib/helper/formatTime";
 
 export default function InvitationsPage() {
-  const { notifications, markAsRead } = useNotifications();
+  const { notifications, markAsRead, lastNotification } = useNotifications();
   const [invitations, setInvitations] = useState<WorkspaceInviteResponse[]>([]);
   const [myWorkspacesList, setMyWorkspacesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +50,13 @@ export default function InvitationsPage() {
   useEffect(() => {
     void loadInvitations();
   }, []);
+
+  // Live reload invitations when a new workspace invite notification is received
+  useEffect(() => {
+    if (lastNotification?.type === "WORKSPACE_INVITE" || lastNotification?.type === "WORKSPACE_INVITE_REJECTED") {
+      void loadInvitations();
+    }
+  }, [lastNotification]);
 
   const handleAcceptInvite = async (invite: WorkspaceInviteResponse) => {
     setInviteActionLoading(invite.id);

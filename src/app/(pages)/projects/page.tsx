@@ -312,19 +312,31 @@ export default function ProjectsPage() {
             return;
           }
 
-          const ws = await getWorkspaceById(wsId);
-          if (ws) {
+          // If we have targetInvite, use its workspaceName directly without querying the workspace API (which would 403)
+          if (targetInvite) {
             setInviteData({
               token,
               workspaceId: wsId,
-              inviterName: invName || "Ai đó",
-              workspaceName: ws.name,
+              inviterName: invName || targetInvite.inviterName || "Ai đó",
+              workspaceName: targetInvite.workspaceName,
             });
             setShowInviteModal(true);
           } else {
-            console.warn("Workspace not found or deleted");
-            // Clear query params since invitation is invalid
-            router.push("/projects");
+            // Fallback to getWorkspaceById only if targetInvite is not found
+            const ws = await getWorkspaceById(wsId);
+            if (ws) {
+              setInviteData({
+                token,
+                workspaceId: wsId,
+                inviterName: invName || "Ai đó",
+                workspaceName: ws.name,
+              });
+              setShowInviteModal(true);
+            } else {
+              console.warn("Workspace not found or deleted");
+              // Clear query params since invitation is invalid
+              router.push("/projects");
+            }
           }
         } catch (error) {
           console.error("Failed to fetch workspace for invitation", error);
