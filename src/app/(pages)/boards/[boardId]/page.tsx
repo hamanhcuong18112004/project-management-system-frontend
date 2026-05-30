@@ -1228,6 +1228,8 @@ export default function BoardDetailPage() {
         boardId={board.id}
         boardName={board.name}
         workspaceId={board.workspaceId}
+        taskLists={taskLists}
+        boardMembers={board.members}
       />
 
       <ConfirmModal

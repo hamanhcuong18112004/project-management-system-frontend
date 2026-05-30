@@ -313,7 +313,7 @@ export default function DashboardPage() {
                 return (
                   <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-l-4 ${borderAndBg}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{d.title}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white break-words whitespace-normal">{d.title}</p>
                       <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                         Bảng: {d.boardName}
                       </p>

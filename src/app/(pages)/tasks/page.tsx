@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   CheckSquare,
   Clock,
@@ -134,6 +134,19 @@ export default function MyTasksPage() {
   const [selectedTask, setSelectedTask] = useState<BoardTask | null>(null);
   const [boardMembers, setBoardMembers] = useState<BoardMemberSummary[]>([]);
 
+  const handleProgressChangeForSelected = useCallback((total: number, checked: number) => {
+    if (!selectedTask) return;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== selectedTask.id) return t;
+        if (t.checklistTotal === total && t.checklistChecked === checked) {
+          return t;
+        }
+        return { ...t, checklistTotal: total, checklistChecked: checked };
+      })
+    );
+  }, [selectedTask?.id]);
+
   useEffect(() => {
     if (!selectedTask || !selectedTask.boardId) {
       setBoardMembers([]);
@@ -231,12 +244,19 @@ export default function MyTasksPage() {
     if (selectedTask) {
       const updated = tasks.find((t) => t.id === selectedTask.id);
       if (updated) {
-        setSelectedTask(updated);
+        if (
+          selectedTask.checklistTotal !== updated.checklistTotal ||
+          selectedTask.checklistChecked !== updated.checklistChecked ||
+          selectedTask.status !== updated.status ||
+          selectedTask.title !== updated.title
+        ) {
+          setSelectedTask(updated);
+        }
       } else {
         setSelectedTask(null);
       }
     }
-  }, [tasks]);
+  }, [tasks, selectedTask]);
 
   // Check if a task is overdue
   const isOverdue = (task: BoardTask) => {
@@ -533,10 +553,9 @@ export default function MyTasksPage() {
                 <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-800 text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800">
-                      <th className="px-6 py-3.5">Tên công việc</th>
+                      <th className="px-6 py-3.5 min-w-[200px] w-full max-w-0">Tên công việc</th>
                       <th className="px-6 py-3.5">Bảng</th>
-                      <th className="px-6 py-3.5">Ưu tiên</th>
-                      <th className="px-6 py-3.5">Hạn chốt</th>
+                      <th className="px-6 py-3.5">Ưu tiên & Hạn chốt</th>
                       <th className="px-6 py-3.5">Trạng thái</th>
                     </tr>
                   </thead>
@@ -557,7 +576,7 @@ export default function MyTasksPage() {
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition cursor-pointer group"
                         >
                           {/* Title & Description */}
-                          <td className="px-6 py-4.5 max-w-xs md:max-w-md">
+                          <td className="px-6 py-4.5 min-w-[200px] w-full max-w-0">
                             <div className="flex items-center gap-3">
                               <button
                                 onClick={async (e) => {
@@ -583,7 +602,7 @@ export default function MyTasksPage() {
                                 <CheckCircle2 size={13} className="stroke-[3.5px]" />
                               </button>
                               <div className="min-w-0">
-                                <div className={`font-semibold transition text-sm ${
+                                <div className={`font-semibold transition text-sm break-words whitespace-normal ${
                                   task.status === "DONE" ? "text-slate-400 dark:text-slate-500 line-through font-normal" : "text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-semibold"
                                 }`}>
                                   {task.title}
@@ -616,28 +635,26 @@ export default function MyTasksPage() {
                             )}
                           </td>
 
-                          {/* Priority */}
+                          {/* Priority & Due Date */}
                           <td className="px-6 py-4.5 whitespace-nowrap">
-                            {getPriorityBadge(task.priority)}
-                          </td>
-
-                          {/* Due Date */}
-                          <td className="px-6 py-4.5 whitespace-nowrap">
-                            {task.dueDate ? (
-                              (() => {
-                                const formatted = formatTaskDueDate(task.dueDate, task.status);
-                                return (
-                                  <span
-                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${formatted.badgeClass}`}
-                                  >
-                                    <Calendar size={12} />
-                                    {formatted.text}
-                                  </span>
-                                );
-                              })()
-                            ) : (
-                              <span className="text-slate-300 text-xs">--</span>
-                            )}
+                            <div className="flex flex-col gap-1.5 items-start">
+                              {getPriorityBadge(task.priority, true)}
+                              {task.dueDate ? (
+                                (() => {
+                                  const formatted = formatTaskDueDate(task.dueDate, task.status);
+                                  return (
+                                    <span
+                                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-semibold ${formatted.badgeClass}`}
+                                    >
+                                      <Calendar size={11} className="shrink-0" />
+                                      {formatted.text}
+                                    </span>
+                                  );
+                                })()
+                              ) : (
+                                <span className="text-slate-300 text-[10px]">Không có hạn</span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Status */}
@@ -708,7 +725,7 @@ export default function MyTasksPage() {
                           <CheckCircle2 size={13} className="stroke-[3.5px]" />
                         </button>
                         <div className="min-w-0 flex-1">
-                          <div className={`font-semibold transition text-sm ${
+                          <div className={`font-semibold transition text-sm break-words whitespace-normal ${
                             task.status === "DONE" ? "text-slate-400 dark:text-slate-500 line-through font-normal" : "text-slate-900 dark:text-slate-100 font-semibold"
                           }`}>
                             {task.title}
@@ -838,7 +855,7 @@ export default function MyTasksPage() {
             {/* Content */}
             <div className="space-y-6 flex-1">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">{selectedTask.title}</h2>
+                <h2 className="text-xl font-bold text-slate-900 break-words whitespace-normal">{selectedTask.title}</h2>
                 <div className="flex flex-col gap-2 mt-3 items-start">
                   {selectedTask.priority && getPriorityBadge(selectedTask.priority)}
                   {selectedBoardInfo ? (
@@ -947,15 +964,7 @@ export default function MyTasksPage() {
                   boardMembers={boardMembers}
                   taskMemberIds={selectedTask.assigneeIds}
                   taskDueDate={selectedTask.dueDate}
-                  onProgressChange={(total, checked) => {
-                    setTasks((prev) =>
-                      prev.map((t) =>
-                        t.id === selectedTask.id
-                          ? { ...t, checklistTotal: total, checklistChecked: checked }
-                          : t
-                      )
-                    );
-                  }}
+                  onProgressChange={handleProgressChangeForSelected}
                 />
               </div>
             </div>

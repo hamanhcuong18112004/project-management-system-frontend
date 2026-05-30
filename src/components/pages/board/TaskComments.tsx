@@ -366,7 +366,7 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
                   {isMe ? "Bạn" : (comment.userFullName || "Người dùng")}
                 </span>
               </div>
-              <p className="mt-0.5 text-sm text-slate-700 whitespace-pre-wrap leading-snug">
+              <p className="mt-0.5 text-sm text-slate-700 whitespace-pre-wrap leading-snug break-words [word-break:break-word]">
                 {parentName && <span className="font-bold text-slate-900 mr-1 cursor-pointer hover:underline">{parentName}</span>}
                 {comment.content}
               </p>
@@ -606,7 +606,7 @@ export function TaskComments({ taskId, refreshTrigger, currentUserId, userFullNa
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-slate-600 leading-snug">
+          <p className="text-sm text-slate-600 leading-snug break-words [word-break:break-word]">
             {renderActivityText(activity)}
           </p>
           <span className="text-[10px] text-slate-400 block mt-0.5" title={parseServerDate(activity.createdAt).toLocaleString("vi-VN")}>

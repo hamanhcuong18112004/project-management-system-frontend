@@ -349,7 +349,7 @@ export function TaskChecklists({
               <div className="mb-2.5 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-2.5">
                   <CheckSquare size={16} className="mt-1 shrink-0 text-slate-700" />
-                  <h4 className="text-sm font-semibold text-slate-800 leading-tight">
+                  <h4 className="text-sm font-semibold text-slate-800 leading-tight break-words [word-break:break-word]">
                     {checklist.title}
                   </h4>
                 </div>
@@ -560,7 +560,7 @@ export function TaskChecklists({
                             setEditItemMemberId(itemMemberId);
                           }
                         }}
-                        className={`min-w-0 flex-1 py-0.5 text-sm cursor-pointer rounded px-1 transition ${
+                        className={`min-w-0 flex-1 py-0.5 text-sm cursor-pointer rounded px-1 transition break-words [word-break:break-word] ${
                           item.completed
                             ? "text-slate-400 line-through"
                             : "text-slate-700 hover:bg-slate-100/55"

@@ -2436,7 +2436,7 @@ export function BoardTaskDialog({
           <div className="w-full lg:flex-1 lg:overflow-y-auto lg:border-r border-slate-100">
             <div className="space-y-4 px-5 py-5">
               <TaskFieldRow label="Danh sách" icon={<FolderKanban size={15} />}>
-                <div className="w-full px-3.5 py-1 text-sm leading-6 font-medium text-slate-700 bg-transparent">
+                <div className="w-full px-3.5 py-1 text-sm leading-6 font-medium text-slate-700 bg-transparent break-words whitespace-normal">
                   {listName || "Chưa xác định"}
                 </div>
               </TaskFieldRow>

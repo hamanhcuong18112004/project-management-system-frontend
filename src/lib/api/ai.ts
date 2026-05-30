@@ -107,7 +107,90 @@ export async function getWorkspaceTaskRecommendations(
         params: {
             limit,
         },
+        timeout: 120000,
     });
 
     return normalizeRecommendation(unwrapResponse(response.data));
+}
+
+export interface AiGeneratedTask {
+    title: string;
+    status: string;
+    priority: string;
+    description?: string;
+    moduleId?: string;
+    moduleName?: string;
+    labelIds?: string[];
+    estimatedHours?: number;
+    storyPoints?: number;
+    checklists?: string[];
+    acceptanceCriteria?: string[];
+}
+
+export interface AiGeneratedTaskList {
+    name: string;
+    order?: number;
+    tasks: AiGeneratedTask[];
+}
+
+export interface AiGeneratedProject {
+    projectType?: string;
+    lists: AiGeneratedTaskList[];
+}
+
+export async function generateProjectTasks(description: string, boardId?: string): Promise<AiGeneratedProject> {
+    const response = await apiClient.post<any>(
+        `${SERVICE}/generate-tasks`,
+        { description, boardId },
+        { timeout: 180000 }
+    );
+    const body = response.data;
+    if (typeof body === "string") {
+        try {
+            return JSON.parse(body) as AiGeneratedProject;
+        } catch {
+            return { lists: [] };
+        }
+    }
+    if (body && typeof body === "object") {
+        if ("data" in body) {
+            const unwrapped = body.data;
+            if (typeof unwrapped === "string") {
+                try {
+                    return JSON.parse(unwrapped) as AiGeneratedProject;
+                } catch {
+                    return { lists: [] };
+                }
+            }
+            return unwrapped as AiGeneratedProject;
+        }
+        return body as AiGeneratedProject;
+    }
+    return { lists: [] };
+}
+
+export interface ProjectProgressPayload {
+    totalTasks: number;
+    completedTasks: number;
+    overdueTasks: number;
+    members: Array<{ name: string; taskCount: number }>;
+}
+
+export async function analyzeProjectProgress(boardId: string): Promise<string> {
+    const response = await apiClient.post<any>(
+        `${SERVICE}/boards/${boardId}/analyze-progress`,
+        {},
+        { timeout: 90000 }
+    );
+    const body = response.data;
+    if (typeof body === "string") {
+        return body;
+    }
+    if (body && typeof body === "object") {
+        if ("data" in body) {
+            return String(body.data || "");
+        }
+        return JSON.stringify(body);
+    }
+    return "";
 }
