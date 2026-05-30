@@ -47,6 +47,7 @@ export default function CalendarPage() {
       // Yêu cầu 2: nếu thời gian của task dài 2 ngày hoặc hơn thì task sẽ được nối dài ra 2 ô từ ngày tạo đến ngày kết thúc
       let start = parseServerDate(task.dueDate!).toISOString();
       let end: string | undefined = undefined;
+      let allDay = false;
 
       if (task.createdAt && task.dueDate) {
         const startDate = parseServerDate(task.createdAt);
@@ -55,7 +56,22 @@ export default function CalendarPage() {
         if (diffDays >= 2) {
           start = startDate.toISOString();
           end = endDate.toISOString();
+          allDay = true;
+        } else {
+          // Single-day task: set allDay to true and start to the local date-only string of the due date
+          const year = endDate.getFullYear();
+          const month = String(endDate.getMonth() + 1).padStart(2, "0");
+          const day = String(endDate.getDate()).padStart(2, "0");
+          start = `${year}-${month}-${day}`;
+          allDay = true;
         }
+      } else {
+        const endDate = parseServerDate(task.dueDate!);
+        const year = endDate.getFullYear();
+        const month = String(endDate.getMonth() + 1).padStart(2, "0");
+        const day = String(endDate.getDate()).padStart(2, "0");
+        start = `${year}-${month}-${day}`;
+        allDay = true;
       }
 
       return {
@@ -63,6 +79,7 @@ export default function CalendarPage() {
         title: task.title,
         start,
         end,
+        allDay,
         className: `priority-${(task.priority || "MEDIUM").toLowerCase()} ${task.status === "DONE" ? "task-done" : ""}`,
         extendedProps: { ...task },
         editable: true, // Enable dragging for individual events
