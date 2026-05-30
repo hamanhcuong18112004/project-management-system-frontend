@@ -21,6 +21,14 @@ import { DraftCard } from "@/components/pages/drafts/DraftCard";
 import { DraftForm } from "@/components/pages/drafts/DraftForm";
 import { useAuthStore } from "@/lib/stores/useAuthStore";
 
+const getTodayEndOfTheDayString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}T23:59`;
+};
+
 export default function DraftsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const [drafts, setDrafts] = useState<TaskDraft[]>([]);
@@ -33,7 +41,7 @@ export default function DraftsPage() {
   const [assigneeId, setAssigneeId] = useState("");
   const [listId, setListId] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(getTodayEndOfTheDayString());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -429,7 +437,7 @@ export default function DraftsPage() {
     setAssigneeId("");
     setListId("");
     setPriority("MEDIUM");
-    setDueDate("");
+    setDueDate(getTodayEndOfTheDayString());
     setSelectedWorkspaceId("");
     setSelectedBoardId("");
     setSaveStatus("idle");

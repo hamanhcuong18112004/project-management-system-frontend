@@ -651,13 +651,24 @@ export default function BoardDetailPage() {
       return;
     }
 
+    const getToday2359IsoString = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const localDate = new Date(`${year}-${month}-${day}T23:59:00`);
+      return Number.isNaN(localDate.getTime()) ? new Date().toISOString() : localDate.toISOString();
+    };
+
+    const defaultDueDate = getToday2359IsoString();
+
     const optimisticTask: BoardTask = {
       id: createTempId("task"),
       title,
       description: null,
       status: "TODO",
       priority: "MEDIUM",
-      dueDate: null,
+      dueDate: defaultDueDate,
       position: (targetList.tasks.at(-1)?.position || 0) + 1000,
       archived: false,
       attachmentCount: 0,
@@ -674,7 +685,7 @@ export default function BoardDetailPage() {
         description: "",
         status: "TODO",
         priority: "MEDIUM",
-        dueDate: null,
+        dueDate: defaultDueDate,
         position: optimisticTask.position || 1000,
         archived: false,
       });
