@@ -622,15 +622,15 @@ export default function MyTasksPage() {
                               <Link
                                 href={`/boards/${task.boardId}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-xs border border-blue-100 font-semibold transition shadow-sm"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-xs border border-blue-100 font-semibold transition shadow-sm max-w-[240px]"
                               >
-                                <FolderKanban size={13} />
-                                {boardName}
+                                <FolderKanban size={13} className="shrink-0" />
+                                <span className="truncate">{boardName}</span>
                               </Link>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-600 text-xs border border-slate-200/50 font-medium">
-                                <FolderKanban size={13} className="text-slate-400" />
-                                {boardName}
+                              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 text-slate-600 text-xs border border-slate-200/50 font-medium max-w-[240px]">
+                                <FolderKanban size={13} className="text-slate-400 shrink-0" />
+                                <span className="truncate">{boardName}</span>
                               </span>
                             )}
                           </td>

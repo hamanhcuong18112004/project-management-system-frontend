@@ -2128,7 +2128,7 @@ interface BoardTaskDialogProps {
   canComment?: boolean;
 }
 
-const PRIORITY_OPTIONS: TaskPriority[] = ["NONE", "LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST", "URGENT"];
+const PRIORITY_OPTIONS: TaskPriority[] = ["URGENT", "HIGHEST", "HIGH", "MEDIUM", "LOW", "LOWEST", "NONE"];
 
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
   NONE: "Không",
@@ -2340,6 +2340,20 @@ export function BoardTaskDialog({
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (checklistStats.total > 0 && checklistStats.checked < checklistStats.total && status === "DONE") {
+      setStatus("TODO");
+      void saveChanges(
+        undefined,
+        undefined,
+        undefined,
+        "TODO"
+      );
+      toast.warning("Tiến độ công việc dưới 100%, hạn xử lý đã tự động chuyển sang chưa hoàn thành.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checklistStats, status]);
 
   const handleDelete = async () => {
     if (!task) return;

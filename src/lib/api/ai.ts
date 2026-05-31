@@ -194,3 +194,33 @@ export async function analyzeProjectProgress(boardId: string): Promise<string> {
     }
     return "";
 }
+
+export interface AiCopilotResponse {
+    reply: string;
+    action: string;
+    payload?: Record<string, string>;
+}
+
+export async function askAiCopilot(
+    boardId: string,
+    message: string,
+    currentUserId?: string,
+    currentUserName?: string
+): Promise<AiCopilotResponse> {
+    const response = await apiClient.post<any>(
+        `${SERVICE}/boards/${boardId}/chat`,
+        { message, currentUserId, currentUserName },
+        { timeout: 90000 }
+    );
+    const body = response.data;
+    if (body && typeof body === "object") {
+        if ("data" in body) {
+            return body.data as AiCopilotResponse;
+        }
+        return body as AiCopilotResponse;
+    }
+    return {
+        reply: typeof body === "string" ? body : "Xin lỗi, phản hồi từ AI không đúng định dạng.",
+        action: "NONE"
+    };
+}

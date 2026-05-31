@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   Bot,
   ChevronDown,
@@ -15,21 +15,26 @@ import {
   TrendingUp,
   X,
   FolderKanban,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import {
   getWorkspaceTaskRecommendations,
   generateProjectTasks,
   analyzeProjectProgress,
+  askAiCopilot,
   type AiRecommendedTaskItem,
   type WorkspaceTaskRecommendation,
   type AiGeneratedProject,
 } from "@/lib/api/ai";
+import { useAuthStore } from "@/lib/stores/useAuthStore";
 import {
   createTaskList,
   createTask,
   getTaskListsByBoardId,
   createTaskChecklist,
   addChecklistItem,
+  assignTaskMember,
   type BoardTaskList,
 } from "@/lib/api/task";
 import { type BoardMemberSummary } from "@/lib/api/board";
@@ -216,7 +221,29 @@ export function BoardAiAssistant({
   const { emitBoardUpdated } = useRealtime();
   
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<"priority" | "generate" | "analyze">("priority");
+  const [activeTab, setActiveTab] = useState<"priority" | "generate" | "analyze" | "chat">("priority");
+
+  const user = useAuthStore((state) => state.user);
+
+  // Chat tab state
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string;
+    sender: "user" | "ai";
+    text: string;
+    timestamp: Date;
+    action?: string;
+    actionPayload?: Record<string, string>;
+  }>>([
+    {
+      id: "welcome",
+      sender: "ai",
+      text: "Xin chào! Tôi là Trợ lý AI Copilot của bạn. Tôi có thể giúp bạn truy vấn thông tin dự án, liệt kê các task quá hạn, xem ai đang phụ trách phần việc nào hoặc tự động tạo thẻ công việc giúp bạn.\n\nBạn có thể thử hỏi tôi các câu lệnh như:\n- \"Liệt kê các task quá hạn của tôi trong tuần này.\"\n- \"Ai đang phụ trách phần thiết kế giao diện?\"\n- \"Tạo giúp tôi một thẻ công việc tên là 'Kiểm thử API đăng nhập' gán cho Nguyễn Văn A.\"",
+      timestamp: new Date(),
+    }
+  ]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Priority tab state
   const [open, setOpen] = useState(false);
@@ -277,6 +304,27 @@ export function BoardAiAssistant({
     if (Number.isNaN(date.getTime())) return result.generatedAt;
     return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
   }, [result?.generatedAt]);
+
+  const sortedTasks = useMemo(() => {
+    if (!result?.recommendedTasks) return [];
+    const weights: Record<string, number> = {
+      URGENT: 7,
+      HIGHEST: 6,
+      HIGH: 5,
+      MEDIUM: 4,
+      LOW: 3,
+      LOWEST: 2,
+      NONE: 1,
+    };
+    return [...result.recommendedTasks].sort((a, b) => {
+      const wA = weights[a.priority?.toUpperCase()] || 0;
+      const wB = weights[b.priority?.toUpperCase()] || 0;
+      if (wA !== wB) {
+        return wB - wA; // Highest priority first
+      }
+      return b.score - a.score; // Highest score secondary
+    });
+  }, [result?.recommendedTasks]);
 
   const handleGenerate = async () => {
     if (!workspaceId) {
@@ -427,6 +475,190 @@ export function BoardAiAssistant({
     }
   };
 
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, chatLoading, activeTab]);
+
+  const handleExecuteChatAction = async (payload: Record<string, string>) => {
+    const title = payload.title || "Công việc mới từ AI Copilot";
+    const assigneeName = payload.assigneeName;
+
+    try {
+      let listId = "";
+      if (taskLists && taskLists.length > 0) {
+        listId = taskLists[0].id;
+      } else {
+        const fetchedLists = await getTaskListsByBoardId(boardId);
+        if (fetchedLists && fetchedLists.length > 0) {
+          listId = fetchedLists[0].id;
+        }
+      }
+
+      if (!listId) {
+        toast.error("Không tìm thấy danh sách công việc nào trên board để thêm task.");
+        return;
+      }
+
+      const createdTask = await createTask({
+        taskListId: listId,
+        title: title,
+        status: "TODO",
+        priority: "MEDIUM",
+      });
+
+      if (!createdTask || !createdTask.id) {
+        toast.error("Không thể tự động tạo thẻ công việc.");
+        return;
+      }
+
+      toast.success(`Đã tự động tạo thẻ công việc: "${title}"`);
+
+      if (assigneeName) {
+        const matchedMember = boardMembers.find((m) => {
+          const fullNameClean = m.fullName?.trim().toLowerCase() || "";
+          const emailClean = m.email?.trim().toLowerCase() || "";
+          const nameToMatch = assigneeName.trim().toLowerCase();
+          
+          return (
+            fullNameClean.includes(nameToMatch) ||
+            nameToMatch.includes(fullNameClean) ||
+            emailClean.includes(nameToMatch)
+          );
+        });
+
+        if (matchedMember && matchedMember.userId) {
+          await assignTaskMember(createdTask.id, matchedMember.userId);
+          toast.success(`Đã gán công việc cho thành viên: ${matchedMember.fullName}`);
+        } else {
+          toast.warning(`Không tìm thấy thành viên "${assigneeName}" trên board để gán.`);
+        }
+      }
+
+      emitBoardUpdated();
+    } catch (err: any) {
+      toast.error(`Lỗi khi tự động thực hiện hành động: ${err.message || "Không xác định"}`);
+    }
+  };
+
+  const handleChatSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const messageText = chatInput.trim();
+    setChatInput("");
+    
+    const userMsgId = `user-${Date.now()}`;
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: userMsgId,
+        sender: "user",
+        text: messageText,
+        timestamp: new Date(),
+      },
+    ]);
+
+    setChatLoading(true);
+
+    try {
+      const response = await askAiCopilot(
+        boardId,
+        messageText,
+        user?.id,
+        user?.fullName || user?.email
+      );
+
+      const aiMsgId = `ai-${Date.now()}`;
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: aiMsgId,
+          sender: "ai",
+          text: response.reply,
+          timestamp: new Date(),
+          action: response.action,
+          actionPayload: response.payload,
+        },
+      ]);
+
+      if (response.action === "CREATE_TASK" && response.payload) {
+        await handleExecuteChatAction(response.payload);
+      }
+    } catch (err: any) {
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Không thể gửi câu hỏi đến AI Copilot. Vui lòng kiểm tra kết nối."
+      );
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          sender: "ai",
+          text: `⚠️ Lỗi: ${errorMsg}`,
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleSendSuggestion = (suggestion: string) => {
+    setChatInput("");
+    const userMsgId = `user-${Date.now()}`;
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: userMsgId,
+        sender: "user",
+        text: suggestion,
+        timestamp: new Date(),
+      },
+    ]);
+    setChatLoading(true);
+    
+    askAiCopilot(
+      boardId,
+      suggestion,
+      user?.id,
+      user?.fullName || user?.email
+    ).then(async (response) => {
+      const aiMsgId = `ai-${Date.now()}`;
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: aiMsgId,
+          sender: "ai",
+          text: response.reply,
+          timestamp: new Date(),
+          action: response.action,
+          actionPayload: response.payload,
+        },
+      ]);
+      if (response.action === "CREATE_TASK" && response.payload) {
+        await handleExecuteChatAction(response.payload);
+      }
+    }).catch((err: any) => {
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Không thể gửi câu hỏi đến AI Copilot. Vui lòng kiểm tra kết nối."
+      );
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          sender: "ai",
+          text: `⚠️ Lỗi: ${errorMsg}`,
+          timestamp: new Date(),
+        },
+      ]);
+    }).finally(() => {
+      setChatLoading(false);
+    });
+  };
+
   return (
     <>
       {/* Floating trigger button */}
@@ -448,7 +680,7 @@ export function BoardAiAssistant({
       {/* Panel */}
       {open && (
         <aside className="fixed z-30 flex flex-col overflow-hidden border border-slate-200 bg-slate-50/95 shadow-2xl shadow-slate-400/35 backdrop-blur-xl
-          bottom-24 right-6 w-96 max-w-[calc(100vw-1.5rem)] rounded-3xl h-[520px] max-h-[calc(100vh-8rem)]
+          bottom-24 right-6 w-96 max-w-[calc(100vw-1.5rem)] rounded-3xl h-[450px] max-h-[80vh]
           max-sm:top-16 max-sm:bottom-0 max-sm:right-0 max-sm:left-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:border-t max-sm:border-x-0 max-sm:border-b-0 max-sm:h-auto
         ">
           {/* Header */}
@@ -477,11 +709,11 @@ export function BoardAiAssistant({
           </header>
 
           {/* Navigation tabs */}
-          <div className="flex border-b border-slate-200 bg-white px-4 shrink-0 gap-4">
+          <div className="flex border-b border-slate-200 bg-white px-4 shrink-0 gap-4 overflow-x-auto scrollbar-none flex-nowrap">
             <button
               type="button"
               onClick={() => setActiveTab("priority")}
-              className={`py-2.5 text-xs font-semibold border-b-2 transition ${
+              className={`py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
                 activeTab === "priority"
                   ? "border-sky-500 text-sky-600 font-bold"
                   : "border-transparent text-slate-500 hover:text-slate-800"
@@ -492,7 +724,7 @@ export function BoardAiAssistant({
             <button
               type="button"
               onClick={() => setActiveTab("generate")}
-              className={`py-2.5 text-xs font-semibold border-b-2 transition ${
+              className={`py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
                 activeTab === "generate"
                   ? "border-sky-500 text-sky-600 font-bold"
                   : "border-transparent text-slate-500 hover:text-slate-800"
@@ -503,13 +735,24 @@ export function BoardAiAssistant({
             <button
               type="button"
               onClick={() => setActiveTab("analyze")}
-              className={`py-2.5 text-xs font-semibold border-b-2 transition ${
+              className={`py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
                 activeTab === "analyze"
                   ? "border-sky-500 text-sky-600 font-bold"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
               Phân tích tiến độ
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("chat")}
+              className={`py-2.5 text-xs font-semibold border-b-2 transition shrink-0 ${
+                activeTab === "chat"
+                  ? "border-sky-500 text-sky-600 font-bold"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Trò chuyện AI
             </button>
           </div>
 
@@ -572,35 +815,16 @@ export function BoardAiAssistant({
               {/* Results */}
               {result ? (
                 <section className="space-y-3">
-                  {/* Summary card */}
-                  <div className="rounded-2xl border border-violet-100 bg-violet-50/80 px-3 py-2.5 text-xs text-slate-700">
-                    <p className="mb-1 font-semibold text-violet-800">🤖 Tóm tắt từ AI</p>
-                    <p className="leading-relaxed text-slate-600">
-                      {result.summary || "Không có tóm tắt."}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-                      <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-slate-500">
-                        {result.model}
-                      </span>
-                      <span className="rounded-lg bg-sky-100 px-1.5 py-0.5 text-sky-600">
-                        Board này: {currentBoardHits} task
-                      </span>
-                      {generatedTime && (
-                        <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-slate-500">
-                          Lúc {generatedTime}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+
 
                   {/* Task list */}
-                  {result.recommendedTasks.length === 0 ? (
+                  {sortedTasks.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-6 text-center text-xs text-slate-400">
                       AI không trả về task nào cần ưu tiên.
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {result.recommendedTasks.map((item, index) => (
+                      {sortedTasks.map((item, index) => (
                         <RecommendationItem
                           key={item.taskId}
                           item={item}
@@ -772,7 +996,7 @@ export function BoardAiAssistant({
                 </div>
               </div>
             )
-          ) : (
+          ) : activeTab === "analyze" ? (
             /* Tab 3: Project Progress Analysis */
             <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto p-4">
               <div className="rounded-2xl border border-sky-100 bg-sky-50/80 px-3 py-2.5 text-xs text-slate-700 shrink-0">
@@ -867,6 +1091,89 @@ export function BoardAiAssistant({
                   </div>
                 </div>
               )}
+            </div>
+          ) : (
+            /* Tab 4: Interactive Project Copilot Chat */
+            <div className="flex-1 min-h-0 flex flex-col bg-slate-50">
+              {/* Chat bubbles container */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col min-h-0">
+                {chatMessages.map((msg) => {
+                  const isUser = msg.sender === "user";
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col max-w-[85%] ${
+                        isUser ? "self-end items-end" : "self-start items-start"
+                      }`}
+                    >
+                      <div
+                        className={`rounded-2xl px-3.5 py-2 text-xs shadow-xs leading-relaxed ${
+                          isUser
+                            ? "bg-slate-900 text-white rounded-tr-none"
+                            : "bg-white text-slate-800 border border-slate-200 rounded-tl-none whitespace-pre-wrap"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                      <span className="mt-1 text-[9px] text-slate-400 px-1">
+                        {msg.timestamp.toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  );
+                })}
+                {chatLoading && (
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-xs max-w-[85%] self-start shadow-xs shrink-0">
+                    <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                    <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                    <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Suggestions quick chips */}
+              <div className="flex flex-wrap gap-1.5 px-4 pb-2 pt-1 bg-slate-50 shrink-0">
+                {[
+                  "Liệt kê task quá hạn",
+                  "Ai làm thiết kế giao diện?",
+                  "Tạo task 'Kiểm thử API đăng nhập' gán cho Nguyễn Văn A",
+                ].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => handleSendSuggestion(s)}
+                    disabled={chatLoading}
+                    className="text-[10px] bg-white hover:bg-slate-100 disabled:opacity-50 text-slate-600 border border-slate-200 rounded-full px-2.5 py-1 font-medium transition cursor-pointer shrink-0"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chat Input Form */}
+              <form
+                onSubmit={handleChatSubmit}
+                className="flex items-center gap-2 border-t border-slate-200 bg-white p-3 shrink-0"
+              >
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={chatLoading}
+                  placeholder="Hỏi AI Copilot..."
+                  className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:bg-white min-w-0"
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white transition hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={14} />
+                </button>
+              </form>
             </div>
           )}
         </aside>
