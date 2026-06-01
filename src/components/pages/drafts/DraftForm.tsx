@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { FolderPlus, Loader2, ArrowRight } from "lucide-react";
 import { type Workspace } from "@/lib/api/workspace";
 import { type BoardDetails } from "@/lib/api/board";
@@ -88,8 +88,8 @@ export function DraftForm({
       <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
         <div>
           <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Tiêu đề công việc</label>
-          <input
-            type="text"
+          <textarea
+            rows={4}
             placeholder="Nhập tiêu đề bản nháp..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -146,7 +146,7 @@ export function DraftForm({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="text-[9px] font-bold text-slate-400 block mb-1 uppercase">Bảng công việc</label>
                   <select

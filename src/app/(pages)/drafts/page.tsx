@@ -310,7 +310,7 @@ export default function DraftsPage() {
             setListId(backup.listId || "");
             setAssigneeId(backup.assigneeId || "");
             setPriority(backup.priority || "MEDIUM");
-            setDueDate(backup.dueDate || "");
+            setDueDate(backup.dueDate || getTodayEndOfTheDayString());
             setEditingId(backup.editingId || null);
             
             // Resolve workspace & board dropdowns if backup has listId
@@ -452,7 +452,7 @@ export default function DraftsPage() {
     setDescription(draft.description);
     setAssigneeId(draft.assigneeId || "");
     setPriority(draft.priority || "MEDIUM");
-    setDueDate(draft.dueDate || "");
+    setDueDate(draft.dueDate || getTodayEndOfTheDayString());
     
     const targetListId = draft.listId || "";
     setListId(targetListId);

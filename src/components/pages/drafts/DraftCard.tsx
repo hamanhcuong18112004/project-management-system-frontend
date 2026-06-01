@@ -56,7 +56,7 @@ export function DraftCard({
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1 min-w-0 flex-1">
-            <h4 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition truncate">{draft.title}</h4>
+            <h4 className="font-bold text-slate-900 text-sm group-hover:text-indigo-600 transition break-words [word-break:break-word] whitespace-pre-wrap">{draft.title}</h4>
             <p className="text-xs text-slate-500 line-clamp-2">{draft.description}</p>
           </div>
           <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition shrink-0">
