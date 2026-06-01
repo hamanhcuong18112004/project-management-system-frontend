@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Pencil, Plus, SquarePen, WifiOff } from "lucide-react";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -97,6 +97,15 @@ function BoardTaskListColumnBase({
   const [taskTitle, setTaskTitle] = useState("");
   const [creatingTask, setCreatingTask] = useState(false);
   const user = useAuthStore((s) => s.user);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto resize textarea height based on content
+  useEffect(() => {
+    if (addingTask && textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [taskTitle, addingTask]);
 
   const activeFromThisList = activeDragId
     ? list.tasks.some((task) => createTaskDragId(task.id) === activeDragId)
@@ -325,11 +334,19 @@ function BoardTaskListColumnBase({
 
       {addingTask ? (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-          <input
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={taskTitle}
             onChange={(event) => setTaskTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void submitTask();
+              }
+            }}
             placeholder="Nhập tiêu đề thẻ"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
+            className="w-full resize-none overflow-hidden rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400"
           />
           <div className="mt-3 flex gap-2">
             <button
